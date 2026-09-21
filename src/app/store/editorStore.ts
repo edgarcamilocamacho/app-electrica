@@ -435,7 +435,8 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
         message('messages.invalidWire', undefined, 'warning');
         return;
       }
-      commitDoc(r.doc, { ...EMPTY_SELECTION, segments: r.segmentIds ?? [] });
+      // Sin selección: así un clic posterior con Mover toma solo el tramo clicado.
+      commitDoc(r.doc, EMPTY_SELECTION);
       set({ tool: { kind: 'wire', points: [] }, preview: null, message: null });
     };
 

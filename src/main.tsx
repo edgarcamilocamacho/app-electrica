@@ -11,6 +11,15 @@ const params = new URLSearchParams(window.location.search);
 const e2e = params.has('e2e');
 const manualClock = e2e ? new ManualClock() : undefined;
 
+if (e2e) {
+  // Los selectores nativos de File System Access no son automatizables: en E2E se prueba la ruta
+  // universal (descarga + <input type=file>).
+  // Viven en el prototipo de Window: se tapan con una propiedad propia indefinida.
+  for (const name of ['showSaveFilePicker', 'showOpenFilePicker']) {
+    Object.defineProperty(window, name, { value: undefined, configurable: true });
+  }
+}
+
 const services = createAppServices({
   clock: manualClock ?? realClock,
   // En E2E cada prueba arranca limpia salvo que pida probar el autoguardado.

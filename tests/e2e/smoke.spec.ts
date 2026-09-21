@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 test('la app carga en español', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?noversion');
   await expect(page).toHaveTitle('Simulador de control eléctrico');
+  await expect(page.getByTestId('mode')).toHaveText('EDICIÓN');
 });
 
 test('version.json expone el build', async ({ request }) => {

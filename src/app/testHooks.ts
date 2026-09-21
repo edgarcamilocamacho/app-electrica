@@ -14,6 +14,8 @@ export interface E2EHooks {
   loadJson(text: string): boolean;
   state(): { mode: string; tool: string; zoom: number; dirty: boolean };
   componentIdByRef(ref: string): string | undefined;
+  /** Zoom 100 % con el origen del mundo en el centro del lienzo. */
+  resetView(): void;
 }
 
 declare global {
@@ -43,6 +45,10 @@ export function installE2EHooks(store: EditorStore, clock: ManualClock): void {
     },
     componentIdByRef(ref) {
       return Object.values(docOf(store.getState()).components).find((c) => c.props.ref === ref)?.id;
+    },
+    resetView() {
+      const { width, height } = store.getState().canvasSize;
+      store.setState({ viewport: { zoom: 1, panX: width / 2, panY: height / 2 } });
     },
   };
 }

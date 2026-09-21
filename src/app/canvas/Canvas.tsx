@@ -5,6 +5,11 @@ import { useEditor, useEditorStore, useRegistry } from '../store/context';
 import { docOf, GRID_PX, screenToWorld, snap, selectionOfState } from '../store/editorStore';
 import { COLORS } from '../theme';
 import { Diagram, type Marker } from './Diagram';
+import type { Id } from '../../core/model/types';
+
+/** Referencias estables: `Diagram` está memoizado y un [] nuevo por render lo redibujaría entero. */
+const NO_IDS: readonly Id[] = [];
+const NO_MARKERS: readonly Marker[] = [];
 
 /**
  * Lienzo SVG (PLAN §6, ADR-01). Un único <svg>; el mundo se dibuja en unidades de grid dentro de un
@@ -102,6 +107,9 @@ export function Canvas() {
       return;
     }
     if (e.button !== 0) return;
+    // Sin eventos de mouse de compatibilidad: el lienzo no le roba el foco a un campo que la
+    // acción acaba de enfocar (p. ej. el texto de una anotación nueva).
+    e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     store.getState().pointerDown(toWorld(e), { shift: e.shiftKey });
   };
@@ -132,10 +140,11 @@ export function Canvas() {
   const gridStep = viewport.zoom < 0.6 ? 5 : 1;
 
   const shown = preview?.doc ?? doc;
-  const markers: Marker[] = useMemo(() => {
-    if (preview) return preview.violations.map((v) => ({ at: v.at, segmentIds: v.segmentIds }));
-    if (mode !== 'edit') return [];
-    return diagnostics.filter((d) => d.severity === 'blocking' && d.at).map((d) => ({ at: d.at!, segmentIds: d.segmentIds }));
+  const markers: readonly Marker[] = useMemo(() => {
+    if (preview) return preview.violations.length ? preview.violations.map((v) => ({ at: v.at, segmentIds: v.segmentIds })) : NO_MARKERS;
+    if (mode !== 'edit') return NO_MARKERS;
+    const blocking = diagnostics.filter((d) => d.severity === 'blocking' && d.at);
+    return blocking.length ? blocking.map((d) => ({ at: d.at!, segmentIds: d.segmentIds })) : NO_MARKERS;
   }, [preview, diagnostics, mode]);
 
   const cursor = spaceDown ? 'grab' : mode !== 'edit' ? 'pointer' : cursorFor(tool.kind, tool.kind === 'move' && !!tool.carry);
@@ -178,10 +187,10 @@ export function Canvas() {
           classes={classes}
           sim={sim}
           selection={selection}
-          active={preview?.active ?? []}
+          active={preview?.active ?? NO_IDS}
           invalid={preview ? !preview.ok : false}
           markers={markers}
-          fault={sim?.fault?.components ?? []}
+          fault={sim?.fault?.components ?? NO_IDS}
         />
         {tool.kind === 'wire' &&
           tool.points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={0.22} fill={COLORS.preview} />)}
