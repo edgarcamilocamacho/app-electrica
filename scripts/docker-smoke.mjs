@@ -1,12 +1,15 @@
 #!/usr/bin/env node
+/* global window -- se usa dentro de callbacks de page.evaluate, que corren en el navegador */
 /**
  * Prueba de humo sobre la imagen real (PLAN §16.3):
  *   1. construye la imagen con un BUILD_ID;
  *   2. la levanta en un puerto libre;
  *   3. verifica /healthz, el version.json y la política de caché por ruta;
- *   4. opcionalmente corre E2E contra el contenedor (--e2e).
+ *   4. opcionalmente corre E2E contra el contenedor (--e2e);
+ *   5. opcionalmente (--upgrade) reemplaza el contenedor por otro build con la página abierta y
+ *      verifica que el cliente detecta la versión nueva y, al recargar, carga los assets nuevos.
  *
- * Uso: node scripts/docker-smoke.mjs [--skip-build] [--e2e] [--keep]
+ * Uso: node scripts/docker-smoke.mjs [--skip-build] [--e2e] [--upgrade] [--keep]
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -104,6 +107,44 @@ try {
   }
 } finally {
   if (!args.has('--keep')) sh('docker', ['stop', container]);
+}
+
+if (args.has('--upgrade')) {
+  console.log('Actualización en caliente: reemplazar el contenedor por otro build…');
+  const upgradeId = `${buildId}-v2`;
+  const upgradeImage = `${image}-v2`;
+  execFileSync('docker', ['build', '--build-arg', `BUILD_ID=${upgradeId}`, '-t', upgradeImage, '.'], { stdio: 'inherit' });
+  const upPort = await freePort();
+  const upBase = `http://127.0.0.1:${upPort}`;
+  const { chromium } = await import('@playwright/test');
+  let first = sh('docker', ['run', '-d', '--rm', '-p', `${upPort}:8080`, image]);
+  let second;
+  const browser = await chromium.launch();
+  try {
+    await waitFor(`${upBase}/healthz`);
+    const page = await browser.newPage();
+    await page.goto(`${upBase}/?e2e=1`);
+    await page.waitForFunction(() => !!window.__e2e);
+    const scriptBefore = await page.locator('script[type="module"]').getAttribute('src');
+    sh('docker', ['stop', first]);
+    first = undefined;
+    second = sh('docker', ['run', '-d', '--rm', '-p', `${upPort}:8080`, upgradeImage]);
+    await waitFor(`${upBase}/healthz`);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.getByText('Hay una versión nueva').waitFor({ timeout: 10_000 });
+    check(true, 'el cliente abierto detecta el build nuevo');
+    await Promise.all([page.waitForEvent('load'), page.getByRole('button', { name: 'Recargar' }).click()]);
+    const scriptAfter = await page.locator('script[type="module"]').getAttribute('src');
+    check(!!scriptBefore && !!scriptAfter && scriptBefore !== scriptAfter, `tras recargar se cargan los assets nuevos (${scriptAfter})`);
+    const served = await (await fetch(`${upBase}/version.json`)).json();
+    check(served.buildId === upgradeId, `el servidor sirve el build nuevo (${upgradeId})`);
+  } catch (e) {
+    check(false, `actualización en caliente: ${e instanceof Error ? e.message : e}`);
+  } finally {
+    await browser.close();
+    if (first) sh('docker', ['stop', first]);
+    if (second) sh('docker', ['stop', second]);
+  }
 }
 
 if (failures.length) {

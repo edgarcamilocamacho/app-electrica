@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('una versión nueva desplegada se detecta y se ofrece recargar (spec §3.3)', async ({ page }) => {
-  let served = 'e2e';
+test('una versión nueva desplegada se detecta y se ofrece recargar (spec §3.3)', async ({ page, request }) => {
+  // El build real (dev, preview o contenedor) es el "actual"; después se simula un despliegue nuevo.
+  let served = ((await (await request.get('/version.json')).json()) as { buildId: string }).buildId;
   await page.route('**/version.json*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Cache-Control': 'no-store' }, body: JSON.stringify({ buildId: served }) }),
   );
