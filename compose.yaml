@@ -1,0 +1,11 @@
+# Uso local: docker compose up --build  →  http://localhost:8080
+services:
+  app:
+    build:
+      context: .
+      args:
+        BUILD_ID: ${BUILD_ID:-local}
+    image: simulador-control-electrico:latest
+    ports:
+      - "8080:8080"
+    restart: unless-stopped

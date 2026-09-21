@@ -1,0 +1,55 @@
+{
+  "name": "simulador-control-electrico",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Editor y simulador de circuitos de control eléctrico (client-side).",
+  "type": "module",
+  "packageManager": "pnpm@12.5.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc -b",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "e2e": "playwright test",
+    "e2e:chromium": "playwright test --project=chromium",
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "docker:build": "docker build --build-arg BUILD_ID=$(git rev-parse --short HEAD 2>/dev/null || echo dev) -t simulador-control-electrico .",
+    "docker:smoke": "node scripts/docker-smoke.mjs"
+  },
+  "dependencies": {
+    "immer": "^11.1.18",
+    "jspdf": "^4.2.1",
+    "nanoid": "^6.0.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "svg2pdf.js": "^2.8.1",
+    "zod": "^4.6.5",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "~1.63.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "jsdom": "^30.1.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.70.0",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}
