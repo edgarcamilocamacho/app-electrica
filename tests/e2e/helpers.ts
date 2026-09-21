@@ -93,7 +93,11 @@ export function connected(doc: DocJson, a: [string, string], b: [string, string]
   while (queue.length) {
     const v = queue.shift()!;
     if (v === goal) return true;
-    for (const n of adj.get(v) ?? []) if (!seen.has(n)) (seen.add(n), queue.push(n));
+    for (const n of adj.get(v) ?? []) {
+      if (seen.has(n)) continue;
+      seen.add(n);
+      queue.push(n);
+    }
   }
   return false;
 }
