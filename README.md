@@ -56,8 +56,10 @@ docker run --rm -p 8080:8080 simulador-control-electrico
 Prueba de humo sobre la imagen real (construye, levanta, verifica salud y cabeceras de caché):
 
 ```bash
-pnpm docker:smoke               # construye y verifica
-node scripts/docker-smoke.mjs --e2e   # además corre E2E (Chromium) contra el contenedor
+pnpm docker:smoke                         # construye y verifica
+node scripts/docker-smoke.mjs --e2e       # además corre los E2E (Chromium) contra el contenedor
+node scripts/docker-smoke.mjs --upgrade   # reemplaza el contenedor por otro build con la página
+                                          # abierta y verifica que el cliente se actualiza
 ```
 
 **HTTPS** lo resuelve el host o un proxy inverso delante del contenedor.
@@ -68,6 +70,14 @@ Si ponés un proxy o CDN delante, respetá las cabeceras de la imagen. En partic
 `/`, `/index.html` ni `/version.json`: son los que permiten que los clientes detecten una versión nueva
 y no queden atrapados en una vieja. Los archivos de `/assets/` sí se pueden cachear indefinidamente
 (su nombre cambia con su contenido).
+
+## Uso rápido
+
+1. **Ejemplos** → elegí un circuito, o armá uno desde la biblioteca de la izquierda.
+2. **C** traza cables (clic en un cable existente crea un punto de unión), **M** mueve (clic toma,
+   clic suelta), **B** borra, **R** rota. Todos los atajos: [docs/ATAJOS.md](docs/ATAJOS.md).
+3. **Simular** (E): pulsadores con mantener apretado, interruptores con un clic. Un corto o un lazo
+   que no se estabiliza detienen todo en modo ERROR hasta «Volver a editar».
 
 ## Estructura
 

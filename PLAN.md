@@ -1,6 +1,7 @@
 # Plan de implementación — Electrical Control Circuit Simulator
 
-> **Estado:** **v0.5 — LISTO PARA IMPLEMENTAR.** Incorpora las rondas 1, 2 y 3, y el agregado del contenedor. **Sin decisiones abiertas que afecten el código.**
+> **Implementación:** V1 completa — estado, limitaciones y desviaciones en [STATUS.md](STATUS.md).
+> **Estado del plan:** **v0.5 — LISTO PARA IMPLEMENTAR.** Incorpora las rondas 1, 2 y 3, y el agregado del contenedor. **Sin decisiones abiertas que afecten el código.**
 > **Fuente de verdad del producto:** [electrical_control_simulator_spec.md](electrical_control_simulator_spec.md), modificada por [RESPONSE_ROUND_1.md](RESPONSE_ROUND_1.md), [RESPONSE_ROUND_2.md](RESPONSE_ROUND_2.md) y [RESPONSE_ROUND_3.md](RESPONSE_ROUND_3.md). **Ante contradicción prevalece la ronda más reciente.**
 > **Protocolo de trabajo:** [AGENT_PROMPT.md](AGENT_PROMPT.md)
 > **Rondas de preguntas (todas cerradas):** [QUESTIONS1.md](QUESTIONS1.md) · [QUESTIONS2.md](QUESTIONS2.md) · [QUESTIONS3.md](QUESTIONS3.md)

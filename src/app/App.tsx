@@ -25,7 +25,7 @@ function Shell() {
   useKeyboard(store);
   useSimLoop(store);
   return (
-    <div className={`app mode-${mode}`}>
+    <div className={`app app--${mode}`}>
       <Toolbar />
       <Library />
       <main className="stage">
