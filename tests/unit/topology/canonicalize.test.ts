@@ -98,7 +98,7 @@ describe('canonicalize — paso 3: coincidencias dentro de una misma red', () =>
     expect(segs(out).filter((s) => s.a === junction.id || s.b === junction.id)).toHaveLength(3);
   });
 
-  it('normaliza solapamientos colineales de la misma red (RESPONSE_ROUND_2 §7)', () => {
+  it('normaliza solapamientos colineales de la misma red (R2 §7)', () => {
     const b = new DocBuilder();
     // A(0,0)–B(5,0) y C(2,0)–D(8,0), unidos además por abajo: misma red, superpuestos en 2..5.
     const [a] = b.wire({ x: 0, y: 0 }, { x: 5, y: 0 });

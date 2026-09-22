@@ -4,7 +4,7 @@ import type { Registry } from '../registry/types';
 
 /**
  * Vínculos lógicos bobina/timer ↔ contacto (spec §8.5, PLAN §11). Los contactos comunes se
- * vinculan solo a bobinas; los temporizados, solo a timers (RESPONSE_ROUND_3 Q3.4).
+ * vinculan solo a bobinas; los temporizados, solo a timers (R3 Q3.4).
  */
 export type LinkTargetKind = 'coil' | 'timer';
 

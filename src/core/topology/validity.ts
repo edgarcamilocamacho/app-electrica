@@ -6,7 +6,7 @@ import { WorkGraph } from './graph';
 import { GeometryIndex, type ConnectionPoint } from './spatialIndex';
 
 /**
- * Validador de ambigüedad geométrica (PLAN §5.5, RESPONSE_ROUND_2 §6, RESPONSE_ROUND_3 Q3.1).
+ * Validador de ambigüedad geométrica (PLAN §5.5, R2 §6, R3 Q3.1).
  * Dos redes distintas no pueden tocarse sin estar conectadas; solo el cruce perpendicular vale.
  *
  *   V1  solapamiento colineal entre segmentos de redes distintas

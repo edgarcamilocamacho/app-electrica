@@ -1,6 +1,6 @@
 /**
  * Prohíbe texto de interfaz escrito a mano en JSX: todo texto visible debe salir de t()
- * (app/i18n). Así la UI queda lista para otros idiomas (RESPONSE_ROUND_2 §26).
+ * (app/i18n). Así la UI queda lista para otros idiomas (R2 §26).
  */
 const LETTER = /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/;
 const TEXT_ATTRIBUTES = new Set(['aria-label', 'title', 'placeholder', 'alt']);

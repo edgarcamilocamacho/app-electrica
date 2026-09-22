@@ -11,15 +11,16 @@ código), en inglés salvo los mensajes de commit, que van en español.
 
 | Necesito… | Leer |
 |---|---|
-| Qué debe hacer el producto | [electrical_control_simulator_spec.md](electrical_control_simulator_spec.md), **modificada por** [RESPONSE_ROUND_1.md](RESPONSE_ROUND_1.md), [RESPONSE_ROUND_2.md](RESPONSE_ROUND_2.md) y [RESPONSE_ROUND_3.md](RESPONSE_ROUND_3.md). Ante contradicción **prevalece la ronda más reciente** |
-| Todas las decisiones en una tabla, con su origen | [PLAN.md](PLAN.md) §2 (etiquetas `[R2 §6]`, `[Técnica]`, `[Interpretación]`). Las interpretaciones I1–I18 están en RESPONSE_ROUND_3 §10 |
+| Qué debe hacer el producto | [electrical_control_simulator_spec.md](electrical_control_simulator_spec.md) (base) **+** [docs/DECISIONES.md](docs/DECISIONES.md) (decisiones de producto vigentes, por tema). Ante contradicción **prevalece DECISIONES.md** |
+| Qué significa una etiqueta `R2 §6`, `R3 Q3.4` o `I7` | Buscarla en la columna «Origen» de [docs/DECISIONES.md](docs/DECISIONES.md). Las decisiones técnicas están en [PLAN.md](PLAN.md) §2.2 |
 | Por qué el diseño es como es | [PLAN.md](PLAN.md) §4–§17 |
 | Estado, limitaciones, desviaciones, decisiones abiertas | [STATUS.md](STATUS.md) — **actualizarlo al cerrar cada tanda de trabajo** |
 | Mapa del código | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) |
 | Convenciones · glosario · atajos | [docs/CONVENCIONES.md](docs/CONVENCIONES.md) · [docs/GLOSARIO.md](docs/GLOSARIO.md) · [docs/ATAJOS.md](docs/ATAJOS.md) |
 
-No volver a preguntar decisiones ya cerradas en las rondas salvo que aparezca una contradicción técnica
-concreta. Lo que se decida sin producto se etiqueta `[Técnica]` y se anota en STATUS.md. Única
+No volver a preguntar decisiones ya registradas en DECISIONES.md salvo que aparezca una contradicción
+técnica concreta. Una decisión nueva de producto se agrega ahí con su origen; lo que se decida sin
+producto se etiqueta `[Técnica]` y se anota en STATUS.md. Única
 decisión abierta: proveedor de despliegue (no afecta el código).
 
 ## Comandos

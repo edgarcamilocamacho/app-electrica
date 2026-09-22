@@ -6,7 +6,7 @@ import type { Registry } from '../registry/types';
 import { computeViolations } from '../topology/validity';
 
 /**
- * Diagnósticos del documento (PLAN §8, RESPONSE_ROUND_2 §30.2). El núcleo devuelve códigos y
+ * Diagnósticos del documento (PLAN §8, R2 §30.2). El núcleo devuelve códigos y
  * parámetros; la UI los traduce. Simular exige cero bloqueantes.
  *
  * Un diagnóstico bloqueante NO es un error de simulación: impide arrancar. Un corto u oscilación

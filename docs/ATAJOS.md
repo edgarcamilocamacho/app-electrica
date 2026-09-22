@@ -1,6 +1,6 @@
 # Atajos de teclado
 
-Confirmados por producto (RESPONSE_ROUND_2 §31): **B, M, R, Esc, Ctrl+Z, Ctrl+Y, Ctrl+C, Ctrl+V**.
+Confirmados por producto ([DECISIONES.md](DECISIONES.md), R2 §31): **B, M, R, Esc, Ctrl+Z, Ctrl+Y, Ctrl+C, Ctrl+V**.
 El resto es propuesta técnica aceptada en la ronda 3 (I7). En macOS, **Cmd** reemplaza a **Ctrl**.
 Los atajos no actúan mientras el foco está en un campo de texto.
 

@@ -5,7 +5,7 @@ import { defaultRegistry } from '../core/registry/catalog';
 import { addAnnotation, drawWire, placeComponent } from '../core/topology/ops';
 
 /**
- * Circuitos de ejemplo (RESPONSE_ROUND_2 §30.4). Se construyen con las mismas operaciones del
+ * Circuitos de ejemplo (R2 §30.4). Se construyen con las mismas operaciones del
  * editor, así siempre respetan las reglas vigentes; también sirven de fixtures para los E2E.
  * Los textos visibles (nombre, anotaciones) llegan desde la UI para respetar el i18n.
  */

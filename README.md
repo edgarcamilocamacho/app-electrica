@@ -4,7 +4,7 @@ Editor gráfico de diagramas de control eléctrico (símbolos IEC, cableado orto
 lógica por eventos discretos. Corre íntegramente en el navegador; el servidor solo entrega archivos
 estáticos.
 
-- Especificación: [electrical_control_simulator_spec.md](electrical_control_simulator_spec.md)
+- Especificación: [electrical_control_simulator_spec.md](electrical_control_simulator_spec.md) · decisiones de producto vigentes (prevalecen sobre la spec): [docs/DECISIONES.md](docs/DECISIONES.md)
 - Plan de implementación: [PLAN.md](PLAN.md)
 - Estado actual: [STATUS.md](STATUS.md)
 - Contexto para sesiones de Claude Code: [CLAUDE.md](CLAUDE.md)

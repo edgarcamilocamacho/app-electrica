@@ -117,7 +117,7 @@ function landTerminal(g: WorkGraph, ctx: OpContext, t: FreeTerminal, filter: Sta
 }
 
 /**
- * Inserción en serie (RESPONSE_ROUND_3 Q3.3): si los dos terminales libres de un componente caen
+ * Inserción en serie (R3 Q3.3): si los dos terminales libres de un componente caen
  * sobre el mismo tramo recto, se elimina exactamente el pedazo entre ellos.
  */
 function tryInsertInSeries(

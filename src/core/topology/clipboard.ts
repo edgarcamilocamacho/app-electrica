@@ -18,7 +18,7 @@ import { finalizeEdit, rejected, type EditResult } from './ops/common';
 import { landFreeTerminals, splitSegmentAt } from './ops/connect';
 
 /**
- * Copiar / pegar / duplicar (RESPONSE_ROUND_2 §13, PLAN §12). El fragmento conserva exactamente
+ * Copiar / pegar / duplicar (R2 §13, PLAN §12). El fragmento conserva exactamente
  * la topología interna de lo seleccionado: un cable cuyo componente no se copió queda con extremo
  * libre en la copia.
  */
