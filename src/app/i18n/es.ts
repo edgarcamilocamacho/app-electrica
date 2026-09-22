@@ -125,6 +125,8 @@ export const es = {
     wireHint: 'Hacé clic en un tornillo para empezar el cable y en otro para terminarlo.',
     terminals: 'Bornes',
     wireCount: '{count} cables',
+    classicFile: 'Ese archivo es de la versión clásica y no se puede abrir en la vista de tablero.',
+    badFile: 'No se pudo abrir el archivo: no tiene el formato esperado.',
     diag: {
       WIRE_OVERLAP: 'Dos cables de redes distintas comparten recorrido en ({x}, {y}).',
       WIRE_ON_TERMINAL: 'Un cable pasa justo por un borne ajeno en ({x}, {y}).',

@@ -2,13 +2,17 @@
  * Interfaz del tablero: barra, biblioteca, lienzo, propiedades y barra de estado.
  * Todavía sin archivos ni exportación (G5).
  */
-import { useEffect, useMemo, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, type ReactElement } from 'react';
 import { useStore } from 'zustand';
 import { WIRE_COLORS, WIRE_GAUGES, type WireColor, type WireGauge } from '../../core/board/model';
 import type { DeviceDefinition } from '../../core/board/registry';
 import type { SimSnapshot } from '../../core/board/sim/engine';
 import { t } from '../i18n/t';
 import { BoardCanvas } from './BoardCanvas';
+import { exportBoard, openBoard, readBoardAutosave, saveBoard, writeBoardAutosave, type BoardFileState } from './files';
+import { emptyBoard } from '../../core/board/model';
+import { browserStorage } from '../../platform/storage';
+import { starterBoard } from '../../examples/board';
 import { docOf, selectionOf, SPEEDS, type BoardStore, type BoardToolKind } from './store';
 import { WIRE_TONES } from './theme';
 import './board.css';
@@ -23,6 +27,7 @@ const TOOL_NAMES: Record<BoardToolKind, string> = {
 
 export function BoardApp({ store }: { store: BoardStore }): ReactElement {
   const state = useStore(store);
+  const file = useRef<BoardFileState>({ name: '' });
   const doc = docOf(state);
   const selection = selectionOf(state);
   const editing = state.mode === 'edit';
@@ -94,6 +99,19 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
   }, [store]);
 
   useEffect(() => {
+    const saved = readBoardAutosave(browserStorage);
+    if (saved) {
+      file.current = { name: saved.name };
+      store.getState().loadDocument(saved.doc);
+    }
+  }, [store]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => writeBoardAutosave(browserStorage, doc, file.current.name), 600);
+    return () => window.clearTimeout(id);
+  }, [doc]);
+
+  useEffect(() => {
     if (state.mode !== 'simulating') return;
     let raf = 0;
     const t0 = performance.now();
@@ -137,6 +155,74 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
             <span className="tablero__key">{TOOL_KEYS[tool]}</span>
           </button>
         ))}
+        <button
+          type="button"
+          className="tablero__btn"
+          onClick={() => {
+            file.current = { name: '' };
+            store.getState().loadDocument(emptyBoard({ name: '', createdAt: new Date().toISOString(), modifiedAt: new Date().toISOString() }));
+          }}
+        >
+          {t('menu.new')}
+        </button>
+        <button
+          type="button"
+          className="tablero__btn"
+          onClick={() => {
+            void (async () => {
+              const result = await openBoard();
+              if (!result) return;
+              if (!result.ok) {
+                window.alert(result.code === 'CLASSIC_FILE' ? t('board.classicFile') : t('board.badFile'));
+                return;
+              }
+              file.current = { name: result.name, ...(result.handle ? { handle: result.handle } : {}) };
+              store.getState().loadDocument(result.doc);
+            })();
+          }}
+        >
+          {t('menu.open')}
+        </button>
+        <button
+          type="button"
+          className="tablero__btn"
+          onClick={() => {
+            void (async () => {
+              const saved = await saveBoard(store, file.current);
+              if (saved) file.current = { name: saved.name, ...(saved.handle ? { handle: saved.handle } : {}) };
+            })();
+          }}
+        >
+          {t('menu.save')}
+        </button>
+        <button
+          type="button"
+          className="tablero__btn"
+          onClick={() => {
+            void exportBoard(store, 'png', file.current.name || t('app.untitled'));
+          }}
+        >
+          {t('menu.exportPng')}
+        </button>
+        <button
+          type="button"
+          className="tablero__btn"
+          onClick={() => {
+            void exportBoard(store, 'pdf', file.current.name || t('app.untitled'));
+          }}
+        >
+          {t('menu.exportPdf')}
+        </button>
+        <button
+          type="button"
+          className="tablero__btn"
+          onClick={() => {
+            file.current = { name: '' };
+            store.getState().loadDocument(starterBoard({ ids: { next: (p) => `${p}${Math.random().toString(36).slice(2, 8)}` }, registry: state.registry }));
+          }}
+        >
+          {t('toolbar.examples')}
+        </button>
         <span className="tablero__sep" />
         <button type="button" className="tablero__btn" disabled={!state.canUndo()} onClick={() => store.getState().undo()}>
           {t('toolbar.undo')}
