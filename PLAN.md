@@ -74,6 +74,7 @@ conectividad nunca geométrica, cargas que sensan, las tres reglas de cortocircu
 | Arrastrar cables | **Sí**: un tramo solo se desplaza en perpendicular, como con Mover | R4 §2 | §6.1 |
 | Mover con el teclado | Flechas desplazan lo tomado (`Mayús`: 5), `Enter` suelta | R4 §3 | §6.2 |
 | Barra de herramientas | Cada herramienta muestra su tecla al lado del ícono | R4 §4 | — |
+| Modo oscuro | Intercambiable desde la barra; por defecto sigue al sistema. Por ahora solo la interfaz: el lienzo y la exportación siguen claros [Técnica] | R4 §5 | — |
 
 ---
 

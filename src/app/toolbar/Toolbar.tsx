@@ -7,6 +7,7 @@ import { useEditor, useEditorStore } from '../store/context';
 import { SPEEDS, type Speed, type ToolKind } from '../store/editorStore';
 import { Icons } from './icons';
 import { Menu } from './Menu';
+import { ThemeToggle } from './ThemeToggle';
 
 const TOOLS: { kind: ToolKind; key: string; icon: keyof typeof Icons }[] = [
   { kind: 'select', key: 'S', icon: 'select' },
@@ -109,6 +110,7 @@ export function Toolbar() {
         <button type="button" className="tb-button" title={t('toolbar.fit')} aria-label={t('toolbar.fit')} data-testid="fit-view" onClick={() => s().fitView()}>
           {Icons.fit}
         </button>
+        <ThemeToggle />
       </div>
 
       <div className="tb-spacer" />

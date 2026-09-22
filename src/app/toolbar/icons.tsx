@@ -29,4 +29,6 @@ export const Icons = {
   examples: I('M4 5h16v14H4zM4 9h16M9 9v10'),
   export: I('M12 3v12M7 10l5 5 5-5M5 21h14'),
   chevron: I('M6 9l6 6 6-6'),
+  moon: I('M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z'),
+  sun: I('M12 8a4 4 0 110 8 4 4 0 010-8zM12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4'),
 } as const;

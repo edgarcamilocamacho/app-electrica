@@ -36,6 +36,8 @@ export const es = {
     history: 'Historial',
     view: 'Vista',
     simulation: 'Simulación',
+    themeDark: 'Modo oscuro',
+    themeLight: 'Modo claro',
   },
   menu: {
     new: 'Nuevo',
