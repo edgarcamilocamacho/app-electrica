@@ -9,6 +9,7 @@ import {
 } from '../../src/core/board/model';
 import { defaultDeviceProps, findTerminal } from '../../src/core/board/registry';
 import { autoRoute, bendsOf } from '../../src/core/board/wireGeometry';
+import { createCounterIdGen, type IdGen } from '../../src/core/model/ids';
 import type { Point } from '../../src/core/model/types';
 
 const META = {
@@ -27,12 +28,11 @@ export interface WireOptions {
 
 export class BoardBuilder {
   doc: BoardDocument = emptyBoard(META);
-  private devices = 0;
-  private wires = 0;
+  /** Mismo generador que usan las operaciones en los tests, para que no colisionen los ids. */
+  readonly ids: IdGen = createCounterIdGen();
 
   device(type: string, x: number, y: number, props: Record<string, unknown> = {}): string {
-    this.devices += 1;
-    const id = `d${this.devices}`;
+    const id = this.ids.next('d');
     const def = registry.require(type);
     this.doc = {
       ...this.doc,
@@ -46,8 +46,7 @@ export class BoardBuilder {
 
   /** Cable entre dos bornes. Sin codos explícitos usa la ruta automática. */
   wire(a: TerminalRef, b: TerminalRef, options: WireOptions = {}): string {
-    this.wires += 1;
-    const id = `w${this.wires}`;
+    const id = this.ids.next('w');
     const bends = options.bends ?? bendsOf(this.autoRouteBetween(a, b));
     this.doc = {
       ...this.doc,
