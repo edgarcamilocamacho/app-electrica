@@ -44,6 +44,7 @@ export async function buildBoardSvg(store: BoardStore): Promise<ExportedSvg> {
       doc,
       registry: state.registry,
       sim: state.mode === 'edit' ? null : state.sim,
+      background: BOARD_PALETTE.paperExport,
     }),
   );
   const markup =

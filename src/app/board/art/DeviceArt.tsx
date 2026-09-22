@@ -8,11 +8,12 @@ import type { DeviceInstance } from '../../../core/board/model';
 import { terminalKey } from '../../../core/board/model';
 import type { DeviceDefinition, TerminalDef } from '../../../core/board/registry';
 import type { DeviceView } from '../../../core/board/sim/engine';
-import { BOARD_PALETTE, BOARD_STROKE, BODY_STROKE } from '../theme';
+import { BOARD_PALETTE, BOARD_STROKE, BODY_STROKE, FONT_FAMILY, LEAD, SMALL_FONT } from '../theme';
 import {
   Body,
   BulbSymbol,
   Caption,
+  Changeover,
   Coil,
   Conductor,
   Contact,
@@ -21,7 +22,8 @@ import {
   ManualActuator,
   MechLink,
   Screw,
-  Tag,
+  TagBlock,
+  TerminalLabel,
   WireCount,
 } from './primitives';
 
@@ -46,6 +48,16 @@ const closedOf = (view: DeviceView | undefined, deviceId: string, a: string, b: 
 const tagOf = (device: DeviceInstance): string => (typeof device.props.ref === 'string' ? device.props.ref : '');
 const labelOf = (device: DeviceInstance): string => (typeof device.props.label === 'string' ? device.props.label : '');
 
+/** El preset del temporizador, para mostrarlo en la carátula también mientras se edita. */
+const presetOf = (device: DeviceInstance): number =>
+  typeof device.props.presetMs === 'number' ? device.props.presetMs : 0;
+
+/** La leyenda del aparato, solo si el usuario escribió una. */
+const captionOf = (device: DeviceInstance): { caption?: string } => {
+  const label = labelOf(device);
+  return label ? { caption: label } : {};
+};
+
 /** Columnas de la fila de arriba, ordenadas de izquierda a derecha. */
 const topRow = (def: DeviceDefinition): readonly TerminalDef[] =>
   def.terminals.filter((t) => t.dir === 'N').sort((a, b) => a.offset.x - b.offset.x);
@@ -58,10 +70,19 @@ export function DeviceArt({ device, def, view, wireCounts, layer = 'both' }: Dev
         def.terminals.map((t) => (
           <g key={t.id}>
             <title>{t.label}</title>
+            {t.label !== t.id && (
+              <TerminalLabel
+                x={t.offset.x}
+                y={t.offset.y}
+                text={t.label}
+                side={t.dir === 'N' ? 'top' : 'bottom'}
+              />
+            )}
             <Screw x={t.offset.x} y={t.offset.y} size={t.screw} text={t.id} />
             <WireCount
               x={t.offset.x}
               y={t.offset.y}
+              side={t.dir === 'N' ? 'top' : 'bottom'}
               count={wireCounts?.get(terminalKey({ deviceId: device.id, terminalId: t.id })) ?? 0}
             />
           </g>
@@ -84,68 +105,65 @@ function internals(device: DeviceInstance, def: DeviceDefinition, view: DeviceVi
   return <ManualArt device={device} def={def} view={view} />;
 }
 
-/** Acometida: poste de la calle con su cruceta, aisladores y la bajada a la bornera [R5 §2]. */
+/**
+ * Acometida: la bajada del poste de la calle [R5 §2]. Un aislador por borne, en su misma columna,
+ * para que las bajadas queden rectas y no se crucen.
+ */
 function SupplyArt({ device, def }: { device: DeviceInstance; def: DeviceDefinition }): ReactElement {
   const drops = def.terminals.filter((t) => t.dir === 'S');
   const top = def.bounds.minY;
-  const armY = top + 1.6;
-  const arm2Y = top + 3.4;
+  const armY = top + 2.4;
+  const braceY = top + 4.6;
   const box = { ...def.bounds, minY: def.bounds.maxY - 3.6 };
-  const label = labelOf(device);
+  const left = def.bounds.minX + 0.9;
+  const right = def.bounds.maxX - 0.9;
   return (
     <g>
-      {/* Poste, apenas cónico. */}
+      {/* Poste, apenas cónico, hasta la bornera. */}
       <path
-        d={`M-0.75 ${top}h1.5L1.1 ${box.minY}h-2.2z`}
+        d={`M-0.5 ${top}h1L0.95 ${box.minY}h-1.9z`}
         fill={P.bodyShade}
         stroke={P.bodyEdge}
-        strokeWidth={BOARD_STROKE}
+        strokeWidth={BODY_STROKE}
       />
-      {/* Crucetas con sus aisladores. */}
-      {[armY, arm2Y].map((y, i) => (
-        <g key={y}>
-          <rect
-            x={def.bounds.minX + (i === 0 ? 0.6 : 1.8)}
-            y={y - 0.28}
-            width={def.bounds.maxX - def.bounds.minX - (i === 0 ? 1.2 : 3.6)}
-            height={0.56}
-            rx={0.2}
-            fill={P.metal}
+      {/* Tornapuntas de la cruceta. */}
+      <Conductor
+        d={`M-0.9 ${braceY}L${left + 0.6} ${armY + 0.3}M0.9 ${braceY}L${right - 0.6} ${armY + 0.3}`}
+        color={P.bodyEdge}
+        width={BOARD_STROKE * 0.9}
+      />
+      {/* Cruceta. */}
+      <rect
+        x={left}
+        y={armY - 0.3}
+        width={right - left}
+        height={0.6}
+        rx={0.22}
+        fill={P.metal}
+        stroke={P.bodyEdge}
+        strokeWidth={BOARD_STROKE * 0.8}
+      />
+      {drops.map((t) => (
+        <g key={t.id}>
+          {/* Aislador de campana sobre la cruceta. */}
+          <path
+            d={`M${t.offset.x - 0.45} ${armY - 0.3}v-0.5a0.45 0.45 0 0 1 0.9 0v0.5z`}
+            fill={P.screw}
             stroke={P.bodyEdge}
             strokeWidth={BOARD_STROKE * 0.7}
           />
+          {/* Bajada recta hasta su borne. */}
+          <Conductor d={`M${t.offset.x} ${armY - 0.8}V${t.offset.y - LEAD}`} width={BOARD_STROKE * 1.2} />
         </g>
       ))}
-      {drops.map((t, i) => {
-        const y = i % 2 === 0 ? armY : arm2Y;
-        return (
-          <g key={t.id}>
-            <rect
-              x={t.offset.x - 0.32}
-              y={y - 1.1}
-              width={0.64}
-              height={0.9}
-              rx={0.25}
-              fill={P.screw}
-              stroke={P.sym}
-              strokeWidth={BOARD_STROKE * 0.7}
-            />
-            {/* La bajada cuelga con una curva suave hasta la bornera. */}
-            <path
-              d={`M${t.offset.x} ${y - 1.1}C${t.offset.x} ${y + 3} ${t.offset.x + (t.offset.x < 0 ? -1.4 : 1.4)} ${
-                box.minY - 3
-              } ${t.offset.x} ${t.offset.y - 1}`}
-              fill="none"
-              stroke={P.sym}
-              strokeWidth={BOARD_STROKE * 1.2}
-              strokeLinecap="round"
-            />
-          </g>
-        );
-      })}
       <Body bounds={box} />
-      <Tag x={def.bounds.minX + 1.4} y={box.minY + 1.5} text={tagOf(device)} anchor="start" />
-      {label && <Caption x={def.bounds.maxX - 1.2} y={box.minY - 1} text={label} anchor="end" />}
+      <TagBlock
+        x={def.bounds.minX + 1}
+        y={box.minY + 1.5}
+        tag={tagOf(device)}
+        {...captionOf(device)}
+        anchor="start"
+      />
     </g>
   );
 }
@@ -154,7 +172,7 @@ function SupplyArt({ device, def }: { device: DeviceInstance; def: DeviceDefinit
 function BreakerArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
   const columns = topRow(def);
   const bottom = def.terminals.filter((t) => t.dir === 'S').sort((a, b) => a.offset.x - b.offset.x);
-  const leverX = def.bounds.maxX - 1.3;
+  const leverX = def.bounds.maxX - 1.5;
   return (
     <g>
       <Body bounds={def.bounds} />
@@ -163,15 +181,21 @@ function BreakerArt({ device, def, view }: { device: DeviceInstance; def: Device
         const closed = closedOf(view, device.id, t.id, b.id, false);
         return (
           <g key={t.id}>
-            <Conductor d={`M${t.offset.x} ${t.offset.y + 1.4}V-2.2`} />
+            <Conductor d={`M${t.offset.x} ${t.offset.y + LEAD}V-2.2`} />
             <Contact x={t.offset.x} yTop={-2.2} yBottom={2.2} normal="NO" closed={closed} />
-            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - 1.4}`} />
+            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - LEAD}`} />
           </g>
         );
       })}
-      <MechLink d={`M${columns[0]!.offset.x - 1} 0H${leverX - 0.9}`} />
+      <MechLink d={`M${columns[0]!.offset.x - 0.8} 0H${leverX - 0.9}`} />
       <Lever x={leverX} y={0} on={view?.actuated ?? false} />
-      <Tag x={def.bounds.minX + 1.2} y={def.bounds.maxY - 3.2} text={tagOf(device)} anchor="start" />
+      <TagBlock
+        x={columns[0]!.offset.x - 1.5}
+        y={4.6}
+        tag={tagOf(device)}
+        {...captionOf(device)}
+        anchor="end"
+      />
     </g>
   );
 }
@@ -190,19 +214,20 @@ function ContactorArt({ device, def, view }: { device: DeviceInstance; def: Devi
   const a2 = at('A2');
   const on = view?.energized === true;
   // Bobina chica, entre A1 y A2 y bien arriba, para no taparle la columna a ningún borne.
-  const coil = { x: (a1.offset.x + a2.offset.x) / 2 - 0.9, y: a1.offset.y + 0.9, w: 1.8, h: 1.3 };
+  const coil = { x: (a1.offset.x + a2.offset.x) / 2 - 0.9, y: a1.offset.y + 1.1, w: 1.8, h: 1.3 };
+  const lastX = at('21').offset.x;
   return (
     <g>
       <Body bounds={def.bounds} />
-      {poles.map(([top, bot, power, normal]) => {
-        const t = at(top);
-        const b = at(bot);
-        const closed = closedOf(view, device.id, top, bot, normal === 'NC');
+      {poles.map(([topId, botId, power, normal]) => {
+        const t = at(topId);
+        const b = at(botId);
+        const closed = closedOf(view, device.id, topId, botId, normal === 'NC');
         return (
-          <g key={top}>
-            <Conductor d={`M${t.offset.x} ${t.offset.y + 1.5}V-2.2`} />
+          <g key={topId}>
+            <Conductor d={`M${t.offset.x} ${t.offset.y + LEAD}V-2.2`} />
             <Contact x={t.offset.x} yTop={-2.2} yBottom={2.2} normal={normal} closed={closed} power={power} />
-            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - 1.5}`} />
+            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - LEAD}`} />
           </g>
         );
       })}
@@ -210,9 +235,13 @@ function ContactorArt({ device, def, view }: { device: DeviceInstance; def: Devi
       <Conductor d={`M${a2.offset.x} ${a2.offset.y + 1}V${coil.y + coil.h / 2}H${coil.x + coil.w}`} />
       <Coil x={coil.x} y={coil.y} w={coil.w} h={coil.h} on={on} />
       {/* El vínculo mecánico cruza las cuchillas; no baja desde la bobina para no tapar bornes. */}
-      <MechLink d={`M${def.bounds.minX + 1.2} 0H${def.bounds.maxX - 1.2}`} />
-      <Tag x={2} y={def.bounds.maxY - 3.4} text={tagOf(device)} anchor="start" />
-      <Caption x={2} y={def.bounds.maxY - 1.9} text={labelOf(device)} anchor="start" />
+      <MechLink d={`M${at('1').offset.x - 1} 0H${lastX + 1}`} />
+      <TagBlock
+        x={(lastX + 0.8 + def.bounds.maxX) / 2}
+        y={-0.2}
+        tag={tagOf(device)}
+        {...captionOf(device)}
+      />
     </g>
   );
 }
@@ -234,11 +263,11 @@ function ManualArt({ device, def, view }: { device: DeviceInstance; def: DeviceD
   return (
     <g>
       <Body bounds={def.bounds} />
-      <Conductor d={`M${top.offset.x} ${top.offset.y + 1.4}V-2.2`} />
+      <Conductor d={`M${top.offset.x} ${top.offset.y + LEAD}V-2.2`} />
       <Contact x={0} yTop={-2.2} yBottom={2.2} normal={contact.normal} closed={closed} />
-      <Conductor d={`M${bottom.offset.x} 2.2V${bottom.offset.y - 1.4}`} />
-      <ManualActuator x={2.2} y={0} kind={kind} actuated={view?.actuated ?? false} />
-      <Tag x={def.bounds.minX + 0.8} y={def.bounds.maxY - 3.2} text={tagOf(device)} anchor="start" />
+      <Conductor d={`M${bottom.offset.x} 2.2V${bottom.offset.y - LEAD}`} />
+      <ManualActuator x={def.bounds.maxX - 1.5} y={0} kind={kind} actuated={view?.actuated ?? false} />
+      <TagBlock x={def.bounds.minX + 0.7} y={4.6} tag={tagOf(device)} {...captionOf(device)} anchor="start" />
     </g>
   );
 }
@@ -253,82 +282,132 @@ function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDe
   const at = (id: string) => def.terminals.find((t) => t.id === id)!;
   const timer = actuator?.kind === 'timer' ? actuator.timerType : undefined;
   const on = timer ? view?.timer?.output === true : view?.energized === true;
-
-  const commons = [...new Set(def.internals.contacts.map((c) => c.a))];
   const coilPins = actuator && actuator.kind !== 'manual' ? actuator.terminals : undefined;
 
-  // La bobina va en la banda de abajo, entre sus dos pines, corrida si le tocaría una columna ocupada.
-  let coil: { x: number; y: number; w: number; h: number } | undefined;
-  if (coilPins) {
-    const a = at(coilPins[0]);
-    const b = at(coilPins[1]);
-    const busy = commons.map((id) => at(id).offset.x);
-    let cx = (a.offset.x + b.offset.x) / 2;
-    if (busy.some((x) => Math.abs(x - cx) < 2)) cx -= 2;
-    coil = { x: cx - 1.2, y: def.bounds.maxY - 2.8, w: 2.4, h: 1.5 };
-  }
+  // Los contactos, arriba y pegados a sus bornes; los comunes suben por columnas limpias [maqueta].
+  const FIXED_Y = -5.4;
+  const PIVOT_Y = -2.2;
+  const SPREAD = 1;
+  const LINK_Y = (FIXED_Y + PIVOT_Y) / 2;
+
+  const commons = [...new Set(def.internals.contacts.map((c) => c.a))];
+  const poles = commons.map((common) => {
+    const no = def.internals.contacts.find((c) => c.a === common && c.normal === 'NO');
+    const nc = def.internals.contacts.find((c) => c.a === common && c.normal === 'NC');
+    if (!no || !nc) return undefined;
+    const noT = at(no.b);
+    const ncT = at(nc.b);
+    const pivotX = (noT.offset.x + ncT.offset.x) / 2;
+    const noSide = noT.offset.x >= ncT.offset.x ? 1 : -1;
+    return {
+      common,
+      noT,
+      ncT,
+      pivotX,
+      noSide,
+      closed: closedOf(view, device.id, common, no.b, false),
+    };
+  });
+
+  // La bobina se centra entre sus pines, pero corrida al carril libre entre dos columnas: así
+  // ninguna columna de común la atraviesa.
+  const gridX0 = Math.min(...def.terminals.map((t) => t.offset.x));
+  const lane = (x: number): number => gridX0 + 2 + Math.round((x - gridX0 - 2) / 4) * 4;
+  const coilCx = coilPins ? lane((at(coilPins[0]).offset.x + at(coilPins[1]).offset.x) / 2) : 0;
+  const coil = { x: coilCx - 1.3, y: 4.5, w: 2.6, h: 1.7 };
+  const pivots = poles.flatMap((pole) => (pole ? [pole.pivotX] : []));
 
   return (
     <g>
       <Body bounds={def.bounds} />
-      {coil && coilPins && (
+      {coilPins && (
         <g>
-          <Conductor d={`M${at(coilPins[0]).offset.x} ${at(coilPins[0]).offset.y - 1.2}V${coil.y + coil.h / 2}H${coil.x}`} />
           <Conductor
-            d={`M${at(coilPins[1]).offset.x} ${at(coilPins[1]).offset.y - 1.2}V${coil.y + coil.h / 2}H${coil.x + coil.w}`}
+            d={`M${at(coilPins[0]).offset.x} ${at(coilPins[0]).offset.y - LEAD}V${coil.y + coil.h / 2}H${coil.x}`}
+          />
+          <Conductor
+            d={`M${at(coilPins[1]).offset.x} ${at(coilPins[1]).offset.y - LEAD}V${coil.y + coil.h / 2}H${
+              coil.x + coil.w
+            }`}
           />
           <Coil x={coil.x} y={coil.y} w={coil.w} h={coil.h} on={on} {...(timer ? { timer } : {})} />
         </g>
       )}
-      {commons.map((common) => {
-        const no = def.internals.contacts.find((c) => c.a === common && c.normal === 'NO');
-        const nc = def.internals.contacts.find((c) => c.a === common && c.normal === 'NC');
-        if (!no || !nc) return null;
-        const commonT = at(common);
-        const noT = at(no.b);
-        const ncT = at(nc.b);
-        const fixedY = def.bounds.minY + 4.6;
-        const pivotY = fixedY + 2.4;
-        const pivotX = (noT.offset.x + ncT.offset.x) / 2;
-        const closed = closedOf(view, device.id, common, no.b, false);
-        const tipX = closed ? noT.offset.x : ncT.offset.x;
-        return (
-          <g key={common}>
-            <Conductor d={`M${commonT.offset.x} ${commonT.offset.y - 1.2}V${pivotY}H${pivotX}`} />
-            <Conductor d={`M${noT.offset.x} ${noT.offset.y + 1.2}V${fixedY}`} />
-            <Conductor d={`M${ncT.offset.x} ${ncT.offset.y + 1.2}V${fixedY}`} />
-            {/* Gancho del contacto NC. */}
+      {poles.map((pole) =>
+        pole ? (
+          <g key={pole.common}>
+            <Conductor d={`M${at(pole.common).offset.x} ${8 - LEAD}V${PIVOT_Y}H${pole.pivotX}`} />
             <Conductor
-              d={`M${ncT.offset.x} ${fixedY}H${ncT.offset.x + (ncT.offset.x > pivotX ? 0.9 : -0.9)}`}
+              d={`M${pole.noT.offset.x} ${pole.noT.offset.y + LEAD}V${FIXED_Y}H${pole.pivotX + pole.noSide * SPREAD}`}
             />
-            <circle cx={pivotX} cy={pivotY} r={0.14} fill={P.sym} />
-            <Conductor d={`M${pivotX} ${pivotY}L${tipX} ${fixedY}`} width={BOARD_STROKE * 1.3} />
+            <Conductor
+              d={`M${pole.ncT.offset.x} ${pole.ncT.offset.y + LEAD}V${FIXED_Y}H${pole.pivotX - pole.noSide * SPREAD}`}
+            />
+            <Changeover
+              pivotX={pole.pivotX}
+              pivotY={PIVOT_Y}
+              fixedY={FIXED_Y}
+              spread={SPREAD}
+              toRight={(pole.closed ? pole.noSide : -pole.noSide) > 0}
+              {...(timer ? { delay: timer } : {})}
+            />
           </g>
-        );
-      })}
-      {/* Vínculo mecánico: una sola línea de puntos que cruza las cuchillas. */}
+        ) : null,
+      )}
+      {/* Vínculo mecánico: cruza las cuchillas y baja a la bobina. */}
       <MechLink
-        d={`M${def.bounds.minX + 1.2} ${def.bounds.minY + 6.4}H${def.bounds.maxX - (timer ? 5.4 : 1.2)}${
-          coil ? `M${coil.x + coil.w / 2} ${coil.y}V${def.bounds.minY + 6.4}` : ''
+        d={`M${Math.min(...pivots, coilCx) - 1} ${LINK_Y}H${Math.max(...pivots, coilCx) + 1}${
+          coilPins ? `M${coilCx} ${LINK_Y}V${coil.y}` : ''
         }`}
       />
-      {timer && <TimerFace view={view} x={def.bounds.maxX - 2.6} />}
-      <Tag x={def.bounds.minX + 1} y={def.bounds.minY + 2.4} text={tagOf(device)} anchor="start" />
+      {timer && <TimerFace view={view} preset={presetOf(device)} x={def.bounds.maxX - 3.4} />}
+      <TagBlock x={lane(0)} y={1.9} tag={tagOf(device)} {...captionOf(device)} />
     </g>
   );
 }
 
-/** Carátula del temporizador: el tiempo que va corriendo y el testigo de salida. */
-function TimerFace({ view, x }: { view?: DeviceView; x: number }): ReactElement {
+/** Carátula del temporizador: el tiempo que falta y el anillo de avance del preset. */
+function TimerFace({ view, preset, x }: { view?: DeviceView; preset: number; x: number }): ReactElement {
   const timer = view?.timer;
-  const seconds = timer ? Math.max(0, timer.presetMs - timer.elapsedMs) / 1000 : undefined;
+  const fraction = timer && timer.presetMs > 0 ? Math.min(1, timer.elapsedMs / timer.presetMs) : 0;
+  const seconds = timer ? Math.max(0, timer.presetMs - timer.elapsedMs) / 1000 : preset / 1000;
+  const r = 1.5;
+  const circumference = 2 * Math.PI * r;
   return (
     <g>
-      <circle cx={x} cy={0} r={1.7} fill={P.bodyShade} stroke={P.bodyEdge} strokeWidth={BOARD_STROKE} />
-      <circle cx={x} cy={0} r={0.5} fill={timer?.output ? '#f59e0b' : P.screw} stroke={P.sym} strokeWidth={0.08} />
-      {seconds !== undefined && (
-        <Caption x={x} y={3.2} text={`${seconds.toFixed(1)} s`} />
-      )}
+      <circle cx={x} cy={-0.6} r={r + 0.7} fill={P.bodyShade} stroke={P.bodyEdge} strokeWidth={BOARD_STROKE} />
+      <circle cx={x} cy={-0.6} r={r} fill="none" stroke={P.screw} strokeWidth={0.35} />
+      <circle
+        cx={x}
+        cy={-0.6}
+        r={r}
+        fill="none"
+        stroke={P.selection}
+        strokeWidth={0.35}
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - fraction)}
+        transform={`rotate(-90 ${x} -0.6)`}
+      />
+      <text
+        x={x}
+        y={-0.2}
+        textAnchor="middle"
+        fontSize={SMALL_FONT * 1.15}
+        fontFamily={FONT_FAMILY}
+        fontWeight={700}
+        fill={P.ink}
+      >
+        {seconds.toFixed(1)}
+      </text>
+      <Caption x={x} y={2.6} text="s" />
+      <circle
+        cx={x}
+        cy={-4.4}
+        r={0.45}
+        fill={timer?.output ? '#f59e0b' : P.screw}
+        stroke={P.bodyEdge}
+        strokeWidth={0.08}
+      />
     </g>
   );
 }
@@ -344,14 +423,14 @@ function SelectorArt({ device, def, view }: { device: DeviceInstance; def: Devic
   return (
     <g>
       <Body bounds={def.bounds} />
-      <Conductor d={`M${common.offset.x} ${common.offset.y + 1.4}V-1.6`} />
-      <Conductor d={`M${out1.offset.x} ${out1.offset.y - 1.4}V2`} />
-      <Conductor d={`M${out2.offset.x} ${out2.offset.y - 1.4}V2`} />
-      <circle cx={common.offset.x} cy={-1.6} r={0.13} fill={P.sym} />
-      <Conductor d={`M${common.offset.x} -1.6L${tip} 2`} width={BOARD_STROKE * 1.2} />
+      <Conductor d={`M${common.offset.x} ${common.offset.y + LEAD}V-1.6`} />
+      <Conductor d={`M${out1.offset.x} ${out1.offset.y - LEAD}V2`} />
+      <Conductor d={`M${out2.offset.x} ${out2.offset.y - LEAD}V2`} />
+      <circle cx={common.offset.x} cy={-1.6} r={0.14} fill={P.sym} />
+      <Conductor d={`M${common.offset.x} -1.6L${tip} 2`} width={BOARD_STROKE * 1.25} />
       <MechLink d={`M${common.offset.x} -1.6V-3.4`} />
       <Conductor d={`M${common.offset.x - 1.2} -3.4H${common.offset.x + 1.2}`} />
-      <Tag x={def.bounds.minX + 1} y={def.bounds.maxY - 3.2} text={tagOf(device)} anchor="start" />
+      <TagBlock x={def.bounds.minX + 0.8} y={4.6} tag={tagOf(device)} {...captionOf(device)} anchor="start" />
     </g>
   );
 }
@@ -364,26 +443,27 @@ function UpsArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefi
   const lout = at('L2');
   const nout = at('N2');
   const on = view?.energized === true;
+  const inputX = (lin.offset.x + nin.offset.x) / 2;
   return (
     <g>
       <Body bounds={def.bounds} />
-      <Conductor d={`M${lin.offset.x} ${lin.offset.y + 1.4}V-3.4H${(lin.offset.x + nin.offset.x) / 2 - 1.6}`} />
-      <Conductor d={`M${nin.offset.x} ${nin.offset.y + 1.4}V-3.4H${(lin.offset.x + nin.offset.x) / 2 + 1.6}`} />
-      <LampSymbol x={(lin.offset.x + nin.offset.x) / 2} y={-3.4} r={1.6} on={on} color={P.lamp.green!} />
+      <Conductor d={`M${lin.offset.x} ${lin.offset.y + LEAD}V-3.4H${inputX - 1.7}`} />
+      <Conductor d={`M${nin.offset.x} ${nin.offset.y + LEAD}V-3.4H${inputX + 1.7}`} />
+      <LampSymbol x={inputX} y={-3.4} r={1.7} on={on} color={P.lamp.green!} />
       <rect
         x={lout.offset.x - 2.6}
         y={1.2}
         width={5.2}
         height={3.4}
-        rx={0.4}
+        rx={0.5}
         fill={P.bodyShade}
         stroke={P.sym}
         strokeWidth={BOARD_STROKE}
       />
       <Conductor d={`M${lout.offset.x - 1.6} 2.9a0.8 0.8 0 0 1 1.6 0a0.8 0.8 0 0 0 1.6 0`} />
-      <Conductor d={`M${lout.offset.x} 4.6V${lout.offset.y - 1.4}`} />
-      <Conductor d={`M${nout.offset.x} ${nout.offset.y - 1.4}V2.9H${lout.offset.x + 2.6}`} />
-      <Tag x={def.bounds.minX + 1} y={def.bounds.maxY - 2.6} text={tagOf(device)} anchor="start" />
+      <Conductor d={`M${lout.offset.x} 4.6V${lout.offset.y - LEAD}`} />
+      <Conductor d={`M${nout.offset.x} ${nout.offset.y - LEAD}V2.9H${lout.offset.x + 2.6}`} />
+      <TagBlock x={def.bounds.minX + 1} y={1.4} tag={tagOf(device)} {...captionOf(device)} anchor="start" />
     </g>
   );
 }
@@ -437,9 +517,11 @@ function BulbArt({ device, def, view }: { device: DeviceInstance; def: DeviceDef
       />
       {/* Filamento: sube de cada borne y hace la V dentro de la ampolla. */}
       <Conductor
-        d={`M${x1.offset.x} ${x1.offset.y - 1.2}V${glass.cy + 1.6}l1.1 -2.2l0.9 1.6l0.9 -1.6l1.1 2.2V${x2.offset.y - 1.2}`}
+        d={`M${x1.offset.x} ${x1.offset.y - LEAD}V${glass.cy + 1.6}l1.1 -2.2l0.9 1.6l0.9 -1.6l1.1 2.2V${
+          x2.offset.y - LEAD
+        }`}
       />
-      <Tag x={def.bounds.maxX - 0.4} y={glass.cy} text={tagOf(device)} anchor="end" />
+      <TagBlock x={def.bounds.maxX - 0.3} y={glass.cy} tag={tagOf(device)} {...captionOf(device)} anchor="end" />
     </g>
   );
 }
@@ -454,14 +536,14 @@ function LoadArt({ device, def, view }: { device: DeviceInstance; def: DeviceDef
   return (
     <g>
       <Body bounds={def.bounds} />
-      <Conductor d={`M${top.offset.x} ${top.offset.y + 1.4}V-2.4`} />
+      <Conductor d={`M${top.offset.x} ${top.offset.y + LEAD}V-2.4`} />
       {def.type === 'bulb' ? (
         <BulbSymbol x={0} y={-0.4} r={1.9} on={on} color={color} />
       ) : (
         <LampSymbol x={0} y={0} r={2.2} on={on} color={color} />
       )}
-      <Conductor d={`M${bottom.offset.x} 2.4V${bottom.offset.y - 1.4}`} />
-      <Tag x={def.bounds.minX + 0.8} y={def.bounds.maxY - 3.2} text={tagOf(device)} anchor="start" />
+      <Conductor d={`M${bottom.offset.x} 2.4V${bottom.offset.y - LEAD}`} />
+      <TagBlock x={def.bounds.minX + 0.7} y={4.6} tag={tagOf(device)} {...captionOf(device)} anchor="start" />
     </g>
   );
 }

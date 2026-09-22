@@ -109,7 +109,7 @@ const CONTACTOR_3P: DeviceDefinition = {
   type: 'contactor-3p',
   category: 'relays',
   refPrefix: 'K',
-  bounds: { minX: -10, minY: -11, maxX: 10, maxY: 11 },
+  bounds: { minX: -10, minY: -11, maxX: 13, maxY: 11 },
   terminals: [
     top('A1', 'A1', -6, -10),
     top('A2', 'A2', -2, -10),
@@ -282,7 +282,7 @@ function socketBase(opts: {
     type: opts.type,
     category: opts.category,
     refPrefix: opts.timer ? 'T' : 'K',
-    bounds: { minX: -width / 2 - 2.5, minY: -9, maxX: width / 2 + 2.5, maxY: 9 },
+    bounds: { minX: -width / 2 - 2.5, minY: -9, maxX: width / 2 + (opts.timer ? 7 : 2.5), maxY: 9 },
     terminals,
     internals: {
       ...NO_INTERNALS,

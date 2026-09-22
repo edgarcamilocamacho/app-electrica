@@ -25,6 +25,11 @@ export interface BoardDiagramProps {
   readonly invalid?: readonly Id[];
   /** Aparatos implicados en la falla de simulación: se resaltan. */
   readonly fault?: readonly Id[];
+  /**
+   * Color del fondo sobre el que se dibuja. Cada cable lleva debajo una funda de ese color, para
+   * que al cruzarse se lea cuál pasa por encima. Al exportar, el fondo es blanco [R5 §16].
+   */
+  readonly background?: string;
 }
 
 const pathOf = (points: readonly { x: number; y: number }[]): string =>
@@ -36,12 +41,14 @@ function WireArt({
   potential,
   selected,
   invalid,
+  background,
 }: {
   wire: Wire;
   points: readonly { x: number; y: number }[];
   potential: NetPotential | undefined;
   selected: boolean;
   invalid: boolean;
+  background: string;
 }): ReactElement {
   const tone = WIRE_TONES[wire.color];
   const width = WIRE_WIDTH[wire.gauge];
@@ -52,6 +59,8 @@ function WireArt({
   return (
     <g data-wire={wire.id} data-live={live ? 'true' : 'false'}>
       {selected && <path d={d} fill="none" stroke={P.selectionHalo} strokeWidth={width + 0.7} strokeLinecap="round" strokeLinejoin="round" />}
+      {/* Funda: separa el cable de lo que pasa por debajo. */}
+      <path d={d} fill="none" stroke={background} strokeWidth={width + 0.34} strokeLinecap="round" strokeLinejoin="round" />
       {live && !short && (
         <path d={d} fill="none" stroke={tone.glow} strokeWidth={width + 0.55} strokeLinecap="round" strokeLinejoin="round" />
       )}
@@ -80,7 +89,15 @@ function LooseEnd({ at }: { at: { x: number; y: number } }): ReactElement {
   );
 }
 
-function BoardDiagramInner({ doc, registry, sim, selected, invalid, fault }: BoardDiagramProps): ReactElement {
+function BoardDiagramInner({
+  doc,
+  registry,
+  sim,
+  selected,
+  invalid,
+  fault,
+  background = P.paper,
+}: BoardDiagramProps): ReactElement {
   const nets = useMemo(() => computeNets(doc, registry), [doc, registry]);
   const counts = useMemo(() => wireCountByTerminal(doc), [doc]);
   const invalidSet = useMemo(() => new Set(invalid ?? []), [invalid]);
@@ -123,6 +140,7 @@ function BoardDiagramInner({ doc, registry, sim, selected, invalid, fault }: Boa
           potential={wireNet(wire) ? sim?.netPotentials.get(wireNet(wire)!) : undefined}
           selected={selected?.has(wire.id) ?? false}
           invalid={invalidSet.has(wire.id)}
+          background={background}
         />
       ))}
 

@@ -26,7 +26,7 @@ export function Body({ bounds, shaded }: { bounds: Rect; shaded?: boolean }): Re
       y={bounds.minY}
       width={bounds.maxX - bounds.minX}
       height={bounds.maxY - bounds.minY}
-      rx={0.6}
+      rx={0.9}
       fill={shaded ? P.bodyShade : P.body}
       stroke={P.bodyEdge}
       strokeWidth={BODY_STROKE}
@@ -54,6 +54,7 @@ export function Screw({
   const font = label.length <= 1 ? r * 1.15 : label.length === 2 ? r * 0.95 : r * 0.72;
   return (
     <g>
+      <circle cx={x} cy={y} r={r * 1.18} fill={P.screwEdge} opacity={0.16} />
       <circle cx={x} cy={y} r={r} fill={P.screw} stroke={P.screwEdge} strokeWidth={BOARD_STROKE * 0.9} />
       {label ? (
         <text
@@ -111,15 +112,26 @@ export function TerminalLabel({
   );
 }
 
-/** Cuántos cables tiene el tornillo [R5 §6]. */
-export function WireCount({ x, y, count }: { x: number; y: number; count: number }): ReactElement | null {
+/** Cuántos cables tiene el tornillo [R5 §6]. Va del lado opuesto a la marcación, para no pisarla. */
+export function WireCount({
+  x,
+  y,
+  count,
+  side = 'top',
+}: {
+  x: number;
+  y: number;
+  count: number;
+  side?: 'top' | 'bottom';
+}): ReactElement | null {
   if (count <= 0) return null;
+  const cy = side === 'top' ? y - 1.05 : y + 1.05;
   return (
     <g>
-      <circle cx={x + 1.05} cy={y - 1.05} r={0.48} fill={P.paper} stroke={P.muted} strokeWidth={0.07} />
+      <circle cx={x + 1.05} cy={cy} r={0.48} fill={P.paper} stroke={P.muted} strokeWidth={0.07} />
       <text
         x={x + 1.05}
-        y={y - 0.8}
+        y={cy + 0.25}
         textAnchor="middle"
         fontSize={SMALL_FONT * 0.9}
         fontFamily={FONT_FAMILY}
@@ -135,7 +147,19 @@ export function WireCount({ x, y, count }: { x: number; y: number; count: number
 export function Tag({ x, y, text, anchor = 'middle' }: { x: number; y: number; text: string; anchor?: 'start' | 'middle' | 'end' }): ReactElement | null {
   if (!text) return null;
   return (
-    <text x={x} y={y} textAnchor={anchor} fontSize={TAG_FONT} fontFamily={FONT_FAMILY} fontWeight={700} fill={P.ink}>
+    <text
+      x={x}
+      y={y}
+      textAnchor={anchor}
+      fontSize={TAG_FONT}
+      fontFamily={FONT_FAMILY}
+      fontWeight={700}
+      fill={P.ink}
+      stroke={P.body}
+      strokeWidth={0.5}
+      paintOrder="stroke"
+      strokeLinejoin="round"
+    >
       {text}
     </text>
   );
@@ -144,9 +168,43 @@ export function Tag({ x, y, text, anchor = 'middle' }: { x: number; y: number; t
 export function Caption({ x, y, text, anchor = 'middle' }: { x: number; y: number; text: string; anchor?: 'start' | 'middle' | 'end' }): ReactElement | null {
   if (!text) return null;
   return (
-    <text x={x} y={y} textAnchor={anchor} fontSize={SMALL_FONT} fontFamily={FONT_FAMILY} fill={P.muted}>
+    <text
+      x={x}
+      y={y}
+      textAnchor={anchor}
+      fontSize={SMALL_FONT}
+      fontFamily={FONT_FAMILY}
+      fontWeight={500}
+      fill={P.muted}
+      stroke={P.body}
+      strokeWidth={0.4}
+      paintOrder="stroke"
+      strokeLinejoin="round"
+    >
       {text}
     </text>
+  );
+}
+
+/** Rótulo del aparato: la referencia y, debajo, la leyenda que escribió el usuario. */
+export function TagBlock({
+  x,
+  y,
+  tag,
+  caption,
+  anchor = 'middle',
+}: {
+  x: number;
+  y: number;
+  tag: string;
+  caption?: string;
+  anchor?: 'start' | 'middle' | 'end';
+}): ReactElement {
+  return (
+    <g>
+      <Tag x={x} y={y} text={tag} anchor={anchor} />
+      {caption ? <Caption x={x} y={y + 1.35} text={caption} anchor={anchor} /> : null}
+    </g>
   );
 }
 
@@ -199,7 +257,7 @@ export function Contact({ x, yTop, yBottom, normal, closed, power, delay, color 
     <g>
       {power && (
         <path
-          d={`M${x - 0.5} ${yTop - 0.3}A0.5 0.5 0 0 1 ${x + 0.5} ${yTop - 0.3}`}
+          d={`M${x - 0.7} ${yTop}A0.7 0.7 0 0 1 ${x + 0.7} ${yTop}`}
           fill="none"
           stroke={color}
           strokeWidth={BOARD_STROKE}
@@ -217,6 +275,50 @@ export function Contact({ x, yTop, yBottom, normal, closed, power, delay, color 
           }
           fill="none"
           stroke={color}
+          strokeWidth={BOARD_STROKE * 0.9}
+        />
+      )}
+    </g>
+  );
+}
+
+/**
+ * Contacto conmutado de una base enchufable: el pivote abajo y los dos contactos fijos juntos
+ * arriba, para que la cuchilla quede empinada y el símbolo, compacto.
+ */
+export function Changeover({
+  pivotX,
+  pivotY,
+  fixedY,
+  spread,
+  toRight,
+  delay,
+}: {
+  pivotX: number;
+  pivotY: number;
+  fixedY: number;
+  /** Separación de cada contacto fijo respecto del pivote. */
+  spread: number;
+  /** Hacia dónde apunta la cuchilla. */
+  toRight: boolean;
+  delay?: 'TON' | 'TOF';
+}): ReactElement {
+  const tipX = pivotX + (toRight ? spread : -spread);
+  const midX = (pivotX + tipX) / 2;
+  const midY = (pivotY + fixedY) / 2;
+  return (
+    <g>
+      <circle cx={pivotX} cy={pivotY} r={0.15} fill={P.sym} />
+      <Conductor d={`M${pivotX} ${pivotY}L${tipX} ${fixedY}`} width={BOARD_STROKE * 1.25} />
+      {delay && (
+        <path
+          d={
+            delay === 'TON'
+              ? `M${midX} ${midY}h0.6a0.45 0.45 0 0 1 0 0.9`
+              : `M${midX} ${midY}h0.6a0.45 0.45 0 0 0 0 -0.9`
+          }
+          fill="none"
+          stroke={P.sym}
           strokeWidth={BOARD_STROKE * 0.9}
         />
       )}
@@ -299,7 +401,10 @@ export function BulbSymbol({ x, y, r, on, color }: { x: number; y: number; r: nu
   );
 }
 
-/** Accionamiento manual dibujado al lado de la cuchilla. */
+/**
+ * Accionamiento manual, al lado de la cuchilla y unido a ella por el vínculo mecánico. Al accionar
+ * se hunde hacia el contacto, para que se vea qué se está apretando.
+ */
 export function ManualActuator({
   x,
   y,
@@ -311,20 +416,42 @@ export function ManualActuator({
   kind: 'push' | 'toggle' | 'mushroom';
   actuated: boolean;
 }): ReactElement {
+  const press = actuated ? -0.3 : 0;
+  const stem = x + press;
   return (
     <g>
-      <MechLink d={`M${x - 1.4} ${y}H${x}`} />
+      <MechLink d={`M${x - 1.9} ${y}H${stem}`} />
       {kind === 'push' && (
-        <Conductor d={`M${x + 0.5} ${y - 0.75}H${x}V${y + 0.75}H${x + 0.5}`} />
+        <g>
+          <Conductor d={`M${stem} ${y - 0.95}V${y + 0.95}`} width={BOARD_STROKE * 1.2} />
+          <rect
+            x={stem + 0.12}
+            y={y - 0.7}
+            width={0.55}
+            height={1.4}
+            rx={0.18}
+            fill={P.bodyShade}
+            stroke={P.sym}
+            strokeWidth={BOARD_STROKE * 0.9}
+          />
+        </g>
       )}
-      {kind === 'toggle' && <Conductor d={`M${x} ${y - 0.75}V${y + 0.75}M${x} ${y}h0.6`} />}
+      {kind === 'toggle' && (
+        <g>
+          <Conductor d={`M${stem} ${y - 0.95}V${y + 0.95}`} width={BOARD_STROKE * 1.2} />
+          <circle cx={stem + 0.5} cy={y} r={0.42} fill={P.bodyShade} stroke={P.sym} strokeWidth={BOARD_STROKE * 0.9} />
+        </g>
+      )}
       {kind === 'mushroom' && (
-        <path
-          d={`M${x} ${y - 0.95}A0.95 0.95 0 0 1 ${x} ${y + 0.95}Z`}
-          fill={actuated ? '#991b1b' : '#dc2626'}
-          stroke={P.sym}
-          strokeWidth={BOARD_STROKE}
-        />
+        <g>
+          <Conductor d={`M${stem} ${y - 1.05}V${y + 1.05}`} width={BOARD_STROKE * 1.2} />
+          <path
+            d={`M${stem + 0.1} ${y - 1.05}A1.05 1.05 0 0 1 ${stem + 0.1} ${y + 1.05}Z`}
+            fill={actuated ? '#991b1b' : '#dc2626'}
+            stroke={P.sym}
+            strokeWidth={BOARD_STROKE * 0.9}
+          />
+        </g>
       )}
     </g>
   );

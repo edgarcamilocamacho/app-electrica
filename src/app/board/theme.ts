@@ -67,4 +67,12 @@ export const SCREW_RADIUS = { control: 0.62, power: 0.9 } as const;
 export const TERMINAL_FONT = 0.85;
 export const TAG_FONT = 1.25;
 export const SMALL_FONT = 0.7;
-export const FONT_FAMILY = 'Helvetica, Arial, sans-serif';
+/**
+ * Tipografía condensada de panel, con alternativas locales en los tres sistemas: así la exportación
+ * (que rasteriza el SVG sin tipografías web) se ve igual que la pantalla.
+ */
+export const FONT_FAMILY =
+  "'Arial Narrow', 'Liberation Sans Narrow', 'DejaVu Sans Condensed', Helvetica, Arial, sans-serif";
+
+/** Del centro del tornillo al arranque del conductor interno: deja sitio para la marcación. */
+export const LEAD = 2.1;

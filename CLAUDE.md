@@ -37,6 +37,7 @@ pnpm e2e              # Playwright, Chromium + Firefox (build + preview automát
 pnpm e2e:chromium     # más rápido mientras se itera
 pnpm exec vitest run tests/unit/board       # una carpeta
 node scripts/docker-smoke.mjs [--e2e] [--upgrade]   # imagen real: cabeceras, E2E, actualización en caliente
+node scripts/shot.mjs catalogo out.png [REF]         # captura del lienzo para revisar el dibujo a ojo
 docker compose up --build                            # http://localhost:8080
 ```
 

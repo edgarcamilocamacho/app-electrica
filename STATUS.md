@@ -2,7 +2,7 @@
 
 > Documento vivo: completado · en curso · tests fallando · limitaciones · decisiones abiertas.
 > Se actualiza al cerrar cada tanda de trabajo (ver [CLAUDE.md](CLAUDE.md)).
-> Última actualización: 2026-09-22.
+> Última actualización: 2026-09-23.
 
 ## Resumen
 
@@ -14,7 +14,7 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 
 | Nivel | Resultado |
 |---|---|
-| Unitarias + integración (Vitest) | **120 / 120** |
+| Unitarias + integración (Vitest) | **130 / 130** |
 | E2E (Playwright, Chromium + Firefox) | **36 / 36** (18 flujos × 2 navegadores) |
 
 | Hito | Contenido |
@@ -26,10 +26,15 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 | G4 | Diagnósticos (bloqueantes y avisos) y panel de ERROR |
 | G5 | Archivo v2 con zod, guardar/abrir, autoguardado y exportación PNG/SVG/PDF con fondo blanco |
 | G6 | El tablero es la app: se borró la vista clásica, E2E reescritos y documentación al día |
+| R5.1 | Pasada de interfaz y dibujo: cableado ortogonal con motivo de rechazo, propiedades del cable seleccionado, selección por rectángulo, zócalo de relé real, marcaciones de borne, rótulos con halo, carátula del temporizador, funda del cable en los cruces y «Involucrados» en el cartel de ERROR |
 
 ## En curso
 
 Nada. A la espera de revisión de producto.
+
+Para revisar el dibujo a ojo: `node scripts/shot.mjs <ejemplo> <salida.png> [REF]` levanta la app
+compilada, carga un ejemplo del código y captura el lienzo (o un aparato, si se le pasa su
+referencia).
 
 ## Tests fallando
 
