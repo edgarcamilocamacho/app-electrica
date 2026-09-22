@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { BoardApp } from './app/board/BoardApp';
 import { createBoardStore } from './app/board/store';
-import { starterBoard } from './examples/board';
+import { catalogBoard, starterBoard } from './examples/board';
 import { boardRegistry } from './core/board/catalog';
 import { createRandomIdGen } from './core/model/ids';
 import { createAppServices } from './app/services';
@@ -42,7 +42,9 @@ window.addEventListener('pagehide', () => services.flushAutosave());
 const boardIds = createRandomIdGen();
 const boardStore = createBoardStore(
   { ids: boardIds, registry: boardRegistry },
-  starterBoard({ ids: boardIds, registry: boardRegistry }),
+  params.has('catalogo')
+    ? catalogBoard({ ids: boardIds, registry: boardRegistry })
+    : starterBoard({ ids: boardIds, registry: boardRegistry }),
 );
 
 const root = document.getElementById('root');

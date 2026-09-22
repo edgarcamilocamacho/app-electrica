@@ -98,3 +98,17 @@ export function starterBoard(ctx: OpContext): BoardDocument {
 
   return doc;
 }
+
+/** Un aparato de cada tipo, en grilla: sirve para revisar el dibujo del catálogo. */
+export function catalogBoard(ctx: OpContext): BoardDocument {
+  let doc = emptyBoard({ ...META, name: 'Catálogo' });
+  const perRow = 4;
+  const cellW = 44;
+  const cellH = 34;
+  ctx.registry.all().forEach((def, i) => {
+    const position = { x: (i % perRow) * cellW, y: Math.floor(i / perRow) * cellH };
+    const placed = place(doc, ctx, def.type, position, `${def.refPrefix}${i + 1}`);
+    doc = placed.doc;
+  });
+  return doc;
+}
