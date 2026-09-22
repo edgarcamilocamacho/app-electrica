@@ -238,106 +238,112 @@ const SELECTOR_3: DeviceDefinition = {
   props: [REF, LABEL, INITIAL_POSITION],
 };
 
-interface PoleSpec {
-  readonly common: string;
-  readonly no: string;
-  readonly nc: string;
-  readonly row: 'top' | 'bottom';
-  /** Banda de tres columnas donde va el polo; cada banda tiene una fila arriba y otra abajo. */
-  readonly band: number;
+/**
+ * Base enchufable, con la disposición real del zócalo: los **comunes abajo**, sus dos contactos
+ * **arriba** y la bobina en los dos extremos de la fila de abajo. Así las dos filas quedan
+ * alineadas columna por columna. La numeración es la de un zócalo de 8 u 11 pines; cambia algo
+ * según el fabricante.
+ */
+interface SocketPole {
+  /** Columna del común (fila de abajo). */
+  readonly common: { readonly id: string; readonly column: number };
+  /** Contacto NA (fila de arriba). */
+  readonly no: { readonly id: string; readonly column: number };
+  /** Contacto NC (fila de arriba). */
+  readonly nc: { readonly id: string; readonly column: number };
 }
 
-/**
- * Base enchufable: la bobina (o el temporizador) en la primera columna y los contactos conmutados
- * en bandas de tres columnas (NA · común · NC). La numeración es de ejemplo: cambia según el
- * fabricante.
- */
-function relayBase(opts: {
+function socketBase(opts: {
   readonly type: string;
   readonly category: 'relays' | 'timers';
-  readonly coil: readonly [string, string];
-  readonly poles: readonly PoleSpec[];
+  readonly columns: number;
+  /** Bobina: columna de cada pin, en la fila de abajo. */
+  readonly coil: readonly [{ id: string; column: number }, { id: string; column: number }];
+  readonly poles: readonly SocketPole[];
   readonly timer?: TimerType;
   readonly extraProps?: readonly PropSpec[];
 }): DeviceDefinition {
   const pitch = 4;
-  const bands = Math.max(...opts.poles.map((p) => p.band)) + 1;
-  const columns = 1 + bands * 3;
-  const width = (columns - 1) * pitch;
-  const x = (index: number): number => -width / 2 + index * pitch;
+  const width = (opts.columns - 1) * pitch;
+  const x = (column: number): number => -width / 2 + column * pitch;
 
-  const terminals: TerminalDef[] = [
-    top(opts.coil[0], opts.coil[0], x(0), -7),
-    bottom(opts.coil[1], opts.coil[1], x(0), 7),
-  ];
+  const terminals: TerminalDef[] = [];
+  for (const pin of opts.coil) terminals.push(bottom(pin.id, pin.id, x(pin.column), 8));
   for (const pole of opts.poles) {
-    const base = 1 + pole.band * 3;
-    const place = pole.row === 'top' ? top : bottom;
-    const y = pole.row === 'top' ? -7 : 7;
     terminals.push(
-      place(pole.no, pole.no, x(base), y),
-      place(pole.common, pole.common, x(base + 1), y),
-      place(pole.nc, pole.nc, x(base + 2), y),
+      bottom(pole.common.id, pole.common.id, x(pole.common.column), 8),
+      top(pole.no.id, pole.no.id, x(pole.no.column), -8),
+      top(pole.nc.id, pole.nc.id, x(pole.nc.column), -8),
     );
   }
+  terminals.sort((a, b) => a.offset.y - b.offset.y || a.offset.x - b.offset.x);
 
   return {
     type: opts.type,
     category: opts.category,
     refPrefix: opts.timer ? 'T' : 'K',
-    bounds: { minX: -width / 2 - 2, minY: -8, maxX: width / 2 + 2, maxY: 8 },
+    bounds: { minX: -width / 2 - 2.5, minY: -9, maxX: width / 2 + 2.5, maxY: 9 },
     terminals,
     internals: {
       ...NO_INTERNALS,
       actuators: [
         opts.timer
-          ? { id: 'K', kind: 'timer', timerType: opts.timer, terminals: opts.coil }
-          : { id: 'K', kind: 'coil', terminals: opts.coil },
+          ? { id: 'K', kind: 'timer', timerType: opts.timer, terminals: [opts.coil[0].id, opts.coil[1].id] }
+          : { id: 'K', kind: 'coil', terminals: [opts.coil[0].id, opts.coil[1].id] },
       ],
       contacts: opts.poles.flatMap((pole) => [
-        { a: pole.common, b: pole.no, normal: 'NO' as const, actuator: 'K' },
-        { a: pole.common, b: pole.nc, normal: 'NC' as const, actuator: 'K' },
+        { a: pole.common.id, b: pole.no.id, normal: 'NO' as const, actuator: 'K' },
+        { a: pole.common.id, b: pole.nc.id, normal: 'NC' as const, actuator: 'K' },
       ]),
     },
     props: [REF, LABEL, ...(opts.extraProps ?? [])],
   };
 }
 
-const RELAY_8_POLES: readonly PoleSpec[] = [
-  { common: '8', no: '6', nc: '5', row: 'top', band: 0 },
-  { common: '1', no: '3', nc: '4', row: 'bottom', band: 0 },
-];
+/** Zócalo de 8 pines: arriba 6 · 5 · 4 · 3, abajo 7 · 8 · 1 · 2, con la bobina entre 7 y 2. */
+const SOCKET_8 = {
+  columns: 4,
+  coil: [
+    { id: '7', column: 0 },
+    { id: '2', column: 3 },
+  ],
+  poles: [
+    { common: { id: '8', column: 1 }, no: { id: '6', column: 0 }, nc: { id: '5', column: 1 } },
+    { common: { id: '1', column: 2 }, no: { id: '3', column: 3 }, nc: { id: '4', column: 2 } },
+  ],
+} as const;
 
-/** Relé enchufable de 8 pines: bobina 7-2 y dos contactos conmutados. */
-const RELAY_8 = relayBase({ type: 'relay-8', category: 'relays', coil: ['7', '2'], poles: RELAY_8_POLES });
+const RELAY_8 = socketBase({ type: 'relay-8', category: 'relays', ...SOCKET_8 });
 
-/** Relé enchufable de 11 pines: bobina 2-10 y tres contactos conmutados. */
-const RELAY_11 = relayBase({
+/** Zócalo de 11 pines: tres contactos conmutados, con la bobina entre 10 y 2. */
+const RELAY_11 = socketBase({
   type: 'relay-11',
   category: 'relays',
-  coil: ['2', '10'],
+  columns: 6,
+  coil: [
+    { id: '10', column: 0 },
+    { id: '2', column: 4 },
+  ],
   poles: [
-    { common: '11', no: '9', nc: '8', row: 'top', band: 0 },
-    { common: '1', no: '3', nc: '4', row: 'bottom', band: 0 },
-    { common: '6', no: '7', nc: '5', row: 'top', band: 1 },
+    { common: { id: '11', column: 1 }, no: { id: '9', column: 0 }, nc: { id: '8', column: 1 } },
+    { common: { id: '1', column: 2 }, no: { id: '3', column: 2 }, nc: { id: '4', column: 3 } },
+    { common: { id: '6', column: 3 }, no: { id: '7', column: 4 }, nc: { id: '5', column: 5 } },
   ],
 });
 
-/** Temporizadores: dos aparatos independientes [R5 §13]. */
-const TIMER_TON = relayBase({
+/** Temporizadores: dos aparatos independientes, en el mismo zócalo de 8 pines [R5 §13]. */
+const TIMER_TON = socketBase({
   type: 'timer-ton',
   category: 'timers',
-  coil: ['7', '2'],
-  poles: RELAY_8_POLES,
+  ...SOCKET_8,
   timer: 'TON',
   extraProps: [PRESET],
 });
 
-const TIMER_TOF = relayBase({
+const TIMER_TOF = socketBase({
   type: 'timer-tof',
   category: 'timers',
-  coil: ['7', '2'],
-  poles: RELAY_8_POLES,
+  ...SOCKET_8,
   timer: 'TOF',
   extraProps: [PRESET],
 });

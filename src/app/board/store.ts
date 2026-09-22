@@ -6,6 +6,7 @@
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { t } from '../i18n/t';
+import { objectsInRect } from './hitTest';
 import { boardRegistry } from '../../core/board/catalog';
 import { blockingDiagnostics, computeDiagnostics, type BoardDiagnostic } from '../../core/board/diagnostics';
 import type { BoardDocument, TerminalRef, WireColor, WireEnd, WireGauge } from '../../core/board/model';
@@ -186,6 +187,10 @@ export interface BoardState {
   place(at: Point): void;
   cancel(): void;
   setSelection(selection: BoardSelection): void;
+  /** Rectángulo de selección: arrastrar desde un lugar vacío. */
+  beginMarquee(at: Point): void;
+  updateMarquee(at: Point): void;
+  endMarquee(): void;
   selectDevice(id: Id, additive?: boolean): void;
   selectWire(id: Id, additive?: boolean): void;
 
@@ -397,6 +402,23 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       setSelection(selection) {
         const state = get();
         set({ history: { ...state.history, present: { ...state.history.present, selection } } });
+      },
+
+      beginMarquee(at) {
+        set({ marquee: { from: at, to: at } });
+      },
+
+      updateMarquee(at) {
+        const marquee = get().marquee;
+        if (marquee) set({ marquee: { ...marquee, to: at } });
+      },
+
+      endMarquee() {
+        const marquee = get().marquee;
+        if (!marquee) return;
+        const inside = objectsInRect(docOf(get()), registry, marquee.from, marquee.to);
+        set({ marquee: undefined });
+        get().setSelection(inside);
       },
 
       selectDevice(id, additive) {

@@ -108,7 +108,9 @@ export const es = {
     bulb: 'Foco',
   },
   board: {
-    wireStyle: 'Cable',
+    wireStyle: 'Cable nuevo',
+    wireSelected: 'Cable seleccionado ({count})',
+    wireMixed: 'Los cables seleccionados tienen estilos distintos.',
     wireColor: 'Color',
     wireGauge: 'Calibre',
     colors: {
@@ -154,6 +156,7 @@ export const es = {
       shortPhaseNeutral: 'Cortocircuito entre fase y neutro.',
       oscillation: 'El circuito oscila: un cambio se realimenta sin estabilizarse.',
       frozen: 'Todo quedó congelado para poder inspeccionarlo.',
+      where: 'Involucrados: {devices}. Los cables del nodo en falla se marcan en rojo.',
       back: 'Volver a editar',
     },
   },

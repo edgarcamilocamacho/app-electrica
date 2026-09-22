@@ -188,6 +188,11 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
 
   const selectedDevice = selection.devices.length === 1 ? doc.devices[selection.devices[0]!] : undefined;
   const selectedDef = selectedDevice ? state.registry.get(selectedDevice.type) : undefined;
+  const selectedWires = selection.wires.map((id) => doc.wires[id]).filter((w) => w !== undefined);
+  // Con cables seleccionados, el panel muestra los suyos; si no, el estilo que se va a usar.
+  const shownColor = selectedWires[0]?.color ?? state.wireStyle.color;
+  const shownGauge = selectedWires[0]?.gauge ?? state.wireStyle.gauge;
+  const mixed = selectedWires.length > 1 && selectedWires.some((w) => w!.color !== shownColor || w!.gauge !== shownGauge);
 
   const newBoard = (): void => {
     file.current = { name: '' };
@@ -387,6 +392,11 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
             <div className="tb-error__text">
               <strong>{t('status.error')}</strong>
               <p>{`${faultMessage(state.sim?.fault)} ${t('board.fault.frozen')}`}</p>
+              {faultDevices(state, doc).length > 0 && (
+                <p className="tb-error__where">
+                  {t('board.fault.where', { devices: faultDevices(state, doc).join(' · ') })}
+                </p>
+              )}
             </div>
             <button type="button" className="tb-btn" onClick={() => store.getState().backToEdit()}>
               {t('board.fault.back')}
@@ -410,7 +420,10 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
         )}
 
         <section className="tb-group">
-          <h3 className="tb-group__title">{t('board.wireStyle')}</h3>
+          <h3 className="tb-group__title">
+            {selectedWires.length > 0 ? t('board.wireSelected', { count: selectedWires.length }) : t('board.wireStyle')}
+          </h3>
+          {mixed && <p className="tb-hint">{t('board.wireMixed')}</p>}
           <div className="tb-field">
             <span>{t('board.wireColor')}</span>
             <div className="tb-swatches">
@@ -419,7 +432,7 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
                   key={color}
                   type="button"
                   title={t(`board.colors.${color}` as Parameters<typeof t>[0])}
-                  className={`tb-swatch${state.wireStyle.color === color ? ' is-on' : ''}`}
+                  className={`tb-swatch${shownColor === color ? ' is-on' : ''}`}
                   style={{ background: WIRE_TONES[color].off }}
                   onClick={() => store.getState().setWireLook(color)}
                 />
@@ -429,7 +442,7 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
           <label className="tb-field">
             <span>{t('board.wireGauge')}</span>
             <select
-              value={state.wireStyle.gauge}
+              value={shownGauge}
               onChange={(e) => store.getState().setWireLook(undefined, Number(e.target.value) as WireGauge)}
             >
               {WIRE_GAUGES.map((gauge) => (
@@ -495,6 +508,16 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
 function fitView(s: ReturnType<BoardStore['getState']>): void {
   const host = document.querySelector('.tb-canvas');
   if (host instanceof HTMLElement) s.fitView({ width: host.clientWidth, height: host.clientHeight });
+}
+
+/** Etiquetas de los aparatos implicados en la falla, para decir dónde fue el corto. */
+function faultDevices(state: ReturnType<BoardStore['getState']>, doc: ReturnType<typeof docOf>): string[] {
+  const ids = state.sim?.fault?.devices ?? [];
+  return ids.map((id) => {
+    const device = doc.devices[id];
+    const ref = typeof device?.props.ref === 'string' ? device.props.ref : '';
+    return ref || (device ? t(`components.${device.type}` as Parameters<typeof t>[0]) : id);
+  });
 }
 
 function faultMessage(fault: SimSnapshot['fault']): string {

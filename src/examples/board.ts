@@ -113,6 +113,55 @@ export function starterBoard(ctx: OpContext): BoardDocument {
   return doc;
 }
 
+/** Encendido retardado: al cerrar el interruptor, el piloto enciende cuando el TON cumple su tiempo. */
+export function timerBoard(ctx: OpContext): BoardDocument {
+  let doc = emptyBoard({ ...META, name: 'Encendido retardado' });
+
+  const supply = place(doc, ctx, 'supply-1p', { x: 0, y: 0 }, 'G1');
+  doc = supply.doc;
+  const sw = place(doc, ctx, 'switch-no', { x: 30, y: 0 }, 'S1');
+  doc = sw.doc;
+  const timer = place(doc, ctx, 'timer-ton', { x: 70, y: 0 }, 'T1');
+  doc = timer.doc;
+  const lamp = place(doc, ctx, 'pilot-lamp', { x: 110, y: 0 }, 'H1');
+  doc = lamp.doc;
+
+  const G = supply.id;
+  const S = sw.id;
+  const T = timer.id;
+  const H = lamp.id;
+
+  // Mando del temporizador: L → S1 → 7 ; 2 → N
+  doc = wire(doc, ctx, t(G, 'L'), t(S, '13'), 'red', [
+    { x: 2, y: -14 },
+    { x: 30, y: -14 },
+  ]);
+  doc = wire(doc, ctx, t(S, '14'), t(T, '7'), 'red', [
+    { x: 30, y: 14 },
+    { x: 64, y: 14 },
+  ]);
+  doc = wire(doc, ctx, t(T, '2'), t(G, 'N'), 'blue', [
+    { x: 76, y: 20 },
+    { x: -2, y: 20 },
+  ]);
+
+  // Contacto temporizado 1-3 alimentando el piloto.
+  doc = wire(doc, ctx, t(G, 'L'), t(T, '1'), 'red', [
+    { x: 2, y: 17 },
+    { x: 72, y: 17 },
+  ]);
+  doc = wire(doc, ctx, t(T, '3'), t(H, 'X1'), 'red', [
+    { x: 76, y: -14 },
+    { x: 110, y: -14 },
+  ]);
+  doc = wire(doc, ctx, t(H, 'X2'), t(G, 'N'), 'blue', [
+    { x: 110, y: 24 },
+    { x: -2, y: 24 },
+  ]);
+
+  return doc;
+}
+
 /** Un aparato de cada tipo, en grilla: sirve para revisar el dibujo del catálogo. */
 export function catalogBoard(ctx: OpContext): BoardDocument {
   let doc = emptyBoard({ ...META, name: 'Catálogo' });

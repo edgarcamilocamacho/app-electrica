@@ -162,6 +162,7 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
           break;
         }
         store.getState().setSelection({ devices: [], wires: [], annotations: [] });
+        store.getState().beginMarquee(at);
         break;
       }
     }
@@ -195,6 +196,7 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
       logGesture('move', at, hit);
     }
     if (state.drag) store.getState().updateDrag(at);
+    if (state.marquee) store.getState().updateMarquee(at);
     if (segmentDrag.current) {
       const p = snap(at);
       const { wireId, segmentIndex, origin } = segmentDrag.current;
@@ -231,6 +233,7 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
       segmentDrag.current = undefined;
     }
     if (state.drag) store.getState().endDrag();
+    if (state.marquee) store.getState().endMarquee();
   };
 
   useEffect(() => {
@@ -296,7 +299,20 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
             sim={state.sim}
             selected={selected}
             invalid={preview?.ok === false ? preview.invalid : []}
+            fault={state.mode === 'error' && state.sim?.fault ? state.sim.fault.devices : []}
           />
+          {state.marquee && (
+            <rect
+              x={Math.min(state.marquee.from.x, state.marquee.to.x)}
+              y={Math.min(state.marquee.from.y, state.marquee.to.y)}
+              width={Math.abs(state.marquee.to.x - state.marquee.from.x)}
+              height={Math.abs(state.marquee.to.y - state.marquee.from.y)}
+              fill={P.selectionHalo}
+              stroke={P.selection}
+              strokeWidth={0.14}
+              strokeDasharray="0.6 0.4"
+            />
+          )}
           {state.tool === 'wire' && <TerminalDots store={store} />}
           {state.wiring && <WiringPreview store={store} />}
           {state.placing && placingDef && (

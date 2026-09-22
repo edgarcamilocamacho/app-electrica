@@ -189,8 +189,8 @@ function ContactorArt({ device, def, view }: { device: DeviceInstance; def: Devi
   const a1 = at('A1');
   const a2 = at('A2');
   const on = view?.energized === true;
-  // Bobina chica, justo entre A1 y A2, para no cruzar la zona de contactos.
-  const coil = { x: (a1.offset.x + a2.offset.x) / 2 - 1.1, y: a1.offset.y + 1.2, w: 2.2, h: 1.6 };
+  // Bobina chica, entre A1 y A2 y bien arriba, para no taparle la columna a ningún borne.
+  const coil = { x: (a1.offset.x + a2.offset.x) / 2 - 0.9, y: a1.offset.y + 0.9, w: 1.8, h: 1.3 };
   return (
     <g>
       <Body bounds={def.bounds} />
@@ -206,12 +206,11 @@ function ContactorArt({ device, def, view }: { device: DeviceInstance; def: Devi
           </g>
         );
       })}
-      <Conductor d={`M${a1.offset.x} ${a1.offset.y + 1.2}V${coil.y + coil.h / 2}H${coil.x}`} />
-      <Conductor d={`M${a2.offset.x} ${a2.offset.y + 1.2}V${coil.y + coil.h / 2}H${coil.x + coil.w}`} />
+      <Conductor d={`M${a1.offset.x} ${a1.offset.y + 1}V${coil.y + coil.h / 2}H${coil.x}`} />
+      <Conductor d={`M${a2.offset.x} ${a2.offset.y + 1}V${coil.y + coil.h / 2}H${coil.x + coil.w}`} />
       <Coil x={coil.x} y={coil.y} w={coil.w} h={coil.h} on={on} />
-      <MechLink
-        d={`M${coil.x + coil.w / 2} ${coil.y + coil.h}V0M${def.bounds.minX + 1.2} 0H${def.bounds.maxX - 1.2}`}
-      />
+      {/* El vínculo mecánico cruza las cuchillas; no baja desde la bobina para no tapar bornes. */}
+      <MechLink d={`M${def.bounds.minX + 1.2} 0H${def.bounds.maxX - 1.2}`} />
       <Tag x={2} y={def.bounds.maxY - 3.4} text={tagOf(device)} anchor="start" />
       <Caption x={2} y={def.bounds.maxY - 1.9} text={labelOf(device)} anchor="start" />
     </g>
@@ -245,29 +244,40 @@ function ManualArt({ device, def, view }: { device: DeviceInstance; def: DeviceD
 }
 
 /**
- * Base enchufable (relé o temporizador): la bobina en su columna y cada polo dibujado como un
- * conmutador entre sus tres tornillos. La geometría sale de los bornes, así que sirve igual para
- * la base de 8 y la de 11 pines.
+ * Base enchufable (relé o temporizador), con la disposición del zócalo real: cada común abajo, sus
+ * dos contactos arriba y la bobina entre los dos pines del extremo. La geometría sale de la
+ * posición de los bornes, así que sirve igual para la base de 8 y la de 11 pines.
  */
 function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
   const actuator = def.internals.actuators[0];
   const at = (id: string) => def.terminals.find((t) => t.id === id)!;
   const timer = actuator?.kind === 'timer' ? actuator.timerType : undefined;
   const on = timer ? view?.timer?.output === true : view?.energized === true;
-  const coilA = actuator && actuator.kind !== 'manual' ? at(actuator.terminals[0]) : undefined;
-  const coilB = actuator && actuator.kind !== 'manual' ? at(actuator.terminals[1]) : undefined;
 
-  // Los contactos vienen de a pares (NA y NC del mismo común).
   const commons = [...new Set(def.internals.contacts.map((c) => c.a))];
+  const coilPins = actuator && actuator.kind !== 'manual' ? actuator.terminals : undefined;
+
+  // La bobina va en la banda de abajo, entre sus dos pines, corrida si le tocaría una columna ocupada.
+  let coil: { x: number; y: number; w: number; h: number } | undefined;
+  if (coilPins) {
+    const a = at(coilPins[0]);
+    const b = at(coilPins[1]);
+    const busy = commons.map((id) => at(id).offset.x);
+    let cx = (a.offset.x + b.offset.x) / 2;
+    if (busy.some((x) => Math.abs(x - cx) < 2)) cx -= 2;
+    coil = { x: cx - 1.2, y: def.bounds.maxY - 2.8, w: 2.4, h: 1.5 };
+  }
 
   return (
     <g>
       <Body bounds={def.bounds} />
-      {coilA && coilB && (
+      {coil && coilPins && (
         <g>
-          <Conductor d={`M${coilA.offset.x} ${coilA.offset.y + 1.4}V-1.4`} />
-          <Coil x={coilA.offset.x - 1.4} y={-1.4} w={2.8} h={2.8} on={on} {...(timer ? { timer } : {})} />
-          <Conductor d={`M${coilB.offset.x} 1.4V${coilB.offset.y - 1.4}`} />
+          <Conductor d={`M${at(coilPins[0]).offset.x} ${at(coilPins[0]).offset.y - 1.2}V${coil.y + coil.h / 2}H${coil.x}`} />
+          <Conductor
+            d={`M${at(coilPins[1]).offset.x} ${at(coilPins[1]).offset.y - 1.2}V${coil.y + coil.h / 2}H${coil.x + coil.w}`}
+          />
+          <Coil x={coil.x} y={coil.y} w={coil.w} h={coil.h} on={on} {...(timer ? { timer } : {})} />
         </g>
       )}
       {commons.map((common) => {
@@ -277,28 +287,33 @@ function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDe
         const commonT = at(common);
         const noT = at(no.b);
         const ncT = at(nc.b);
-        const upper = commonT.dir === 'N';
-        const sign = upper ? 1 : -1;
-        const pivotY = commonT.offset.y + sign * 3.4;
-        const fixedY = commonT.offset.y + sign * 1.4;
+        const fixedY = def.bounds.minY + 4.6;
+        const pivotY = fixedY + 2.4;
+        const pivotX = (noT.offset.x + ncT.offset.x) / 2;
         const closed = closedOf(view, device.id, common, no.b, false);
         const tipX = closed ? noT.offset.x : ncT.offset.x;
         return (
           <g key={common}>
-            <Conductor d={`M${commonT.offset.x} ${commonT.offset.y + sign * 1.4}V${pivotY}`} />
-            <Conductor d={`M${noT.offset.x} ${noT.offset.y + sign * 1.4}V${fixedY}`} />
-            <Conductor d={`M${ncT.offset.x} ${ncT.offset.y + sign * 1.4}V${fixedY}`} />
-            <circle cx={commonT.offset.x} cy={pivotY} r={0.13} fill={P.sym} />
+            <Conductor d={`M${commonT.offset.x} ${commonT.offset.y - 1.2}V${pivotY}H${pivotX}`} />
+            <Conductor d={`M${noT.offset.x} ${noT.offset.y + 1.2}V${fixedY}`} />
+            <Conductor d={`M${ncT.offset.x} ${ncT.offset.y + 1.2}V${fixedY}`} />
+            {/* Gancho del contacto NC. */}
             <Conductor
-              d={`M${commonT.offset.x} ${pivotY}L${tipX} ${fixedY}`}
-              width={BOARD_STROKE * 1.2}
+              d={`M${ncT.offset.x} ${fixedY}H${ncT.offset.x + (ncT.offset.x > pivotX ? 0.9 : -0.9)}`}
             />
-            <MechLink d={`M${coilA ? coilA.offset.x : def.bounds.minX + 1} ${(pivotY + fixedY) / 2}H${commonT.offset.x}`} />
+            <circle cx={pivotX} cy={pivotY} r={0.14} fill={P.sym} />
+            <Conductor d={`M${pivotX} ${pivotY}L${tipX} ${fixedY}`} width={BOARD_STROKE * 1.3} />
           </g>
         );
       })}
+      {/* Vínculo mecánico: una sola línea de puntos que cruza las cuchillas. */}
+      <MechLink
+        d={`M${def.bounds.minX + 1.2} ${def.bounds.minY + 6.4}H${def.bounds.maxX - (timer ? 5.4 : 1.2)}${
+          coil ? `M${coil.x + coil.w / 2} ${coil.y}V${def.bounds.minY + 6.4}` : ''
+        }`}
+      />
       {timer && <TimerFace view={view} x={def.bounds.maxX - 2.6} />}
-      <Tag x={(coilA?.offset.x ?? def.bounds.minX) + 2} y={def.bounds.maxY - 1.6} text={tagOf(device)} anchor="start" />
+      <Tag x={def.bounds.minX + 1} y={def.bounds.minY + 2.4} text={tagOf(device)} anchor="start" />
     </g>
   );
 }

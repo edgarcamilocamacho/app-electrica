@@ -43,54 +43,14 @@ test.describe('simulación del tablero', () => {
 
   test('el tiempo avanza sin sleep y el temporizador cumple su preset', async ({ page }) => {
     await openApp(page);
-    // Circuito mínimo con TON cargado por JSON, para no depender del ejemplo.
-    const json = JSON.stringify({
-      schemaVersion: 2,
-      metadata: { name: 'TON', createdAt: '2026-01-01T00:00:00.000Z', modifiedAt: '2026-01-01T00:00:00.000Z' },
-      devices: {
-        d1: { type: 'supply-1p', position: { x: 10, y: 10 }, props: { ref: 'G1', label: '' } },
-        d2: { type: 'timer-ton', position: { x: 10, y: 44 }, props: { ref: 'T1', label: '', presetMs: 2000 } },
-        d3: { type: 'pilot-lamp', position: { x: 46, y: 44 }, props: { ref: 'H1', label: '', color: 'green' } },
-      },
-      wires: {
-        w1: {
-          a: { deviceId: 'd1', terminalId: 'L' },
-          b: { deviceId: 'd2', terminalId: '7' },
-          bends: [{ x: 12, y: 24 }, { x: 4, y: 24 }],
-          color: 'red',
-          gauge: 1,
-        },
-        w2: {
-          a: { deviceId: 'd2', terminalId: '2' },
-          b: { deviceId: 'd1', terminalId: 'N' },
-          bends: [{ x: 4, y: 58 }, { x: 24, y: 58 }, { x: 24, y: 20 }, { x: 8, y: 20 }],
-          color: 'blue',
-          gauge: 1,
-        },
-        w3: { a: { deviceId: 'd1', terminalId: 'L' }, b: { deviceId: 'd2', terminalId: '8' }, bends: [], color: 'red', gauge: 1 },
-        w4: {
-          a: { deviceId: 'd2', terminalId: '6' },
-          b: { deviceId: 'd3', terminalId: 'X1' },
-          bends: [{ x: 8, y: 30 }, { x: 46, y: 30 }],
-          color: 'red',
-          gauge: 1,
-        },
-        w5: {
-          a: { deviceId: 'd3', terminalId: 'X2' },
-          b: { deviceId: 'd1', terminalId: 'N' },
-          bends: [{ x: 46, y: 62 }, { x: 28, y: 62 }, { x: 28, y: 20 }, { x: 8, y: 20 }],
-          color: 'blue',
-          gauge: 1,
-        },
-      },
-      annotations: {},
-    });
-    const loaded = await page.evaluate((text) => window.__e2e!.loadJson(text), json);
-    expect(loaded).toBe(true);
-
+    await page.evaluate(() => window.__e2e!.loadExample('temporizador'));
     await page.getByTestId('simulate').click();
     await expect(device(page, 'H1')).toHaveAttribute('data-energized', 'false');
-    await advance(page, 1900);
+
+    // S1 es un interruptor mantenido: un clic lo cierra y arranca la cuenta del TON.
+    const s1 = await device(page, 'S1').boundingBox();
+    await page.mouse.click(s1!.x + s1!.width / 2, s1!.y + s1!.height / 2);
+    await advance(page, 4900);
     await expect(device(page, 'H1')).toHaveAttribute('data-energized', 'false');
     await advance(page, 200);
     await expect(device(page, 'H1')).toHaveAttribute('data-energized', 'true');

@@ -510,3 +510,9 @@ button:focus-visible,
   background: var(--tb-danger-soft);
   color: var(--tb-danger);
 }
+
+.tb-error__where {
+  margin: 3px 0 0;
+  font-size: 12px;
+  opacity: 0.9;
+}

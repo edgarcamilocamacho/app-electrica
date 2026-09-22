@@ -23,6 +23,8 @@ export interface BoardDiagramProps {
   readonly selected?: ReadonlySet<Id>;
   /** Vista previa inválida: se dibuja en rojo. */
   readonly invalid?: readonly Id[];
+  /** Aparatos implicados en la falla de simulación: se resaltan. */
+  readonly fault?: readonly Id[];
 }
 
 const pathOf = (points: readonly { x: number; y: number }[]): string =>
@@ -78,10 +80,11 @@ function LooseEnd({ at }: { at: { x: number; y: number } }): ReactElement {
   );
 }
 
-function BoardDiagramInner({ doc, registry, sim, selected, invalid }: BoardDiagramProps): ReactElement {
+function BoardDiagramInner({ doc, registry, sim, selected, invalid, fault }: BoardDiagramProps): ReactElement {
   const nets = useMemo(() => computeNets(doc, registry), [doc, registry]);
   const counts = useMemo(() => wireCountByTerminal(doc), [doc]);
   const invalidSet = useMemo(() => new Set(invalid ?? []), [invalid]);
+  const faultSet = useMemo(() => new Set(fault ?? []), [fault]);
   const wireNet = (wire: Wire): string | undefined => {
     const ref = terminalOf(wire.a) ?? terminalOf(wire.b);
     return ref ? nets.netOf(ref) : undefined;
@@ -141,6 +144,19 @@ function BoardDiagramInner({ doc, registry, sim, selected, invalid }: BoardDiagr
               wireCounts={counts}
               layer="screws"
             />
+            {faultSet.has(device.id) && (
+              <rect
+                x={def.bounds.minX - 0.7}
+                y={def.bounds.minY - 0.7}
+                width={def.bounds.maxX - def.bounds.minX + 1.4}
+                height={def.bounds.maxY - def.bounds.minY + 1.4}
+                rx={1.1}
+                fill={P.invalidHalo}
+                stroke={P.short}
+                strokeWidth={0.3}
+                strokeDasharray="1 0.6"
+              />
+            )}
             {invalidSet.has(device.id) && (
               <rect
                 x={def.bounds.minX - 0.4}
