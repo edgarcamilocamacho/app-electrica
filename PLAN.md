@@ -74,7 +74,8 @@ conectividad nunca geométrica, cargas que sensan, las tres reglas de cortocircu
 | Arrastrar cables | **Sí**: un tramo solo se desplaza en perpendicular, como con Mover | R4 §2 | §6.1 |
 | Mover con el teclado | Flechas desplazan lo tomado (`Mayús`: 5), `Enter` suelta | R4 §3 | §6.2 |
 | Barra de herramientas | Cada herramienta muestra su tecla al lado del ícono | R4 §4 | — |
-| Modo oscuro | Intercambiable desde la barra; por defecto sigue al sistema. Por ahora solo la interfaz: el lienzo y la exportación siguen claros [Técnica] | R4 §5 | — |
+| Modo oscuro | Intercambiable desde la barra; por defecto sigue al sistema | R4 §5 | §15 |
+| Modo oscuro en el lienzo | El lienzo y los íconos de la biblioteca también se oscurecen (paleta oscura del diagrama); la exportación sigue con la clara | R4 §6 | §15 |
 
 ---
 
@@ -1030,6 +1031,7 @@ Reutiliza el SVG del lienzo — otro motivo a favor de T-01.
 | Alcance | **El diagrama completo** (caja que contiene todo lo dibujado, con margen), aunque no entre en pantalla | R3 Q3.7 |
 | Colores | **Tal como se ve.** En edición, colores neutros. Durante la simulación o en ERROR, con los colores del estado eléctrico — sirve para documentar dónde ocurrió un corto | R3 Q3.7 |
 | Excluido siempre | grid, selección, hover, vista previa y cualquier UI de edición | R3 Q3.7 |
+| Tema | Siempre con la **paleta clara**, aunque la app esté en modo oscuro: el archivo va a documentos e impresiones | R4 §6 |
 | Formatos | **PNG** (rasterizado vía canvas, 2×) · **PDF** (vectorial, jsPDF + svg2pdf.js) · **SVG** (el propio SVG limpio) | R3 Q3.7 |
 | Página del PDF | selector **A4 / A3 / ajustado al diagrama**, orientación automática, escala para que entre | Técnica |
 | Metadatos | ninguno (ni autor, ni fecha, ni versión) | R2 §14 |

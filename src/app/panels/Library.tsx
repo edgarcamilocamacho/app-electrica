@@ -2,16 +2,17 @@ import type { ComponentCategory } from '../../core/registry/types';
 import { t } from '../i18n/t';
 import { useEditor, useEditorStore, useRegistry } from '../store/context';
 import { SYMBOLS } from '../symbols/Symbols';
-import { COLORS } from '../theme';
+import { usePalette } from '../theme';
 import { TEXT_ICON_PATH } from '../toolbar/icons';
 
 const CATEGORIES: readonly ComponentCategory[] = ['sources', 'manual', 'relays', 'contacts', 'timers', 'loads'];
 
 function SymbolThumb({ type }: { type: string }) {
   const Symbol = SYMBOLS[type];
+  const palette = usePalette();
   return (
     <svg className="lib-thumb" viewBox="-3.6 -3.6 7.2 7.2" aria-hidden="true">
-      {Symbol && <Symbol props={{ color: 'amber' }} color={COLORS.ink} />}
+      {Symbol && <Symbol props={{ color: 'amber' }} color={palette.ink} />}
     </svg>
   );
 }
@@ -22,6 +23,7 @@ export function Library() {
   const registry = useRegistry();
   const placing = useEditor((s) => (s.tool.kind === 'place' ? s.tool.type : s.tool.kind === 'text' ? 'text' : null));
   const editing = useEditor((s) => s.mode === 'edit');
+  const palette = usePalette();
 
   return (
     <nav className="panel library" aria-label={t('library.title')}>
@@ -64,7 +66,7 @@ export function Library() {
             onClick={() => store.getState().setTool('text')}
           >
             <svg className="lib-thumb" viewBox="0 0 24 24" aria-hidden="true">
-              <path d={TEXT_ICON_PATH} fill="none" stroke={COLORS.ink} strokeWidth="1.8" strokeLinecap="round" />
+              <path d={TEXT_ICON_PATH} fill="none" stroke={palette.ink} strokeWidth="1.8" strokeLinecap="round" />
             </svg>
             <span>{t('components.text')}</span>
           </button>

@@ -4,7 +4,7 @@ import { downloadBlob, toFileName } from '../../platform/files';
 import { Diagram } from '../canvas/Diagram';
 import { t } from '../i18n/t';
 import { contentBounds, docOf, type EditorState, type EditorStore } from '../store/editorStore';
-import { COLORS } from '../theme';
+import { LIGHT_PALETTE } from '../theme';
 
 /**
  * Exportación (PLAN §15, R3 Q3.7): el diagrama completo, tal como se ve (con los colores de la
@@ -44,7 +44,7 @@ export async function buildExportSvg(state: EditorState): Promise<ExportedSvg> {
   );
   const markup =
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${w} ${h}" width="${width}" height="${height}">` +
-    `<rect x="${minX}" y="${minY}" width="${w}" height="${h}" fill="${COLORS.paper}"/>` +
+    `<rect x="${minX}" y="${minY}" width="${w}" height="${h}" fill="${LIGHT_PALETTE.paper}"/>` +
     inner +
     `</svg>`;
   return { markup, width, height };
@@ -69,7 +69,7 @@ async function svgToPng(svg: ExportedSvg, scale = 2): Promise<Blob> {
     canvas.height = svg.height * scale;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('canvas');
-    ctx.fillStyle = COLORS.paper;
+    ctx.fillStyle = LIGHT_PALETTE.paper;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     return await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('png'))), 'image/png'));

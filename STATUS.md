@@ -12,7 +12,7 @@ niveles.
 | Nivel | Resultado |
 |---|---|
 | Unitarias + integración (Vitest) | **228 / 228** |
-| E2E (Playwright, Chromium + Firefox) | **94 / 94** (47 flujos × 2 navegadores) |
+| E2E (Playwright, Chromium + Firefox) | **96 / 96** (48 flujos × 2 navegadores) |
 | E2E repetidos 10 veces seguidas | **820 / 820**, sin intermitencias (corrida de V1, 41 flujos) |
 | E2E contra el contenedor real | **41 / 41** (corrida de V1) |
 | Humo del contenedor + actualización en caliente | todo OK |
@@ -32,7 +32,7 @@ niveles.
 | M17 | Exportación PNG, SVG y PDF (A4 / A3 / ajustada), diagrama completo, colores tal como se ven |
 | M18 | Versión y caché: `version.json` sin caché, aviso de versión nueva, contenedor probado en caliente |
 | M19 | Estabilización: suite E2E sin intermitencias, presupuesto de rendimiento, documentación |
-| R4 | Mover **arrastrando** con Seleccionar (también cables; soltar en posición inválida lo devuelve a su lugar), **flechas y `Enter`** con Mover, tecla visible junto a cada herramienta, ícono de Texto más chico, barra de herramientas que ya no se desborda entre 960 y 1440 px, **modo oscuro** de la interfaz |
+| R4 | Mover **arrastrando** con Seleccionar (también cables; soltar en posición inválida lo devuelve a su lugar), **flechas y `Enter`** con Mover, tecla visible junto a cada herramienta, ícono de Texto más chico, barra de herramientas que ya no se desborda entre 960 y 1440 px, **modo oscuro** (interfaz, lienzo e íconos de la biblioteca) |
 
 ## En curso
 
@@ -91,10 +91,11 @@ Ninguno.
   y soltar restauraba lo borrado.
 - **Flechas con Mover y nada tomado** [Técnica]: toman la selección. Si el cursor no está sobre el
   lienzo, el primer movimiento del mouse fija el ancla sin hacer saltar el objeto.
-- **Modo oscuro** [Técnica]: cubre la interfaz (barra, paneles, menús, avisos). El lienzo, las
-  miniaturas de la biblioteca y la exportación siguen claros, como papel: los colores del diagrama
-  son literales en `theme.ts` para que el SVG exportado se vea igual. Pendiente de producto si el
-  lienzo también se oscurece. Los colores usan `light-dark()` (Chrome/Edge 123+, Firefox 120+).
+- **Modo oscuro** [Técnica]: la paleta oscura del diagrama conserva los papeles de la clara (tinta,
+  cable, flotante más apagado, fase naranja por fuente, neutro azul, corto rojo). La cruz de una
+  lámpara encendida se dibuja en tinta oscura en los dos temas para que se vea sobre el relleno.
+  La exportación sigue con la paleta clara (colores literales, R3 Q3.7). Los colores de la interfaz
+  usan `light-dark()` (Chrome/Edge 123+, Firefox 120+).
 - **Barra de herramientas angosta** [Técnica]: con 1400 px o menos se oculta el título; con 1200 px o
   menos, los menús y la velocidad muestran solo el ícono (el nombre queda como tooltip y para lectores
   de pantalla); con 960 px o menos la barra se desplaza horizontalmente.

@@ -1,8 +1,8 @@
 /*
  * Tema claro y oscuro de la interfaz (R4 §5). Cada color es light-dark(claro, oscuro): sin elección
  * guardada sigue al sistema; data-theme en <html> fija uno (lo pone public/theme-init.js antes del
- * primer pintado). El lienzo y las miniaturas de la biblioteca son «papel» y quedan claros en los
- * dos temas, igual que la exportación (los colores del diagrama están en theme.ts).
+ * primer pintado). Lo que se dibuja en el lienzo usa la paleta de theme.ts del mismo tema; --paper
+ * es su `paper`. La exportación siempre sale con la paleta clara.
  */
 :root {
   color-scheme: light dark;
@@ -31,8 +31,10 @@
   --neutral-border: light-dark(#94a3b8, #475569);
   --shadow: light-dark(rgba(15, 23, 42, 0.14), rgba(0, 0, 0, 0.55));
   --toast-bg: light-dark(#0f172a, #1e293b);
-  --paper: #fbfdff;
-  --thumb: #f8fafc;
+  --paper: light-dark(#fbfdff, #0e1522);
+  --paper-sim: light-dark(#fcfcf9, #10161f);
+  --paper-error: light-dark(#fffafa, #1a1217);
+  --thumb: light-dark(#f8fafc, #0e1522);
   --radius: 8px;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
@@ -155,8 +157,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ── Lienzo ────────────────────────────────────────────────────────────── */
 .stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .canvas { display: block; width: 100%; height: 100%; background: var(--paper); touch-action: none; user-select: none; outline: none; }
-.app--simulating .canvas { background: #fcfcf9; }
-.app--error .canvas { background: #fffafa; }
+.app--simulating .canvas { background: var(--paper-sim); }
+.app--error .canvas { background: var(--paper-error); }
 .wire-short { animation: blink 0.8s steps(2, start) infinite; }
 @keyframes blink { to { opacity: 0.35; } }
 

@@ -1,3 +1,4 @@
+import { browserStorage } from '../platform/storage';
 import { Canvas } from './canvas/Canvas';
 import { useKeyboard } from './input/useKeyboard';
 import { useSimLoop } from './input/useSimLoop';
@@ -9,12 +10,15 @@ import { StatusBar } from './panels/StatusBar';
 import { Toasts } from './panels/Toasts';
 import { EditorProvider, useEditor, useEditorStore } from './store/context';
 import type { EditorStore } from './store/editorStore';
+import { ThemeProvider } from './ThemeProvider';
 import { Toolbar } from './toolbar/Toolbar';
 
 export function App({ store }: { store: EditorStore }) {
   return (
     <EditorProvider store={store}>
-      <Shell />
+      <ThemeProvider storage={browserStorage}>
+        <Shell />
+      </ThemeProvider>
     </EditorProvider>
   );
 }

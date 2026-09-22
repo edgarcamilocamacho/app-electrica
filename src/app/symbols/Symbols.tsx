@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import type { DeviceView } from '../../core/sim/engine';
-import { COLORS, FONT_FAMILY, STROKE } from '../theme';
+import { FONT_FAMILY, STROKE, usePalette } from '../theme';
 
 /**
  * Símbolos IEC 60617 simplificados (PLAN ADR-10). Cada uno se dibuja en coordenadas locales del
@@ -100,14 +100,15 @@ function Contact({ view, color, normal, timed, linkedTimer }: SymbolProps & { no
 }
 
 function CoilBox({ color, on, extra }: { color: string; on: boolean; extra?: 'ton' | 'tof' }) {
+  const palette = usePalette();
   return (
     <g>
       <Line x1={0} y1={-3} x2={0} y2={-0.7} color={color} />
       <Line x1={0} y1={0.7} x2={0} y2={3} color={color} />
-      <rect x={-1} y={-0.7} width={2} height={1.4} fill={on ? COLORS.coilOn : COLORS.paper} stroke={color} strokeWidth={W} />
+      <rect x={-1} y={-0.7} width={2} height={1.4} fill={on ? palette.coilOn : palette.paper} stroke={color} strokeWidth={W} />
       {extra && (
         <g>
-          <rect x={-2} y={-0.7} width={1} height={1.4} fill={extra === 'tof' ? color : COLORS.paper} stroke={color} strokeWidth={W} />
+          <rect x={-2} y={-0.7} width={1} height={1.4} fill={extra === 'tof' ? color : palette.paper} stroke={color} strokeWidth={W} />
           {extra === 'ton' && (
             <g>
               <Line x1={-2} y1={-0.7} x2={-1} y2={0.7} color={color} />
@@ -121,11 +122,12 @@ function CoilBox({ color, on, extra }: { color: string; on: boolean; extra?: 'to
 }
 
 function Source({ color }: SymbolProps) {
+  const palette = usePalette();
   return (
     <g>
       <Line x1={0} y1={-3} x2={0} y2={-1.4} color={color} />
       <Line x1={0} y1={1.4} x2={0} y2={3} color={color} />
-      <circle cx={0} cy={0} r={1.4} fill={COLORS.paper} stroke={color} strokeWidth={W} />
+      <circle cx={0} cy={0} r={1.4} fill={palette.paper} stroke={color} strokeWidth={W} />
       <path d="M -0.8 0 C -0.55 -0.75 -0.25 -0.75 0 0 S 0.55 0.75 0.8 0" fill="none" stroke={color} strokeWidth={W} />
       <text x={0.35} y={-2.1} fontSize={0.75} fontFamily={FONT_FAMILY} fill={color}>
         {'L'}
@@ -138,16 +140,19 @@ function Source({ color }: SymbolProps) {
 }
 
 function Lamp({ props, view, color }: SymbolProps) {
+  const palette = usePalette();
   const on = view?.energized ?? false;
-  const fill = COLORS.lamp[String(props.color)] ?? COLORS.lamp.red!;
+  const fill = palette.lamp[String(props.color)] ?? palette.lamp.red!;
+  // La cruz va sobre el relleno encendido: en tinta oscura también en el tema oscuro.
+  const cross = on && color === palette.ink ? palette.litInk : color;
   return (
     <g>
       {on && <circle cx={0} cy={0} r={2.1} fill={fill} opacity={0.3} />}
       <Line x1={0} y1={-3} x2={0} y2={-1.3} color={color} />
       <Line x1={0} y1={1.3} x2={0} y2={3} color={color} />
-      <circle cx={0} cy={0} r={1.3} fill={on ? fill : COLORS.paper} stroke={color} strokeWidth={W} />
-      <Line x1={-0.92} y1={-0.92} x2={0.92} y2={0.92} color={color} />
-      <Line x1={-0.92} y1={0.92} x2={0.92} y2={-0.92} color={color} />
+      <circle cx={0} cy={0} r={1.3} fill={on ? fill : palette.paper} stroke={color} strokeWidth={W} />
+      <Line x1={-0.92} y1={-0.92} x2={0.92} y2={0.92} color={cross} />
+      <Line x1={-0.92} y1={0.92} x2={0.92} y2={-0.92} color={cross} />
     </g>
   );
 }

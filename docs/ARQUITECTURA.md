@@ -66,7 +66,7 @@ Simular → diagnósticos sin bloqueantes → new SimEngine(doc) → start() (se
 | `input/` | Detección de clics con prioridades (goma R3 Q3.6), teclado, bucle de simulación |
 | `panels/` | Biblioteca, propiedades, diagnósticos, panel de ERROR, barra de estado, avisos |
 | `toolbar/` | Barra superior, menús y botón de tema |
-| `themeMode.ts` · `styles.css` · `theme.ts` | Tema claro/oscuro de la interfaz (tokens `light-dark()`, elección guardada; `public/theme-init.js` la aplica antes del primer pintado) · paleta fija del diagrama, igual en pantalla y al exportar |
+| `themeMode.ts` · `ThemeProvider.tsx` · `styles.css` · `theme.ts` | Tema claro/oscuro (R4 §5–§6): elección guardada (`public/theme-init.js` la aplica antes del primer pintado), tokens `light-dark()` para la interfaz y paletas clara/oscura del diagrama. El lienzo toma la del tema por `PaletteContext`; la exportación se dibuja fuera del proveedor y sale con la clara |
 | `export/exporter.ts` | SVG estático → PNG (canvas 2×) y PDF vectorial (jsPDF + svg2pdf, carga diferida) |
 | `i18n/` | Diccionario `es.ts`, `t()` tipada, formato numérico en español |
 | `services.ts` | Arma la tienda con dependencias reales, autoguardado y verificador de versión |

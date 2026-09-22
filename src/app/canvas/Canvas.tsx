@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { t } from '../i18n/t';
 import { useEditor, useEditorStore, useRegistry } from '../store/context';
 import { carryOf, docOf, GRID_PX, screenToWorld, snap, selectionOfState } from '../store/editorStore';
-import { COLORS } from '../theme';
+import { usePalette } from '../theme';
 import { Diagram, type Marker } from './Diagram';
 import type { Id } from '../../core/model/types';
 
@@ -19,6 +19,7 @@ const NO_MARKERS: readonly Marker[] = [];
 export function Canvas() {
   const store = useEditorStore();
   const registry = useRegistry();
+  const palette = usePalette();
   const svgRef = useRef<SVGSVGElement>(null);
   const panning = useRef<{ id: number } | null>(null);
   const [spaceDown, setSpaceDown] = useState(false);
@@ -180,10 +181,10 @@ export function Canvas() {
     >
       <defs>
         <pattern id="grid-dots" width={gridStep} height={gridStep} patternUnits="userSpaceOnUse">
-          <circle cx={0} cy={0} r={gridStep === 1 ? 0.07 : 0.2} fill={COLORS.grid} />
+          <circle cx={0} cy={0} r={gridStep === 1 ? 0.07 : 0.2} fill={palette.grid} />
         </pattern>
         <pattern id="grid-major" width={10} height={10} patternUnits="userSpaceOnUse">
-          <circle cx={0} cy={0} r={0.13} fill={COLORS.gridMajor} />
+          <circle cx={0} cy={0} r={0.13} fill={palette.gridMajor} />
         </pattern>
       </defs>
       <g transform={`translate(${viewport.panX} ${viewport.panY}) scale(${k})`}>
@@ -201,10 +202,10 @@ export function Canvas() {
           fault={sim?.fault?.components ?? NO_IDS}
         />
         {tool.kind === 'wire' &&
-          tool.points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={0.22} fill={COLORS.preview} />)}
+          tool.points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={0.22} fill={palette.preview} />)}
         {showCrosshair && (
           <g pointerEvents="none">
-            <circle cx={snapped.x} cy={snapped.y} r={0.45} fill="none" stroke={preview && !preview.ok ? COLORS.invalid : COLORS.preview} strokeWidth={0.1} />
+            <circle cx={snapped.x} cy={snapped.y} r={0.45} fill="none" stroke={preview && !preview.ok ? palette.invalid : palette.preview} strokeWidth={0.1} />
           </g>
         )}
         {rubberBand && (
@@ -213,8 +214,8 @@ export function Canvas() {
             y={Math.min(rubberBand.a.y, rubberBand.b.y)}
             width={Math.abs(rubberBand.b.x - rubberBand.a.x)}
             height={Math.abs(rubberBand.b.y - rubberBand.a.y)}
-            fill={COLORS.selectionHalo}
-            stroke={COLORS.selection}
+            fill={palette.selectionHalo}
+            stroke={palette.selection}
             strokeWidth={0.08}
             strokeDasharray="0.4 0.25"
           />
