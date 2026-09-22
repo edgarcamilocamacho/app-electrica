@@ -56,7 +56,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tb-button:hover:not(:disabled) { background: #f1f5f9; border-color: var(--border); }
 .tb-button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .tb-button:disabled { opacity: 0.4; cursor: not-allowed; }
-.tb-wide { padding: 0 12px; font-weight: 600; }
+.tb-button:has(.tb-key) { gap: 3px; padding: 0 6px 0 7px; }
+.tb-key { font: 600 10px/1 system-ui, sans-serif; color: #b6c0cd; align-self: flex-end; margin-bottom: 7px; }
+.tb-button.active .tb-key { color: #7dc3e6; }
+.tb-wide { padding: 0 12px; font-weight: 600; white-space: nowrap; }
 .tb-play { background: #dcfce7; color: var(--ok); border-color: #86efac; }
 .tb-stop { background: #e2e8f0; border-color: #94a3b8; }
 .tb-danger { background: var(--danger-soft); color: var(--danger); border-color: #fca5a5; }
@@ -177,12 +180,23 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .toast .btn { background: white; color: #0f172a; }
 .toast .btn-ghost { background: transparent; color: white; }
 
+/* La barra no cabe entera: primero se va la marca; luego los textos de los menús y de la velocidad
+   pasan a ser solo accesibles (el menú conserva su nombre como tooltip). */
+@media (max-width: 1400px) {
+  .tb-brand { display: none; }
+}
+@media (max-width: 1200px) {
+  .tb-menu span, .tb-speed span {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+}
 @media (max-width: 1100px) {
   .app { grid-template-columns: 210px 1fr 250px; }
-  .tb-brand { display: none; }
+}
+@media (max-width: 960px) {
+  .toolbar { overflow-x: auto; }
 }
 @media (max-width: 800px) {
   .app { grid-template-columns: 1fr; grid-template-areas: 'toolbar' 'stage' 'status'; }
   .library, .sidebar { display: none; }
-  .toolbar { overflow-x: auto; }
 }

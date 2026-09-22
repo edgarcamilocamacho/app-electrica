@@ -82,6 +82,9 @@ export function Toolbar() {
               onClick={() => s().setTool(x.kind)}
             >
               {Icons[x.icon]}
+              <kbd className="tb-key" aria-hidden="true">
+                {x.key}
+              </kbd>
             </button>
           );
         })}

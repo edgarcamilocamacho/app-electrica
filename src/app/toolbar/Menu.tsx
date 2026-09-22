@@ -34,6 +34,7 @@ export function Menu({ label, icon, items, testId, disabled }: { label: string; 
       <button
         type="button"
         className="tb-button tb-menu"
+        title={label}
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={disabled}
