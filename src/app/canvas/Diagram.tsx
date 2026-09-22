@@ -153,10 +153,15 @@ export const Diagram = memo(function Diagram(props: DiagramProps) {
           if (r.status === 'ok') linkedTimer = doc.components[r.targetId]?.type === 'timer-tof' ? 'TOF' : 'TON';
         }
         const timer = view?.timer;
-        // Textos apilados pegados a la esquina inferior derecha del símbolo (R4 §7).
+        // Textos apilados pegados al símbolo (R4 §7): abajo a la derecha si está vertical; justo
+        // debajo y centrados si está horizontal.
         const body = SYMBOL_BODIES[c.type];
-        const anchor = body ? rotateRect(body, c.rotation) : { maxX: b.maxX - c.position.x, maxY: b.maxY - c.position.y };
-        const textX = c.position.x + anchor.maxX + LABEL_GAP;
+        const anchor = body
+          ? rotateRect(body, c.rotation)
+          : { minX: b.minX - c.position.x, minY: b.minY - c.position.y, maxX: b.maxX - c.position.x, maxY: b.maxY - c.position.y };
+        const horizontal = c.rotation === 90 || c.rotation === 270;
+        const textX = c.position.x + (horizontal ? (anchor.minX + anchor.maxX) / 2 : anchor.maxX + LABEL_GAP);
+        const textAnchor = horizontal ? 'middle' : 'start';
         let cursor = c.position.y + anchor.maxY + LABEL_GAP;
         const nextLine = (size: number) => {
           cursor += size * 0.78;
@@ -190,12 +195,12 @@ export const Diagram = memo(function Diagram(props: DiagramProps) {
               <Symbol props={c.props} view={view} color={color} linkedTimer={linkedTimer} />
             </g>
             {ref && (
-              <text x={textX} y={refY} fontSize={LABEL_FONT} fontFamily={FONT_FAMILY} fontWeight={600} fill={color}>
+              <text x={textX} y={refY} textAnchor={textAnchor} fontSize={LABEL_FONT} fontFamily={FONT_FAMILY} fontWeight={600} fill={color}>
                 {ref}
               </text>
             )}
             {label && (
-              <text x={textX} y={labelY} fontSize={SMALL_FONT} fontFamily={FONT_FAMILY} fill={palette.inkMuted}>
+              <text x={textX} y={labelY} textAnchor={textAnchor} fontSize={SMALL_FONT} fontFamily={FONT_FAMILY} fill={palette.inkMuted}>
                 {label}
               </text>
             )}
@@ -204,6 +209,7 @@ export const Diagram = memo(function Diagram(props: DiagramProps) {
                 data-timer-label
                 x={textX}
                 y={timerY}
+                textAnchor={textAnchor}
                 fontSize={SMALL_FONT}
                 fontFamily={FONT_FAMILY}
                 fill={timer.phase === 'running' ? palette.line[0] : palette.inkMuted}
