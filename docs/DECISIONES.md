@@ -133,6 +133,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | Grilla de 10 px al 100 %, zoom de 25 % a 400 %, como valores ajustables | R2 §21, I17 |
 | **Toda la interfaz en español**, con atajos coherentes con los nombres en español (`B` Borrar, `M` Mover). Textos centralizados para poder agregar idiomas sin reescribir componentes | R2 §26, R2 §30.8 |
 | Cada botón de herramienta muestra **su tecla** al lado del ícono, en gris claro | R4 §4 |
+| La referencia de cada componente (y debajo su descripción y el tiempo del temporizador) va **justo abajo a la derecha del símbolo, muy pegada**, también si está rotado | R4 §7 |
 | **Modo oscuro intercambiable** con un botón en la barra; sin elección sigue al sistema y la elección se recuerda. Abarca la interfaz, el **lienzo** y los **íconos de la biblioteca**; la exportación sale siempre con los colores claros | R4 §5, R4 §6 |
 | Sin telemetría ni analítica; sin requisitos regulatorios identificados | R2 §30.6 |
 | Monousuario y local; sin colaboración en tiempo real | R2 §30.7 |

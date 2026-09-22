@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import type { Rect } from '../../core/model/geometry';
 import type { DeviceView } from '../../core/sim/engine';
 import { FONT_FAMILY, STROKE, usePalette } from '../theme';
 
@@ -129,10 +130,11 @@ function Source({ color }: SymbolProps) {
       <Line x1={0} y1={1.4} x2={0} y2={3} color={color} />
       <circle cx={0} cy={0} r={1.4} fill={palette.paper} stroke={color} strokeWidth={W} />
       <path d="M -0.8 0 C -0.55 -0.75 -0.25 -0.75 0 0 S 0.55 0.75 0.8 0" fill="none" stroke={color} strokeWidth={W} />
-      <text x={0.35} y={-2.1} fontSize={0.75} fontFamily={FONT_FAMILY} fill={color}>
+      {/* L y N a la izquierda: la derecha queda para la referencia. */}
+      <text x={-0.35} y={-2.1} fontSize={0.75} fontFamily={FONT_FAMILY} fill={color} textAnchor="end">
         {'L'}
       </text>
-      <text x={0.35} y={2.7} fontSize={0.75} fontFamily={FONT_FAMILY} fill={color}>
+      <text x={-0.35} y={2.7} fontSize={0.75} fontFamily={FONT_FAMILY} fill={color} textAnchor="end">
         {'N'}
       </text>
     </g>
@@ -194,4 +196,29 @@ export const SYMBOLS: Readonly<Record<string, (p: SymbolProps) => ReactElement>>
   'timed-contact-no': (p) => <Contact {...p} normal="NO" timed />,
   'timed-contact-nc': (p) => <Contact {...p} normal="NC" timed />,
   lamp: Lamp,
+};
+
+/**
+ * Contorno de lo que dibuja cada símbolo, sin las patas hasta los terminales (coordenadas locales,
+ * sin rotar). Los textos del componente se escriben pegados a su esquina inferior derecha (R4 §7).
+ * A la derecha, un contacto NA termina en la pata; uno NC, en el gancho.
+ */
+const contact = (normal: 'NO' | 'NC', minX: number): Rect => ({ minX, minY: -1.2, maxX: normal === 'NO' ? 0.2 : 1.2, maxY: 1 });
+
+export const SYMBOL_BODIES: Readonly<Record<string, Rect>> = {
+  'ac-source': { minX: -1.4, minY: -1.4, maxX: 1.4, maxY: 1.4 },
+  'switch-no': contact('NO', -2.5),
+  'switch-nc': contact('NC', -2.5),
+  'pushbutton-no': contact('NO', -2.2),
+  'pushbutton-nc': contact('NC', -2.2),
+  'emergency-stop': contact('NC', -3),
+  'selector-3': { minX: -3, minY: -1.2, maxX: 3.2, maxY: 2.7 },
+  coil: { minX: -1, minY: -0.7, maxX: 1, maxY: 0.7 },
+  'contact-no': contact('NO', -1.2),
+  'contact-nc': contact('NC', -0.2),
+  'timer-ton': { minX: -2, minY: -0.7, maxX: 1, maxY: 0.7 },
+  'timer-tof': { minX: -2, minY: -0.7, maxX: 1, maxY: 0.7 },
+  'timed-contact-no': contact('NO', -3),
+  'timed-contact-nc': contact('NC', -3),
+  lamp: { minX: -1.3, minY: -1.3, maxX: 1.3, maxY: 1.3 },
 };

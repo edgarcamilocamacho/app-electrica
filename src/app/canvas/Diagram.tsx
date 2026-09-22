@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import { computeNets } from '../../core/connectivity/nets';
 import { buildRefIndex } from '../../core/connectivity/refs';
 import { componentBounds, vertexPosition } from '../../core/model/document';
+import { rotateRect } from '../../core/model/geometry';
 import type { Selection } from '../../core/model/selection';
 import type { CircuitDocument, Id, Point } from '../../core/model/types';
 import type { Registry } from '../../core/registry/types';
@@ -9,8 +10,11 @@ import type { NetPotential, SimSnapshot } from '../../core/sim/engine';
 import type { VertexClass } from '../../core/topology/classify';
 import { formatSeconds } from '../i18n/format';
 import { ANNOTATION_FONT } from '../input/hitTest';
-import { SYMBOLS } from '../symbols/Symbols';
+import { SYMBOL_BODIES, SYMBOLS } from '../symbols/Symbols';
 import { FONT_FAMILY, LABEL_FONT, SMALL_FONT, STROKE, usePalette, WIRE_STROKE, type Palette } from '../theme';
+
+/** Separación entre el símbolo y sus textos. */
+const LABEL_GAP = 0.15;
 
 export interface Marker {
   readonly at: Point;
@@ -149,6 +153,20 @@ export const Diagram = memo(function Diagram(props: DiagramProps) {
           if (r.status === 'ok') linkedTimer = doc.components[r.targetId]?.type === 'timer-tof' ? 'TOF' : 'TON';
         }
         const timer = view?.timer;
+        // Textos apilados pegados a la esquina inferior derecha del símbolo (R4 §7).
+        const body = SYMBOL_BODIES[c.type];
+        const anchor = body ? rotateRect(body, c.rotation) : { maxX: b.maxX - c.position.x, maxY: b.maxY - c.position.y };
+        const textX = c.position.x + anchor.maxX + LABEL_GAP;
+        let cursor = c.position.y + anchor.maxY + LABEL_GAP;
+        const nextLine = (size: number) => {
+          cursor += size * 0.78;
+          const baseline = cursor;
+          cursor += size * 0.28;
+          return baseline;
+        };
+        const refY = ref ? nextLine(LABEL_FONT) : 0;
+        const labelY = label ? nextLine(SMALL_FONT) : 0;
+        const timerY = timer ? nextLine(SMALL_FONT) : 0;
         return (
           <g
             key={c.id}
@@ -172,20 +190,20 @@ export const Diagram = memo(function Diagram(props: DiagramProps) {
               <Symbol props={c.props} view={view} color={color} linkedTimer={linkedTimer} />
             </g>
             {ref && (
-              <text x={b.maxX + 0.5} y={(b.minY + b.maxY) / 2 - (label ? 0.2 : -0.35)} fontSize={LABEL_FONT} fontFamily={FONT_FAMILY} fontWeight={600} fill={color}>
+              <text x={textX} y={refY} fontSize={LABEL_FONT} fontFamily={FONT_FAMILY} fontWeight={600} fill={color}>
                 {ref}
               </text>
             )}
             {label && (
-              <text x={b.maxX + 0.5} y={(b.minY + b.maxY) / 2 + 0.9} fontSize={SMALL_FONT} fontFamily={FONT_FAMILY} fill={palette.inkMuted}>
+              <text x={textX} y={labelY} fontSize={SMALL_FONT} fontFamily={FONT_FAMILY} fill={palette.inkMuted}>
                 {label}
               </text>
             )}
             {timer && (
               <text
                 data-timer-label
-                x={b.maxX + 0.5}
-                y={(b.minY + b.maxY) / 2 + (label ? 1.9 : 1.3)}
+                x={textX}
+                y={timerY}
                 fontSize={SMALL_FONT}
                 fontFamily={FONT_FAMILY}
                 fill={timer.phase === 'running' ? palette.line[0] : palette.inkMuted}

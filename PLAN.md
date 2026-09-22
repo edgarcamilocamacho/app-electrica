@@ -75,6 +75,7 @@ conectividad nunca geométrica, cargas que sensan, las tres reglas de cortocircu
 | Mover con el teclado | Flechas desplazan lo tomado (`Mayús`: 5), `Enter` suelta | R4 §3 | §6.2 |
 | Barra de herramientas | Cada herramienta muestra su tecla al lado del ícono | R4 §4 | — |
 | Modo oscuro | Intercambiable desde la barra; por defecto sigue al sistema | R4 §5 | §15 |
+| Textos del componente | Referencia, descripción y tiempo del temporizador apilados justo abajo a la derecha del contorno del símbolo (sin las patas), también rotado. L y N de la fuente pasan a la izquierda del cable [Técnica] | R4 §7 | — |
 | Modo oscuro en el lienzo | El lienzo y los íconos de la biblioteca también se oscurecen (paleta oscura del diagrama); la exportación sigue con la clara | R4 §6 | §15 |
 
 ---
