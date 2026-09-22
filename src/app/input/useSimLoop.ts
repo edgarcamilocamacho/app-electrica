@@ -4,7 +4,7 @@ import type { EditorStore } from '../store/editorStore';
 
 /**
  * Bucle de animación durante la simulación: solo empuja el tiempo de simulación según el reloj
- * de pared y la velocidad elegida. El motor sigue siendo determinista (AGENT_PROMPT Fase 4).
+ * de pared y la velocidad elegida. El motor sigue siendo determinista (spec §17).
  */
 export function useSimLoop(store: EditorStore): void {
   const simulating = useEditor((s) => s.mode === 'simulating');

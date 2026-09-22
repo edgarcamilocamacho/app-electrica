@@ -1,6 +1,7 @@
 # Estado de implementación
 
-> Documento vivo exigido por la Fase 7 del [AGENT_PROMPT.md](AGENT_PROMPT.md).
+> Documento vivo: completado · en curso · tests fallando · limitaciones · decisiones abiertas.
+> Se actualiza al cerrar cada tanda de trabajo (ver [CLAUDE.md](CLAUDE.md)).
 > Última actualización: 2026-09-21.
 
 ## Resumen

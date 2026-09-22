@@ -3,8 +3,8 @@
 > **Implementación:** V1 completa — estado, limitaciones y desviaciones en [STATUS.md](STATUS.md).
 > **Estado del plan:** **v0.5 — LISTO PARA IMPLEMENTAR.** Incorpora las rondas 1, 2 y 3, y el agregado del contenedor. **Sin decisiones abiertas que afecten el código.**
 > **Fuente de verdad del producto:** [electrical_control_simulator_spec.md](electrical_control_simulator_spec.md), modificada por [RESPONSE_ROUND_1.md](RESPONSE_ROUND_1.md), [RESPONSE_ROUND_2.md](RESPONSE_ROUND_2.md) y [RESPONSE_ROUND_3.md](RESPONSE_ROUND_3.md). **Ante contradicción prevalece la ronda más reciente.**
-> **Protocolo de trabajo:** [AGENT_PROMPT.md](AGENT_PROMPT.md)
-> **Rondas de preguntas (todas cerradas):** [QUESTIONS1.md](QUESTIONS1.md) · [QUESTIONS2.md](QUESTIONS2.md) · [QUESTIONS3.md](QUESTIONS3.md)
+> **Contexto para sesiones nuevas:** [CLAUDE.md](CLAUDE.md)
+> **Rondas de preguntas:** cerradas. Los cuestionarios (`QUESTIONS1–3.md`) y el prompt inicial (`AGENT_PROMPT.md`) se retiraron del repo y quedan en el historial de git; las decisiones están en las respuestas de cada ronda y en el §2.
 
 ---
 
@@ -20,7 +20,7 @@ eso, cada decisión relevante de este plan lleva una etiqueta de origen:
 | **[Spec §n]** | Está en la especificación original |
 | **[R1 §n]** / **[R2 §n]** / **[R3 Qx]** | Decidido por producto en la ronda 1, 2 o 3 |
 | **[Técnica]** | Propuesta del equipo técnico. **No confirmada por producto.** Puede cambiar sin reabrir decisiones de producto. Las que producto aprobó en la ronda 3 están marcadas en el §2.2 |
-| **[Interpretación]** | Algo que producto delegó o que el equipo tuvo que inferir. **Las 18 (I1–I18) fueron aceptadas por producto en la ronda 3**; se conserva la etiqueta para que se vea de dónde salió cada regla |
+| **[Interpretación]** | Algo que producto delegó o que el equipo tuvo que inferir. **Las 18 (I1–I18) fueron aceptadas por producto en la ronda 3** y están listadas en [RESPONSE_ROUND_3.md §10](RESPONSE_ROUND_3.md); se conserva la etiqueta para que se vea de dónde salió cada regla |
 | **[R3 §11]** | Agregado posterior a la ronda 3: la app corre en un contenedor |
 
 ### 0.2 Qué cambia en las v0.4 y v0.5 (ronda 3 y agregado del contenedor)

@@ -7,6 +7,7 @@ estáticos.
 - Especificación: [electrical_control_simulator_spec.md](electrical_control_simulator_spec.md)
 - Plan de implementación: [PLAN.md](PLAN.md)
 - Estado actual: [STATUS.md](STATUS.md)
+- Contexto para sesiones de Claude Code: [CLAUDE.md](CLAUDE.md)
 - Arquitectura: [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) · Convenciones: [docs/CONVENCIONES.md](docs/CONVENCIONES.md) ·
   Glosario: [docs/GLOSARIO.md](docs/GLOSARIO.md) · Atajos: [docs/ATAJOS.md](docs/ATAJOS.md)
 
