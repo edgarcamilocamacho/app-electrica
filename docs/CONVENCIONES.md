@@ -5,10 +5,10 @@
 - **Interfaz: español.** Todo texto visible sale de `src/app/i18n/es.ts` vía `t('clave')`. El lint
   (`local/no-literal-ui-text`) rechaza texto literal en JSX y en `aria-label`, `title`, `placeholder`
   y `alt`.
-- **Código: inglés.** Identificadores, tipos de componente (`coil`, `timer-ton`), nombres de propiedades
-  (`initialState`, `presetMs`) y mensajes de commit. Los documentos de producto y de arquitectura, en
-  español.
-- **Núcleo sin textos.** `src/core` devuelve códigos y parámetros (`{ code: 'REF_BROKEN', ref: 'K3' }`);
+- **Código: inglés.** Identificadores, tipos de aparato (`contactor-3p`, `timer-ton`), nombres de
+  propiedades (`initiallyActuated`, `presetMs`). Los mensajes de commit y los documentos de producto
+  y de arquitectura, en español.
+- **Núcleo sin textos.** `src/core` devuelve códigos y parámetros (`{ code: 'REF_REPEATED', ref: 'K1' }`);
   la UI los traduce.
 
 ## Capas
@@ -25,17 +25,18 @@
 
 - El documento guarda coordenadas en **unidades de grid enteras**. La UI dibuja el mundo en unidades de
   grid y escala por `GRID_PX × zoom`.
-- `y` crece hacia abajo. Rotación en sentido horario, en pasos de 90°.
+- `y` crece hacia abajo. Los aparatos no rotan [R5 §1].
+- Los bornes quedan a una unidad del borde del cuerpo y el paso entre tornillos es 4.
 
 ## Pruebas
 
 - `tests/unit`: núcleo, entorno Node, sin DOM, sin mocks: entra un documento, sale un estado.
-- `tests/integration`: store y máquina de interacción con jsdom.
+- `tests/integration/board`: la tienda del editor, con jsdom.
 - `tests/e2e`: Playwright en Chromium y Firefox. Sin `sleep`: el reloj de simulación se avanza con el
   gancho de pruebas. La acción bajo prueba siempre se hace por la UI real.
 - Cada hito se cierra con sus pruebas de los tres niveles.
 
 ## Commits
 
-- Un commit por hito como mínimo, con el prefijo del hito: `M3: operaciones topológicas…`.
+- Un commit por tanda coherente, con el prefijo del hito: `R5/G3: catálogo completo…`.
 - `pnpm check` en verde antes de commitear.

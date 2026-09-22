@@ -55,10 +55,20 @@ export function starterBoard(ctx: OpContext): BoardDocument {
   const K = contactor.id;
   const H = lamp.id;
 
-  // Mando: L → Q1 → S0 → S1 → A1 ; A2 → N
+  // Mando: L → Q1 → S0 → S1 → A1 ; A2 → N. Los cables rodean los aparatos en vez de cruzarlos.
   doc = wire(doc, ctx, t(G, 'L'), t(Q, '1'), 'brown');
-  doc = wire(doc, ctx, t(Q, '2'), t(S0, '11'), 'red');
-  doc = wire(doc, ctx, t(S0, '12'), t(S1, '13'), 'red');
+  doc = wire(doc, ctx, t(Q, '2'), t(S0, '11'), 'red', [
+    { x: 0, y: 46 },
+    { x: 14, y: 46 },
+    { x: 14, y: 16 },
+    { x: 22, y: 16 },
+  ]);
+  doc = wire(doc, ctx, t(S0, '12'), t(S1, '13'), 'red', [
+    { x: 22, y: 46 },
+    { x: 30, y: 46 },
+    { x: 30, y: 16 },
+    { x: 38, y: 16 },
+  ]);
   doc = wire(doc, ctx, t(S1, '14'), t(K, 'A1'), 'red', [
     { x: 38, y: 46 },
     { x: 50, y: 46 },
@@ -66,34 +76,38 @@ export function starterBoard(ctx: OpContext): BoardDocument {
     { x: 58, y: 17 },
   ]);
   doc = wire(doc, ctx, t(K, 'A2'), t(G, 'N'), 'blue', [
-    { x: 62, y: 14 },
-    { x: 2, y: 14 },
+    { x: 62, y: 13 },
+    { x: 2, y: 13 },
   ]);
 
   // Retención con el contacto auxiliar 13-14.
   doc = wire(doc, ctx, t(S1, '13'), t(K, '13'), 'red', [
-    { x: 38, y: 16 },
-    { x: 68, y: 16 },
+    { x: 38, y: 19 },
+    { x: 68, y: 19 },
   ]);
   doc = wire(doc, ctx, t(K, '14'), t(K, 'A1'), 'red', [
     { x: 68, y: 50 },
-    { x: 47, y: 50 },
-    { x: 47, y: 14 },
-    { x: 58, y: 14 },
+    { x: 46, y: 50 },
+    { x: 46, y: 15 },
+    { x: 58, y: 15 },
   ]);
 
   // Potencia: L → 1/L1 ; 2/T1 → piloto ; piloto → N
   doc = wire(doc, ctx, t(G, 'L'), t(K, '1'), 'brown', [
-    { x: -2, y: 12 },
-    { x: 56, y: 12 },
+    { x: -2, y: 10 },
+    { x: 56, y: 10 },
   ]);
   doc = wire(doc, ctx, t(K, '2'), t(H, 'X1'), 'brown', [
     { x: 56, y: 56 },
-    { x: 96, y: 56 },
+    { x: 88, y: 56 },
+    { x: 88, y: 16 },
+    { x: 96, y: 16 },
   ]);
   doc = wire(doc, ctx, t(H, 'X2'), t(G, 'N'), 'blue', [
-    { x: 96, y: 62 },
-    { x: 2, y: 62 },
+    { x: 96, y: 60 },
+    { x: 8, y: 60 },
+    { x: 8, y: 11 },
+    { x: 2, y: 11 },
   ]);
 
   return doc;

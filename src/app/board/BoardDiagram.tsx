@@ -48,7 +48,7 @@ function WireArt({
   const live = potential?.kind === 'line' || potential?.kind === 'neutral';
   const stroke = invalid ? P.invalid : short ? P.short : live ? tone.on : tone.off;
   return (
-    <g>
+    <g data-wire={wire.id} data-live={live ? 'true' : 'false'}>
       {selected && <path d={d} fill="none" stroke={P.selectionHalo} strokeWidth={width + 0.7} strokeLinecap="round" strokeLinejoin="round" />}
       {live && !short && (
         <path d={d} fill="none" stroke={tone.glow} strokeWidth={width + 0.55} strokeLinecap="round" strokeLinejoin="round" />
@@ -87,8 +87,16 @@ function BoardDiagramInner({ doc, registry, sim, selected, invalid }: BoardDiagr
         const def = registry.get(device.type);
         if (!def) return null;
         const isSelected = selected?.has(device.id) ?? false;
+        const view = sim?.devices.get(device.id);
         return (
-          <g key={device.id} transform={`translate(${device.position.x} ${device.position.y})`}>
+          <g
+            key={device.id}
+            transform={`translate(${device.position.x} ${device.position.y})`}
+            data-device={device.id}
+            data-ref={typeof device.props.ref === 'string' ? device.props.ref : ''}
+            data-energized={view?.energized === true ? 'true' : 'false'}
+            data-actuated={view?.actuated === true ? 'true' : 'false'}
+          >
             {isSelected && (
               <rect
                 x={def.bounds.minX - 0.5}
@@ -101,7 +109,7 @@ function BoardDiagramInner({ doc, registry, sim, selected, invalid }: BoardDiagr
                 strokeWidth={0.2}
               />
             )}
-            <DeviceArt device={device} def={def} view={sim?.devices.get(device.id)} wireCounts={counts} />
+            <DeviceArt device={device} def={def} view={view} wireCounts={counts} />
             {invalidSet.has(device.id) && (
               <rect
                 x={def.bounds.minX - 0.4}

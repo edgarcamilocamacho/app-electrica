@@ -1,14 +1,31 @@
 import { expect, test } from '@playwright/test';
+import { openApp, state } from './helpers';
 
-test('la app carga en español', async ({ page }) => {
-  await page.goto('/?noversion');
-  await expect(page).toHaveTitle('Simulador de control eléctrico');
-  await expect(page.getByTestId('mode')).toHaveText('EDICIÓN');
-});
+test.describe('humo', () => {
+  test('abre con el ejemplo cargado y sin errores de consola', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    page.on('pageerror', (error) => errors.push(error.message));
+    await openApp(page);
+    const s = await state(page);
+    expect(s.devices).toBeGreaterThan(0);
+    expect(s.wires).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
+  });
 
-test('version.json expone el build', async ({ request }) => {
-  const res = await request.get('/version.json');
-  expect(res.ok()).toBe(true);
-  const body = (await res.json()) as { buildId: string };
-  expect(body.buildId.length).toBeGreaterThan(0);
+  test('la biblioteca ofrece el catálogo completo', async ({ page }) => {
+    await openApp(page);
+    await expect(page.getByTestId('library-contactor-3p')).toBeVisible();
+    await expect(page.getByTestId('library-relay-8')).toBeVisible();
+    await expect(page.getByTestId('library-timer-ton')).toBeVisible();
+    await expect(page.getByTestId('library-ups')).toBeVisible();
+  });
+
+  test('ajustar la vista deja todo el diagrama visible', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('button', { name: /Ajustar la vista/ }).click();
+    expect((await state(page)).zoom).toBeGreaterThan(0.2);
+  });
 });

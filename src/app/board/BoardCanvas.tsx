@@ -206,6 +206,7 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
   return (
     <div
       ref={hostRef}
+      data-testid="board-canvas"
       style={{ position: 'relative', width: '100%', height: '100%', background: P.paper, overflow: 'hidden' }}
     >
       <svg

@@ -25,7 +25,7 @@ const TOOL_NAMES: Record<BoardToolKind, string> = {
   text: t('tools.text'),
 };
 
-export function BoardApp({ store }: { store: BoardStore }): ReactElement {
+export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; autoAdvance?: boolean }): ReactElement {
   const state = useStore(store);
   const file = useRef<BoardFileState>({ name: '' });
   const doc = docOf(state);
@@ -112,7 +112,7 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
   }, [doc]);
 
   useEffect(() => {
-    if (state.mode !== 'simulating') return;
+    if (state.mode !== 'simulating' || !autoAdvance) return;
     let raf = 0;
     const t0 = performance.now();
     const loop = (): void => {
@@ -121,7 +121,7 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [state.mode, state.speed, store]);
+  }, [state.mode, state.speed, store, autoAdvance]);
 
   const byCategory = useMemo(() => {
     const groups = new Map<string, DeviceDefinition[]>();
@@ -148,6 +148,7 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
             key={tool}
             type="button"
             className={`tablero__btn${state.tool === tool && editing ? ' tablero__btn--on' : ''}`}
+            data-testid={`tool-${tool}`}
             disabled={!editing}
             onClick={() => store.getState().setTool(tool)}
           >
@@ -245,6 +246,7 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
           <button
             type="button"
             className="tablero__btn"
+            data-testid="simulate"
             disabled={blocking.length > 0}
             title={blocking.length > 0 ? t('messages.cannotSimulate', { count: blocking.length }) : undefined}
             onClick={() => store.getState().startSim()}
@@ -252,7 +254,12 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
             {t('toolbar.simulate')}
           </button>
         ) : (
-          <button type="button" className="tablero__btn tablero__btn--on" onClick={() => store.getState().backToEdit()}>
+          <button
+            type="button"
+            className="tablero__btn tablero__btn--on"
+            data-testid="stop"
+            onClick={() => store.getState().backToEdit()}
+          >
             {t('toolbar.stop')}
           </button>
         )}
@@ -279,6 +286,7 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
                 key={def.type}
                 type="button"
                 className={`tablero__item${state.placing?.type === def.type ? ' tablero__item--on' : ''}`}
+                data-testid={`library-${def.type}`}
                 disabled={!editing}
                 onClick={() => store.getState().startPlacing(def.type, { x: 0, y: 0 })}
               >
@@ -293,7 +301,7 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
       <div className="tablero__canvas">
         <BoardCanvas store={store} />
         {state.mode === 'error' && (
-          <div className="tablero__error" role="alert">
+          <div className="tablero__error" role="alert" data-testid="error-panel">
             <strong>{t('status.error')}</strong>
             <span>{faultMessage(state.sim?.fault)}</span>
             <span>{t('board.fault.frozen')}</span>
@@ -364,7 +372,10 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
       </div>
 
       <div className="tablero__status">
-        <span className={`tablero__mode${state.mode === 'error' ? ' tablero__mode--error' : ''}`}>
+        <span
+          className={`tablero__mode${state.mode === 'error' ? ' tablero__mode--error' : ''}`}
+          data-testid="mode"
+        >
           {state.mode === 'edit' ? t('status.edit') : state.mode === 'simulating' ? t('status.simulating') : t('status.error')}
         </span>
         <span>{`${Object.keys(doc.devices).length} · ${Object.keys(doc.wires).length}`}</span>

@@ -9,6 +9,7 @@ import { compareIds } from '../model/ids';
 import type { BoardDocument, DeviceInstance, Wire } from './model';
 import { BOARD_SCHEMA_VERSION, terminalExists } from './model';
 import type { DeviceRegistry } from './registry';
+import { isOrthogonalRoute, wireRoute } from './wireGeometry';
 import { WIRE_COLORS, WIRE_GAUGES } from './model';
 
 const IntPoint = z
@@ -83,7 +84,8 @@ export type BoardLoadErrorCode =
   | 'FUTURE_VERSION'
   | 'SCHEMA'
   | 'UNKNOWN_TYPE'
-  | 'UNKNOWN_TERMINAL';
+  | 'UNKNOWN_TERMINAL'
+  | 'NOT_ORTHOGONAL';
 
 export interface BoardLoadError {
   readonly code: BoardLoadErrorCode;
@@ -144,6 +146,9 @@ export function parseBoard(text: string, registry: DeviceRegistry): BoardLoadRes
       if (!terminalExists(doc, registry, ref)) {
         return { ok: false, error: { code: 'UNKNOWN_TERMINAL', detail: `${ref.deviceId}.${ref.terminalId}` } };
       }
+    }
+    if (!isOrthogonalRoute(wireRoute(doc, registry, wire))) {
+      return { ok: false, error: { code: 'NOT_ORTHOGONAL', detail: wire.id } };
     }
   }
 

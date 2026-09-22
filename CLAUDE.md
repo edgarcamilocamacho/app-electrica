@@ -17,7 +17,7 @@ código), en inglés salvo los mensajes de commit, que van en español.
 |---|---|
 | Qué debe hacer el producto | [electrical_control_simulator_spec.md](electrical_control_simulator_spec.md) (base) **+** [docs/DECISIONES.md](docs/DECISIONES.md) (decisiones de producto vigentes, por tema). Ante contradicción **prevalece DECISIONES.md** |
 | Qué significa una etiqueta `R2 §6`, `R3 Q3.4` o `I7` | Buscarla en la columna «Origen» de [docs/DECISIONES.md](docs/DECISIONES.md). Las decisiones técnicas están en [PLAN.md](PLAN.md) §2.2 |
-| Por qué el diseño es como es | [PLAN.md](PLAN.md) §4–§17 |
+| Por qué el diseño es como es | [PLAN.md](PLAN.md) §4–§17 y, para la vista de tablero, §22 |
 | Estado, limitaciones, desviaciones, decisiones abiertas | [STATUS.md](STATUS.md) — **actualizarlo al cerrar cada tanda de trabajo** |
 | Mapa del código | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) |
 | Convenciones · glosario · atajos | [docs/CONVENCIONES.md](docs/CONVENCIONES.md) · [docs/GLOSARIO.md](docs/GLOSARIO.md) · [docs/ATAJOS.md](docs/ATAJOS.md) |
@@ -35,7 +35,7 @@ pnpm dev              # http://localhost:5173
 pnpm check            # typecheck + lint + unit/integración — obligatorio antes de commitear
 pnpm e2e              # Playwright, Chromium + Firefox (build + preview automáticos)
 pnpm e2e:chromium     # más rápido mientras se itera
-pnpm exec vitest run tests/unit/topology    # una carpeta
+pnpm exec vitest run tests/unit/board       # una carpeta
 node scripts/docker-smoke.mjs [--e2e] [--upgrade]   # imagen real: cabeceras, E2E, actualización en caliente
 docker compose up --build                            # http://localhost:8080
 ```
@@ -67,14 +67,16 @@ Navegadores de E2E: `pnpm exec playwright install chromium firefox`.
 
 ## Pruebas
 
-- Cada cambio lleva pruebas en el nivel que corresponda: `tests/unit` (núcleo, sin DOM),
-  `tests/integration` (tienda en jsdom, `tests/integration/helpers.ts`), `tests/e2e`.
-- Helpers útiles: `tests/fixtures/builder.ts` (documentos a mano), `scenarios.ts` / `circuits.ts`
-  (circuitos armados con las operaciones reales), `invariants.ts` (`normalFormViolations`),
-  `queries.ts` (`spans`, `sameNet`, `expectValid`).
+- Cada cambio lleva pruebas en el nivel que corresponda: `tests/unit/board` (núcleo, sin DOM),
+  `tests/integration/board` (tienda en jsdom), `tests/e2e`.
+- Helper principal: `tests/fixtures/board.ts` (`BoardBuilder`, `term`). Comparte su generador de ids
+  con las operaciones para que no colisionen.
 - E2E sin `sleep`. La app con `?e2e=1` expone `window.__e2e` (`advance(ms)`, `resetView()`,
-  `worldToScreen`, `documentJson`, `loadJson`). `openApp()` deja zoom 100 %: usar coordenadas de
-  mundo dentro de ±40 o el clic cae fuera del lienzo.
+  `worldToScreen`, `documentJson`, `loadJson`, `state()`, `deviceIdByRef`) y no avanza el tiempo
+  sola. `openApp()` deja zoom 100 % con el origen cerca de la esquina: usar coordenadas de mundo
+  positivas y menores a ~100.
+- El estado de la simulación se lee en el DOM: cada aparato lleva `data-ref`, `data-energized` y
+  `data-actuated`; cada cable, `data-live`.
 - Commitear **solo si `pnpm check` pasa**: encadenar con `&&`, nunca con `;`.
 
 ## Trampas conocidas
@@ -82,14 +84,17 @@ Navegadores de E2E: `pnpm exec playwright install chromium firefox`.
 - **zustand**: un selector con `useShallow` debe devolver primitivos o referencias estables. Un objeto
   nuevo por lectura (p. ej. `snap(pointer)`) provoca un bucle de render (React #185). Lo mismo para
   props de componentes memoizados: usar constantes (`NO_IDS`), no `?? []`.
-- **CSS**: no reutilizar nombres de clase entre el contenedor raíz y componentes. `app--<modo>` es el
-  modificador de la raíz; `.mode.mode-<modo>` es el indicador de la barra de estado.
+- **CSS**: las clases del tablero llevan el prefijo `tablero__`; no reutilizar nombres entre el
+  contenedor raíz y los componentes.
 - **Playwright**: una `<line>` SVG vertical u horizontal tiene caja de ancho cero y `toBeVisible()`
   falla; contar elementos o verificar atributos.
 - **File System Access**: los selectores nativos no son automatizables; `main.tsx` los tapa en modo
   E2E (están en el prototipo de `Window`: `defineProperty`, no `delete`).
-- **Lienzo**: `onPointerDown` hace `preventDefault()` para que el mousedown por defecto no robe el foco
-  de un campo recién enfocado (texto de una anotación nueva).
+- **Circuitos de ejemplo**: `connect()` devuelve el documento aunque la operación sea inválida. Al
+  construir un ejemplo hay que revisar `ok` o, como hace `tests/unit/board/examples.test.ts`, exigir
+  cero diagnósticos bloqueantes; si no, el ejemplo no se puede simular.
+- **Bornes de las bases enchufables**: el orden de las columnas es NA · común · NC, así que en el
+  relé de 8 pines los tornillos de arriba van 7, 6, 8, 5 de izquierda a derecha.
 - **Determinismo en tests**: los ids dependen del estado del generador; para comparar dos corridas,
   reconstruir el escenario desde cero en ambas.
 - **Shell**: `pkill -f "<patrón>"` puede matar el propio shell si el patrón está en la línea de
@@ -100,5 +105,5 @@ Navegadores de E2E: `pnpm exec playwright install chromium firefox`.
 
 ## Commits
 
-Un commit por tanda coherente, prefijo del hito o del tema (`M3: …`), en español, con la línea
+Un commit por tanda coherente, prefijo del hito o del tema (`R5/G3: …`), en español, con la línea
 `Co-Authored-By` que indique el entorno. Repo git local, sin remoto.
