@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { openApp, state } from './helpers';
+import { fileMenu, openApp, state } from './helpers';
 
 test.describe('archivos', () => {
   test('guardar descarga el JSON del tablero', async ({ page }) => {
     await openApp(page);
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: /^Guardar/ }).click();
+    await fileMenu(page, /^Guardar/);
     const file = await download;
     expect(file.suggestedFilename()).toMatch(/\.json$/);
   });
@@ -13,7 +13,7 @@ test.describe('archivos', () => {
   test('exportar deja una imagen PNG', async ({ page }) => {
     await openApp(page);
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Imagen PNG' }).click();
+    await fileMenu(page, 'Imagen PNG');
     const file = await download;
     expect(file.suggestedFilename()).toMatch(/\.png$/);
   });
@@ -28,7 +28,7 @@ test.describe('archivos', () => {
       });
     });
     const chooser = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: /^Abrir/ }).click();
+    await fileMenu(page, /^Abrir/);
     await (await chooser).setFiles({
       name: 'clasico.json',
       mimeType: 'application/json',
@@ -41,10 +41,10 @@ test.describe('archivos', () => {
   test('abrir un tablero guardado lo restaura', async ({ page }) => {
     await openApp(page);
     const json = await page.evaluate(() => window.__e2e!.documentJson());
-    await page.getByRole('button', { name: 'Nuevo', exact: true }).click();
+    await fileMenu(page, 'Nuevo');
     expect((await state(page)).devices).toBe(0);
     const chooser = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: /^Abrir/ }).click();
+    await fileMenu(page, /^Abrir/);
     await (await chooser).setFiles({ name: 'tablero.json', mimeType: 'application/json', buffer: Buffer.from(json) });
     await expect.poll(async () => (await state(page)).devices).toBeGreaterThan(0);
   });

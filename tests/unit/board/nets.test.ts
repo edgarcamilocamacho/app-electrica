@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeNets, netSignature } from '../../../src/core/board/nets';
 import { wireCountByTerminal, terminalKey } from '../../../src/core/board/model';
-import { BoardBuilder, registry, term } from '../../fixtures/board';
+import { BoardBuilder, ref, registry, term } from '../../fixtures/board';
 
 describe('redes del tablero', () => {
   it('dos bornes quedan en la misma red solo si un cable los une [R5 §4]', () => {
@@ -9,12 +9,12 @@ describe('redes del tablero', () => {
     const supply = b.device('supply-1p', 0, 0);
     const lamp = b.device('pilot-lamp', 0, 30);
     const nets = computeNets(b.doc, registry);
-    expect(nets.connected(term(supply, 'L'), term(lamp, 'X1'))).toBe(false);
+    expect(nets.connected(ref(supply, 'L'), ref(lamp, 'X1'))).toBe(false);
 
     b.wire(term(supply, 'L'), term(lamp, 'X1'));
     const after = computeNets(b.doc, registry);
-    expect(after.connected(term(supply, 'L'), term(lamp, 'X1'))).toBe(true);
-    expect(after.connected(term(supply, 'N'), term(lamp, 'X2'))).toBe(false);
+    expect(after.connected(ref(supply, 'L'), ref(lamp, 'X1'))).toBe(true);
+    expect(after.connected(ref(supply, 'N'), ref(lamp, 'X2'))).toBe(false);
   });
 
   it('una cadena de cables deja todos los bornes en la misma red', () => {
@@ -25,10 +25,10 @@ describe('redes del tablero', () => {
     b.wire(term(supply, 'L'), term(breaker, '1'));
     b.wire(term(breaker, '2'), term(lamp, 'X1'));
     const nets = computeNets(b.doc, registry);
-    expect(nets.connected(term(supply, 'L'), term(breaker, '1'))).toBe(true);
-    expect(nets.connected(term(breaker, '2'), term(lamp, 'X1'))).toBe(true);
+    expect(nets.connected(ref(supply, 'L'), ref(breaker, '1'))).toBe(true);
+    expect(nets.connected(ref(breaker, '2'), ref(lamp, 'X1'))).toBe(true);
     // El taco no conduce por geometría: son dos redes distintas hasta que el contacto cierre.
-    expect(nets.connected(term(breaker, '1'), term(breaker, '2'))).toBe(false);
+    expect(nets.connected(ref(breaker, '1'), ref(breaker, '2'))).toBe(false);
   });
 
   it('dos bornes en la misma posición no se conectan sin cable [R5 §4]', () => {
@@ -36,8 +36,8 @@ describe('redes del tablero', () => {
     const lamp1 = b.device('pilot-lamp', 0, 0);
     const lamp2 = b.device('pilot-lamp', 0, 14);
     // X2 del primero y X1 del segundo caen exactamente en el mismo punto.
-    expect(b.position(term(lamp1, 'X2'))).toEqual(b.position(term(lamp2, 'X1')));
-    expect(computeNets(b.doc, registry).connected(term(lamp1, 'X2'), term(lamp2, 'X1'))).toBe(false);
+    expect(b.position(ref(lamp1, 'X2'))).toEqual(b.position(ref(lamp2, 'X1')));
+    expect(computeNets(b.doc, registry).connected(ref(lamp1, 'X2'), ref(lamp2, 'X1'))).toBe(false);
   });
 
   it('la firma de la partición no depende del orden de los cables', () => {
@@ -64,8 +64,8 @@ describe('redes del tablero', () => {
     b.wire(term(supply, 'L'), term(lamp1, 'X1'));
     b.wire(term(supply, 'L'), term(lamp2, 'X1'));
     const counts = wireCountByTerminal(b.doc);
-    expect(counts.get(terminalKey(term(supply, 'L')))).toBe(2);
-    expect(counts.get(terminalKey(term(lamp1, 'X1')))).toBe(1);
-    expect(counts.get(terminalKey(term(supply, 'N')))).toBeUndefined();
+    expect(counts.get(terminalKey(ref(supply, 'L')))).toBe(2);
+    expect(counts.get(terminalKey(ref(lamp1, 'X1')))).toBe(1);
+    expect(counts.get(terminalKey(ref(supply, 'N')))).toBeUndefined();
   });
 });

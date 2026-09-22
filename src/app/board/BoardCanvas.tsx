@@ -9,12 +9,8 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
-  type WheelEvent as ReactWheelEvent,
 } from 'react';
 import { useStore } from 'zustand';
-import { terminalPosition } from '../../core/board/model';
-import { autoRoute, normalizeRoute } from '../../core/board/wireGeometry';
-import { findTerminal } from '../../core/board/registry';
 import type { Id, Point } from '../../core/model/types';
 import { BoardDiagram } from './BoardDiagram';
 import { hitTest, objectsInRect } from './hitTest';
@@ -43,6 +39,8 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
   const hostRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
   const segmentDrag = useRef<SegmentDrag | undefined>(undefined);
+  /** Trazado por arrastre: apretar en un tornillo, arrastrar y soltar en otro. */
+  const wireDrag = useRef<{ from: Point } | undefined>(undefined);
   const panning = useRef<{ start: Point; pan: Point } | undefined>(undefined);
 
   const doc = docOf(state);
@@ -120,9 +118,15 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
       case 'wire':
         if (hit.kind === 'terminal') {
           if (state.wiring) store.getState().finishWire(hit.ref);
-          else store.getState().beginWire(hit.ref);
+          else {
+            store.getState().beginWire(hit.ref);
+            wireDrag.current = { from: { x: e.clientX, y: e.clientY } };
+          }
         } else if (state.wiring) {
           store.getState().addBend(at);
+        } else {
+          // Empezar en el aire: la punta queda suelta y marcada hasta conectarla [R5 §17].
+          store.getState().beginWireAt(at);
         }
         break;
       case 'erase':
@@ -136,6 +140,7 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
       default: {
         if (hit.kind === 'terminal') {
           store.getState().beginWire(hit.ref);
+          wireDrag.current = { from: { x: e.clientX, y: e.clientY } };
           break;
         }
         if (hit.kind === 'device') {
@@ -169,12 +174,32 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
     }
     const at = toWorld(e);
     if (state.placing) store.getState().movePlacing(at);
-    if (state.wiring) store.getState().moveWireCursor(at);
+    if (state.wiring) {
+      const hit = hitTest(doc, state.registry, at);
+      store.getState().moveWireCursor(at, hit.kind === 'terminal' ? hit.ref : undefined);
+    }
     if (state.drag) store.getState().updateDrag(at);
+    if (segmentDrag.current) {
+      const p = snap(at);
+      const { wireId, segmentIndex, origin } = segmentDrag.current;
+      store.getState().previewWireSegment(wireId, segmentIndex, { x: p.x - origin.x, y: p.y - origin.y });
+    }
   };
 
   const onPointerUp = (e: ReactPointerEvent): void => {
     panning.current = undefined;
+    // Soltar sobre otro tornillo cierra el cable; soltar en el aire deja el trazado para seguir a clics.
+    if (wireDrag.current) {
+      const moved = Math.hypot(e.clientX - wireDrag.current.from.x, e.clientY - wireDrag.current.from.y) > 4;
+      wireDrag.current = undefined;
+      if (moved && state.wiring) {
+        const hit = hitTest(doc, state.registry, toWorld(e));
+        if (hit.kind === 'terminal') {
+          store.getState().finishWire(hit.ref);
+          return;
+        }
+      }
+    }
     if (state.mode !== 'edit') {
       const hit = hitTest(doc, state.registry, toWorld(e));
       if (hit.kind === 'device') store.getState().releaseDevice(hit.id);
@@ -191,15 +216,41 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
     if (state.drag) store.getState().endDrag();
   };
 
-  const onWheel = (e: ReactWheelEvent): void => {
-    e.preventDefault();
-    const rect = hostRef.current?.getBoundingClientRect();
-    const local = { x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) };
-    const before = screenToWorld(state.viewport, local);
-    const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, state.viewport.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
-    const pan = { x: local.x - before.x * GRID_PX * zoom, y: local.y - before.y * GRID_PX * zoom };
-    store.getState().setViewport({ zoom, pan });
-  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (!store.getState().wiring) return;
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        store.getState().undoBend();
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        store.getState().finishFree();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [store]);
+
+  // La rueda va con un listener propio: React los registra como pasivos y no dejan preventDefault.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const onWheel = (e: WheelEvent): void => {
+      e.preventDefault();
+      const rect = host.getBoundingClientRect();
+      const local = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const viewport = store.getState().viewport;
+      const before = screenToWorld(viewport, local);
+      const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, viewport.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
+      store.getState().setViewport({
+        zoom,
+        pan: { x: local.x - before.x * GRID_PX * zoom, y: local.y - before.y * GRID_PX * zoom },
+      });
+    };
+    host.addEventListener('wheel', onWheel, { passive: false });
+    return () => host.removeEventListener('wheel', onWheel);
+  }, [store]);
 
   const placingDef = state.placing ? state.registry.get(state.placing.type) : undefined;
 
@@ -217,7 +268,7 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
-        onWheel={onWheel}
+        onDoubleClick={() => store.getState().finishFree()}
       >
         <rect x={0} y={0} width={size.width} height={size.height} fill={P.paper} />
         <g transform={`translate(${state.viewport.pan.x} ${state.viewport.pan.y}) scale(${scale})`}>
@@ -252,13 +303,16 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
 }
 
 function Grid({ world, zoom }: { world: { minX: number; minY: number; maxX: number; maxY: number }; zoom: number }): ReactElement {
-  const step = zoom < 0.6 ? 10 : 5;
+  const step = zoom >= 1.6 ? 1 : zoom < 0.6 ? 10 : 5;
   const dots: ReactElement[] = [];
   const x0 = Math.floor(world.minX / step) * step;
   const y0 = Math.floor(world.minY / step) * step;
   for (let x = x0; x <= world.maxX; x += step) {
     for (let y = y0; y <= world.maxY; y += step) {
-      dots.push(<circle key={`${x},${y}`} cx={x} cy={y} r={0.09} fill={P.grid} />);
+      const major = x % 5 === 0 && y % 5 === 0;
+      dots.push(
+        <circle key={`${x},${y}`} cx={x} cy={y} r={major ? 0.11 : 0.06} fill={major ? P.gridMajor : P.grid} />,
+      );
     }
   }
   return <g>{dots}</g>;
@@ -291,29 +345,43 @@ function TerminalDots({ store }: { store: BoardStore }): ReactElement {
 
 function WiringPreview({ store }: { store: BoardStore }): ReactElement | null {
   const state = useStore(store);
-  const doc = docOf(state);
   const wiring = state.wiring;
   if (!wiring) return null;
-  const from = terminalPosition(doc, state.registry, wiring.from);
-  const def = state.registry.get(doc.devices[wiring.from.deviceId]!.type);
-  const dir = def ? (findTerminal(def, wiring.from.terminalId)?.dir ?? 'N') : 'N';
-  const route =
-    wiring.bends.length > 0
-      ? normalizeRoute([from, ...wiring.bends, wiring.cursor])
-      : autoRoute(from, dir, wiring.cursor, 'N');
+  const route = state.draftRoute();
   const tone = WIRE_TONES[state.wireStyle.color];
+  const last = route[route.length - 1];
   return (
     <g style={{ pointerEvents: 'none' }}>
       <path
         d={route.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join('')}
         fill="none"
-        stroke={tone.off}
-        strokeWidth={WIRE_WIDTH[state.wireStyle.gauge]}
-        strokeDasharray="0.8 0.5"
+        stroke={P.selectionHalo}
+        strokeWidth={WIRE_WIDTH[state.wireStyle.gauge] + 0.5}
         strokeLinecap="round"
         strokeLinejoin="round"
-        opacity={0.8}
       />
+      <path
+        d={route.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join('')}
+        fill="none"
+        stroke={tone.off}
+        strokeWidth={WIRE_WIDTH[state.wireStyle.gauge] + 0.08}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray="1.1 0.5"
+      />
+      {wiring.points.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={0.28} fill={P.selection} />
+      ))}
+      {last && (
+        <circle
+          cx={last.x}
+          cy={last.y}
+          r={wiring.over ? 0.9 : 0.4}
+          fill={wiring.over ? P.selectionHalo : 'none'}
+          stroke={P.selection}
+          strokeWidth={0.14}
+        />
+      )}
     </g>
   );
 }

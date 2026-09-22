@@ -8,9 +8,15 @@ export async function openApp(page: Page, query = ''): Promise<void> {
   await page.evaluate(() => window.__e2e!.resetView());
 }
 
+/** Abre una entrada del menú Archivo. */
+export async function fileMenu(page: Page, item: string | RegExp): Promise<void> {
+  await page.getByRole('button', { name: /Archivo/ }).click();
+  await page.getByRole('menuitem', { name: item }).click();
+}
+
 /** Tablero vacío, para las pruebas que construyen su propio circuito. */
 export async function newBoard(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Nuevo', exact: true }).click();
+  await fileMenu(page, 'Nuevo');
   await page.evaluate(() => window.__e2e!.resetView());
 }
 

@@ -7,7 +7,7 @@
 import { z } from 'zod';
 import { compareIds } from '../model/ids';
 import type { BoardDocument, DeviceInstance, Wire } from './model';
-import { BOARD_SCHEMA_VERSION, terminalExists } from './model';
+import { BOARD_SCHEMA_VERSION, terminalExists, terminalOf, toFree, toTerminal, type WireEnd } from './model';
 import type { DeviceRegistry } from './registry';
 import { isOrthogonalRoute, wireRoute } from './wireGeometry';
 import { WIRE_COLORS, WIRE_GAUGES } from './model';
@@ -28,10 +28,17 @@ const TerminalReference = z
   .object({ deviceId: z.string().min(1), terminalId: z.string().min(1) })
   .strict();
 
+/** Punta del cable: un borne o un punto suelto. La forma vieja (solo el borne) se sigue leyendo. */
+const FileWireEnd = z.union([
+  z.object({ kind: z.literal('terminal'), ref: TerminalReference }).strict(),
+  z.object({ kind: z.literal('free'), at: IntPoint }).strict(),
+  TerminalReference,
+]);
+
 const FileWire = z
   .object({
-    a: TerminalReference,
-    b: TerminalReference,
+    a: FileWireEnd,
+    b: FileWireEnd,
     bends: z.array(IntPoint).default([]),
     color: z.enum(WIRE_COLORS),
     gauge: z.union([z.literal(1), z.literal(2), z.literal(3)]),
@@ -55,6 +62,13 @@ export const FileBoardV2 = z
       .optional(),
   })
   .strict();
+
+type FileEnd = z.infer<typeof FileWireEnd>;
+
+const readEnd = (end: FileEnd): WireEnd => {
+  if ('kind' in end) return end.kind === 'free' ? toFree(end.at) : toTerminal(end.ref);
+  return toTerminal(end);
+};
 
 /** Serializa a JSON legible, con claves ordenadas por id (diffs estables). */
 export function serializeBoard(doc: BoardDocument): string {
@@ -132,7 +146,14 @@ export function parseBoard(text: string, registry: DeviceRegistry): BoardLoadRes
     wires: Object.fromEntries(
       Object.entries(file.wires).map(([id, wire]) => [
         id,
-        { id, a: wire.a, b: wire.b, bends: wire.bends, color: wire.color, gauge: wire.gauge },
+        {
+          id,
+          a: readEnd(wire.a),
+          b: readEnd(wire.b),
+          bends: wire.bends,
+          color: wire.color,
+          gauge: wire.gauge,
+        },
       ]),
     ),
     annotations: Object.fromEntries(
@@ -142,8 +163,9 @@ export function parseBoard(text: string, registry: DeviceRegistry): BoardLoadRes
   };
 
   for (const wire of Object.values(doc.wires)) {
-    for (const ref of [wire.a, wire.b]) {
-      if (!terminalExists(doc, registry, ref)) {
+    for (const end of [wire.a, wire.b]) {
+      const ref = terminalOf(end);
+      if (ref && !terminalExists(doc, registry, ref)) {
         return { ok: false, error: { code: 'UNKNOWN_TERMINAL', detail: `${ref.deviceId}.${ref.terminalId}` } };
       }
     }

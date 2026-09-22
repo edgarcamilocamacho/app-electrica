@@ -4,7 +4,7 @@
  */
 import { memo, useMemo, type ReactElement } from 'react';
 import type { BoardDocument, Wire } from '../../core/board/model';
-import { wireCountByTerminal } from '../../core/board/model';
+import { terminalOf, wireCountByTerminal } from '../../core/board/model';
 import { computeNets } from '../../core/board/nets';
 import type { DeviceRegistry } from '../../core/board/registry';
 import type { NetPotential, SimSnapshot } from '../../core/board/sim/engine';
@@ -62,6 +62,18 @@ function WireArt({
         strokeLinejoin="round"
         {...(short ? { strokeDasharray: '0.6 0.4' } : {})}
       />
+      {/* Punta suelta: círculo abierto rojo hasta que se conecte a un borne [R5 §17]. */}
+      {wire.a.kind === 'free' && <LooseEnd at={points[0]!} />}
+      {wire.b.kind === 'free' && <LooseEnd at={points[points.length - 1]!} />}
+    </g>
+  );
+}
+
+function LooseEnd({ at }: { at: { x: number; y: number } }): ReactElement {
+  return (
+    <g>
+      <circle cx={at.x} cy={at.y} r={0.6} fill={P.paper} stroke={P.invalid} strokeWidth={0.18} />
+      <circle cx={at.x} cy={at.y} r={0.16} fill={P.invalid} />
     </g>
   );
 }
@@ -70,34 +82,20 @@ function BoardDiagramInner({ doc, registry, sim, selected, invalid }: BoardDiagr
   const nets = useMemo(() => computeNets(doc, registry), [doc, registry]);
   const counts = useMemo(() => wireCountByTerminal(doc), [doc]);
   const invalidSet = useMemo(() => new Set(invalid ?? []), [invalid]);
+  const wireNet = (wire: Wire): string | undefined => {
+    const ref = terminalOf(wire.a) ?? terminalOf(wire.b);
+    return ref ? nets.netOf(ref) : undefined;
+  };
+
+  const devices = Object.values(doc.devices).map((device) => ({ device, def: registry.get(device.type) }));
 
   return (
     <g>
-      {Object.values(doc.wires).map((wire) => (
-        <WireArt
-          key={wire.id}
-          wire={wire}
-          points={wireRoute(doc, registry, wire)}
-          potential={sim?.netPotentials.get(nets.netOf(wire.a))}
-          selected={selected?.has(wire.id) ?? false}
-          invalid={invalidSet.has(wire.id)}
-        />
-      ))}
-      {Object.values(doc.devices).map((device) => {
-        const def = registry.get(device.type);
-        if (!def) return null;
-        const isSelected = selected?.has(device.id) ?? false;
-        const view = sim?.devices.get(device.id);
-        return (
-          <g
-            key={device.id}
-            transform={`translate(${device.position.x} ${device.position.y})`}
-            data-device={device.id}
-            data-ref={typeof device.props.ref === 'string' ? device.props.ref : ''}
-            data-energized={view?.energized === true ? 'true' : 'false'}
-            data-actuated={view?.actuated === true ? 'true' : 'false'}
-          >
-            {isSelected && (
+      {/* Cuerpos y esquema interno: debajo de los cables. */}
+      {devices.map(({ device, def }) =>
+        def ? (
+          <g key={device.id} transform={`translate(${device.position.x} ${device.position.y})`}>
+            {(selected?.has(device.id) ?? false) && (
               <rect
                 x={def.bounds.minX - 0.5}
                 y={def.bounds.minY - 0.5}
@@ -109,7 +107,40 @@ function BoardDiagramInner({ doc, registry, sim, selected, invalid }: BoardDiagr
                 strokeWidth={0.2}
               />
             )}
-            <DeviceArt device={device} def={def} view={view} wireCounts={counts} />
+            <DeviceArt device={device} def={def} view={sim?.devices.get(device.id)} layer="body" />
+          </g>
+        ) : null,
+      )}
+
+      {Object.values(doc.wires).map((wire) => (
+        <WireArt
+          key={wire.id}
+          wire={wire}
+          points={wireRoute(doc, registry, wire)}
+          potential={wireNet(wire) ? sim?.netPotentials.get(wireNet(wire)!) : undefined}
+          selected={selected?.has(wire.id) ?? false}
+          invalid={invalidSet.has(wire.id)}
+        />
+      ))}
+
+      {/* Tornillos, marcaciones y marcas de inválido: encima de los cables. */}
+      {devices.map(({ device, def }) =>
+        def ? (
+          <g
+            key={device.id}
+            transform={`translate(${device.position.x} ${device.position.y})`}
+            data-device={device.id}
+            data-ref={typeof device.props.ref === 'string' ? device.props.ref : ''}
+            data-energized={sim?.devices.get(device.id)?.energized === true ? 'true' : 'false'}
+            data-actuated={sim?.devices.get(device.id)?.actuated === true ? 'true' : 'false'}
+          >
+            <DeviceArt
+              device={device}
+              def={def}
+              view={sim?.devices.get(device.id)}
+              wireCounts={counts}
+              layer="screws"
+            />
             {invalidSet.has(device.id) && (
               <rect
                 x={def.bounds.minX - 0.4}
@@ -123,8 +154,8 @@ function BoardDiagramInner({ doc, registry, sim, selected, invalid }: BoardDiagr
               />
             )}
           </g>
-        );
-      })}
+        ) : null,
+      )}
     </g>
   );
 }

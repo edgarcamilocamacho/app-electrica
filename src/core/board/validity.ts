@@ -14,7 +14,7 @@
 import { pointKey, strictlyInside, type Rect } from '../model/geometry';
 import type { Id, Point } from '../model/types';
 import type { BoardDocument, TerminalRef } from './model';
-import { deviceRect, terminalKey, terminalPosition } from './model';
+import { deviceRect, terminalKey, terminalOf, terminalPosition } from './model';
 import { computeNets, type NetId } from './nets';
 import type { DeviceRegistry } from './registry';
 import { routeSegments, wireRoute, type Segment } from './wireGeometry';
@@ -73,7 +73,10 @@ function wireGeometry(doc: BoardDocument, registry: DeviceRegistry): WireGeom[] 
   const out: WireGeom[] = [];
   for (const wire of Object.values(doc.wires)) {
     const route = wireRoute(doc, registry, wire);
-    out.push({ id: wire.id, net: nets.netOf(wire.a), route, segments: routeSegments(route) });
+    const ref = terminalOf(wire.a) ?? terminalOf(wire.b);
+    // Un cable con las dos puntas sueltas no pertenece a ninguna red: es solo suyo.
+    const net = ref ? nets.netOf(ref) : `suelto:${wire.id}`;
+    out.push({ id: wire.id, net, route, segments: routeSegments(route) });
   }
   return out.sort((x, y) => (x.id < y.id ? -1 : 1));
 }
@@ -137,8 +140,10 @@ export function violations(doc: BoardDocument, registry: DeviceRegistry): Violat
   for (const wire of wires) {
     const own = new Set<string>();
     const w = doc.wires[wire.id]!;
-    own.add(terminalKey(w.a));
-    own.add(terminalKey(w.b));
+    for (const end of [w.a, w.b]) {
+      const ref = terminalOf(end);
+      if (ref) own.add(terminalKey(ref));
+    }
     for (const terminal of terminals) {
       if (own.has(terminalKey(terminal.ref))) continue;
       for (const s of wire.segments) {

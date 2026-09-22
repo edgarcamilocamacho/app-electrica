@@ -14,7 +14,7 @@ import {
 import { computeNets } from '../../../src/core/board/nets';
 import { isOrthogonalRoute, wireRoute } from '../../../src/core/board/wireGeometry';
 import { createCounterIdGen } from '../../../src/core/model/ids';
-import { BoardBuilder, term } from '../../fixtures/board';
+import { BoardBuilder, ref, term } from '../../fixtures/board';
 
 const ctx = (b?: BoardBuilder): OpContext => ({ ids: b ? b.ids : createCounterIdGen(), registry: boardRegistry });
 
@@ -55,7 +55,7 @@ describe('cablear', () => {
     expect(result.ok).toBe(true);
     const wire = Object.values(result.doc.wires)[0]!;
     expect(isOrthogonalRoute(routeOf(result.doc, wire.id))).toBe(true);
-    expect(computeNets(result.doc, boardRegistry).connected(term(g, 'L'), term(h, 'X1'))).toBe(true);
+    expect(computeNets(result.doc, boardRegistry).connected(ref(g, 'L'), ref(h, 'X1'))).toBe(true);
   });
 
   it('no permite un cable de un borne a sí mismo ni repetir el mismo par', () => {
@@ -107,8 +107,8 @@ describe('mover', () => {
     expect(result.ok).toBe(true);
     const route = routeOf(result.doc, wireId);
     expect(isOrthogonalRoute(route)).toBe(true);
-    expect(route[route.length - 1]).toEqual(terminalPosition(result.doc, boardRegistry, term(h, 'X1')));
-    expect(computeNets(result.doc, boardRegistry).connected(term(g, 'L'), term(h, 'X1'))).toBe(true);
+    expect(route[route.length - 1]).toEqual(terminalPosition(result.doc, boardRegistry, ref(h, 'X1')));
+    expect(computeNets(result.doc, boardRegistry).connected(ref(g, 'L'), ref(h, 'X1'))).toBe(true);
   });
 
   it('si se mueven los dos extremos, el cable viaja entero', () => {
@@ -129,7 +129,7 @@ describe('mover', () => {
     const wireId = b.wire(term(g, 'L'), term(h, 'X1'));
     const route = routeOf(b.doc, wireId);
     const vertical = route.findIndex((p, i) => i + 1 < route.length && p.x === route[i + 1]!.x);
-    const result = moveWireSegment(b.doc, { wireId, segmentIndex: vertical, delta: { x: -6, y: 0 } }, ctx(b));
+    const result = moveWireSegment(b.doc, { wireId, segmentIndex: vertical, delta: { x: 6, y: 0 } }, ctx(b));
     expect(result.ok).toBe(true);
     const moved = routeOf(result.doc, wireId);
     expect(isOrthogonalRoute(moved)).toBe(true);

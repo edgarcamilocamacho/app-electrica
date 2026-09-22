@@ -25,7 +25,7 @@ test.describe('humo', () => {
 
   test('ajustar la vista deja todo el diagrama visible', async ({ page }) => {
     await openApp(page);
-    await page.getByRole('button', { name: /Ajustar la vista/ }).click();
+    await page.getByTitle(/Ajustar la vista/).click();
     expect((await state(page)).zoom).toBeGreaterThan(0.2);
   });
 });

@@ -50,7 +50,8 @@ const INITIAL_POSITION: PropSpec = { key: 'initialPosition', kind: 'choice', def
  */
 function supply(type: string, phases: readonly string[]): DeviceDefinition {
   const pitch = 4;
-  const ids = [...phases, 'N'];
+  // El neutro va siempre primero, a la izquierda.
+  const ids = ['N', ...phases];
   const width = (ids.length - 1) * pitch;
   const terminals = ids.map((id, i) => bottom(id, id, -width / 2 + i * pitch, 7, 'power'));
   return {
@@ -178,13 +179,13 @@ const PILOT_LAMP: DeviceDefinition = {
   props: [REF, LABEL, LAMP_COLOR],
 };
 
-/** Foco: carga con forma de bombillo [R5 §10]. */
+/** Foco: silueta de bombillo, con los dos bornes abajo [R5 §10]. */
 const BULB: DeviceDefinition = {
   type: 'bulb',
   category: 'loads',
   refPrefix: 'E',
-  bounds: { minX: -4, minY: -8, maxX: 4, maxY: 8 },
-  terminals: [top('X1', 'X1', 0, -7), bottom('X2', 'X2', 0, 7)],
+  bounds: { minX: -5, minY: -9, maxX: 5, maxY: 9 },
+  terminals: [bottom('X1', 'X1', -2, 8), bottom('X2', 'X2', 2, 8)],
   internals: { ...NO_INTERNALS, loads: [{ a: 'X1', b: 'X2', look: 'bulb' }] },
   props: [REF, LABEL],
 };

@@ -124,6 +124,8 @@ export const es = {
     gauges: { '1': 'Delgado', '2': 'Medio', '3': 'Grueso' },
     wireHint: 'Hacé clic en un tornillo para empezar el cable y en otro para terminarlo.',
     terminals: 'Bornes',
+    terminalCount: '{count} bornes',
+    looseEnd: 'Punta suelta: el cable no llega a ningún borne.',
     wireCount: '{count} cables',
     classicFile: 'Ese archivo es de la versión clásica y no se puede abrir en la vista de tablero.',
     badFile: 'No se pudo abrir el archivo: no tiene el formato esperado.',
@@ -136,6 +138,7 @@ export const es = {
       REF_REPEATED: 'La etiqueta {ref} se repite en {count} aparatos.',
       NO_SOURCE: 'El tablero no tiene ninguna acometida.',
       UNWIRED_DEVICE: 'Hay un aparato sin cables.',
+      LOOSE_END: 'Hay un cable con una punta suelta: conectala a un borne.',
     },
     fault: {
       shortPhasePhase: 'Cortocircuito entre dos fases.',

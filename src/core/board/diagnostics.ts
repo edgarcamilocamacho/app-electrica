@@ -8,7 +8,7 @@
 import { compareIds } from '../model/ids';
 import type { Id, Point } from '../model/types';
 import type { BoardDocument } from './model';
-import { terminalExists } from './model';
+import { terminalExists, terminalOf } from './model';
 import type { DeviceRegistry } from './registry';
 import { violations } from './validity';
 
@@ -20,6 +20,7 @@ export type BoardDiagnosticCode =
   | 'BEND_ON_WIRE' // W3
   | 'DEVICE_OVERLAP' // W4
   | 'BROKEN_WIRE' // un cable que apunta a un borne inexistente (importación)
+  | 'LOOSE_END' // una punta del cable no llegó a ningún borne
   | 'REF_REPEATED'
   | 'NO_SOURCE'
   | 'UNWIRED_DEVICE';
@@ -30,6 +31,7 @@ export const SEVERITY: Readonly<Record<BoardDiagnosticCode, Severity>> = {
   BEND_ON_WIRE: 'blocking',
   DEVICE_OVERLAP: 'blocking',
   BROKEN_WIRE: 'blocking',
+  LOOSE_END: 'blocking',
   REF_REPEATED: 'warning',
   NO_SOURCE: 'warning',
   UNWIRED_DEVICE: 'info',
@@ -72,8 +74,11 @@ export function computeDiagnostics(doc: BoardDocument, registry: DeviceRegistry)
   }
 
   for (const wire of Object.values(doc.wires)) {
-    if (!terminalExists(doc, registry, wire.a) || !terminalExists(doc, registry, wire.b)) {
+    const refs = [terminalOf(wire.a), terminalOf(wire.b)];
+    if (refs.some((ref) => ref && !terminalExists(doc, registry, ref))) {
       add({ key: `BROKEN_WIRE:${wire.id}`, code: 'BROKEN_WIRE', params: {}, wireIds: [wire.id] });
+    } else if (refs.some((ref) => !ref)) {
+      add({ key: `LOOSE_END:${wire.id}`, code: 'LOOSE_END', params: {}, wireIds: [wire.id] });
     }
   }
 
@@ -101,8 +106,10 @@ export function computeDiagnostics(doc: BoardDocument, registry: DeviceRegistry)
 
   const wired = new Set<Id>();
   for (const wire of Object.values(doc.wires)) {
-    wired.add(wire.a.deviceId);
-    wired.add(wire.b.deviceId);
+    for (const end of [wire.a, wire.b]) {
+      const ref = terminalOf(end);
+      if (ref) wired.add(ref.deviceId);
+    }
   }
   for (const id of Object.keys(doc.devices).sort(compareIds)) {
     if (!wired.has(id)) {

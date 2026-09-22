@@ -56,24 +56,18 @@ test.describe('simulación del tablero', () => {
         w1: {
           a: { deviceId: 'd1', terminalId: 'L' },
           b: { deviceId: 'd2', terminalId: '7' },
-          bends: [{ x: 8, y: 24 }, { x: 4, y: 24 }],
+          bends: [{ x: 12, y: 24 }, { x: 4, y: 24 }],
           color: 'red',
           gauge: 1,
         },
         w2: {
           a: { deviceId: 'd2', terminalId: '2' },
           b: { deviceId: 'd1', terminalId: 'N' },
-          bends: [{ x: 4, y: 58 }, { x: 24, y: 58 }, { x: 24, y: 20 }, { x: 12, y: 20 }],
+          bends: [{ x: 4, y: 58 }, { x: 24, y: 58 }, { x: 24, y: 20 }, { x: 8, y: 20 }],
           color: 'blue',
           gauge: 1,
         },
-        w3: {
-          a: { deviceId: 'd1', terminalId: 'L' },
-          b: { deviceId: 'd2', terminalId: '8' },
-          bends: [{ x: 8, y: 26 }, { x: 12, y: 26 }],
-          color: 'red',
-          gauge: 1,
-        },
+        w3: { a: { deviceId: 'd1', terminalId: 'L' }, b: { deviceId: 'd2', terminalId: '8' }, bends: [], color: 'red', gauge: 1 },
         w4: {
           a: { deviceId: 'd2', terminalId: '6' },
           b: { deviceId: 'd3', terminalId: 'X1' },
@@ -84,7 +78,7 @@ test.describe('simulación del tablero', () => {
         w5: {
           a: { deviceId: 'd3', terminalId: 'X2' },
           b: { deviceId: 'd1', terminalId: 'N' },
-          bends: [{ x: 46, y: 62 }, { x: 28, y: 62 }, { x: 28, y: 20 }, { x: 12, y: 20 }],
+          bends: [{ x: 46, y: 62 }, { x: 28, y: 62 }, { x: 28, y: 20 }, { x: 8, y: 20 }],
           color: 'blue',
           gauge: 1,
         },
@@ -112,7 +106,7 @@ test.describe('simulación del tablero', () => {
         w1: {
           a: { deviceId: 'd1', terminalId: 'L' },
           b: { deviceId: 'd1', terminalId: 'N' },
-          bends: [{ x: 8, y: 26 }, { x: 12, y: 26 }],
+          bends: [{ x: 12, y: 26 }, { x: 8, y: 26 }],
           color: 'red',
           gauge: 1,
         },

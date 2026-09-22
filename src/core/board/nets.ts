@@ -5,7 +5,7 @@
 import { UnionFind } from '../connectivity/unionFind';
 import type { Id } from '../model/types';
 import type { BoardDocument, TerminalRef } from './model';
-import { terminalKey } from './model';
+import { terminalKey, terminalOf } from './model';
 import type { DeviceRegistry } from './registry';
 
 export type NetId = string;
@@ -37,9 +37,13 @@ export function computeNets(doc: BoardDocument, registry: DeviceRegistry): NetIn
     for (const terminal of def.terminals) addTerminal({ deviceId: device.id, terminalId: terminal.id });
   }
   for (const wire of Object.values(doc.wires)) {
-    addTerminal(wire.a);
-    addTerminal(wire.b);
-    uf.union(terminalKey(wire.a), terminalKey(wire.b));
+    const a = terminalOf(wire.a);
+    const b = terminalOf(wire.b);
+    // Una punta suelta no une nada: el cable queda a medio conectar.
+    if (!a || !b) continue;
+    addTerminal(a);
+    addTerminal(b);
+    uf.union(terminalKey(a), terminalKey(b));
   }
 
   const nets = new Map<NetId, TerminalRef[]>();
@@ -70,8 +74,10 @@ export function netSignature(doc: BoardDocument, registry: DeviceRegistry): stri
 export function connectedTerminals(doc: BoardDocument, deviceId: Id): readonly TerminalRef[] {
   const out: TerminalRef[] = [];
   for (const wire of Object.values(doc.wires)) {
-    if (wire.a.deviceId === deviceId) out.push(wire.a);
-    if (wire.b.deviceId === deviceId) out.push(wire.b);
+    for (const end of [wire.a, wire.b]) {
+      const ref = terminalOf(end);
+      if (ref?.deviceId === deviceId) out.push(ref);
+    }
   }
   return out;
 }

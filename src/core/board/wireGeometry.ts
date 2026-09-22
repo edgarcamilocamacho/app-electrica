@@ -5,7 +5,7 @@
 import { DIR_VECTOR, samePoint } from '../model/geometry';
 import type { Dir, Point } from '../model/types';
 import type { BoardDocument, Wire } from './model';
-import { terminalPosition } from './model';
+import { endPosition } from './model';
 import type { DeviceRegistry } from './registry';
 
 export type Segment = readonly [Point, Point];
@@ -14,11 +14,14 @@ export type Segment = readonly [Point, Point];
 export const STUB = 2;
 
 export function wireRoute(doc: BoardDocument, registry: DeviceRegistry, wire: Wire): readonly Point[] {
-  return [terminalPosition(doc, registry, wire.a), ...wire.bends, terminalPosition(doc, registry, wire.b)];
+  return [endPosition(doc, registry, wire.a), ...wire.bends, endPosition(doc, registry, wire.b)];
 }
 
-/** Quita puntos repetidos y codos que no cambian de dirección. */
-export function normalizeRoute(route: readonly Point[]): Point[] {
+/**
+ * Quita puntos repetidos y codos que no cambian de dirección. Con `keepReversals` se conservan los
+ * vértices donde el cable vuelve sobre sí mismo, que es como entra a un borne por su lado.
+ */
+export function normalizeRoute(route: readonly Point[], keepReversals = false): Point[] {
   const out: Point[] = [];
   for (const p of route) {
     const last = out[out.length - 1];
@@ -30,7 +33,13 @@ export function normalizeRoute(route: readonly Point[]): Point[] {
     const cur = out[i]!;
     const next = out[i + 1]!;
     const collinear = (prev.x === cur.x && cur.x === next.x) || (prev.y === cur.y && cur.y === next.y);
-    if (collinear) out.splice(i, 1);
+    // Un punto colineal se quita solo si el trazo sigue de largo; si el cable vuelve sobre sí mismo
+    // el punto es el vértice de la vuelta y hay que conservarlo.
+    const reverses =
+      collinear &&
+      ((prev.x === cur.x && Math.sign(cur.y - prev.y) === -Math.sign(next.y - cur.y)) ||
+        (prev.y === cur.y && Math.sign(cur.x - prev.x) === -Math.sign(next.x - cur.x)));
+    if (collinear && !(keepReversals && reverses)) out.splice(i, 1);
     else i += 1;
   }
   return out;
@@ -127,6 +136,47 @@ export function repairRoute(
   else if (oldB.y === last.y) last.y = b.y;
   const repaired = normalizeRoute([a, ...bends, b]);
   return isOrthogonalRoute(repaired) ? repaired : autoRoute(a, aDir, b, bDir);
+}
+
+/**
+ * Llegada a un borne: el cable entra siempre por el lado por el que sale el tornillo. Si el último
+ * punto quedó del lado de adentro del aparato, se rodea en vez de atravesarlo.
+ */
+export function approachTerminal(last: Point, end: Point, dir: Dir, stub = STUB): Point[] {
+  const out = step(end, dir, stub);
+  const vertical = isVertical(dir);
+  const towards = vertical ? DIR_VECTOR[dir].y : DIR_VECTOR[dir].x;
+  const lastAxis = vertical ? last.y : last.x;
+  const endAxis = vertical ? end.y : end.x;
+  // ¿El último punto está del lado contrario a la salida del tornillo?
+  const behind = Math.sign(lastAxis - endAxis) !== towards;
+  if (!behind) return normalizeRoute([...wirePath(last, out), end], true);
+
+  const side = vertical ? last.x : last.y;
+  const endSide = vertical ? end.x : end.y;
+  // Si además está en la misma columna, se corre al costado para poder rodear.
+  const detour = side === endSide ? side + 3 : side;
+  const corner = vertical ? { x: detour, y: out.y } : { x: out.x, y: detour };
+  const first = vertical ? { x: detour, y: last.y } : { x: last.x, y: detour };
+  return normalizeRoute([first, corner, out, end], true);
+}
+
+/** Tramo en L del último punto fijo al destino, continuando por el eje en el que se venía. */
+export function wirePathFrom(previous: Point | undefined, last: Point, to: Point): Point[] {
+  if (last.x === to.x || last.y === to.y) return [to];
+  if (previous) {
+    if (previous.x === last.x) return [{ x: last.x, y: to.y }, to];
+    if (previous.y === last.y) return [{ x: to.x, y: last.y }, to];
+  }
+  return wirePath(last, to);
+}
+
+/** Tramo en L: primero el eje de mayor desplazamiento. */
+export function wirePath(from: Point, to: Point): Point[] {
+  if (from.x === to.x || from.y === to.y) return [to];
+  return Math.abs(to.x - from.x) >= Math.abs(to.y - from.y)
+    ? [{ x: to.x, y: from.y }, to]
+    : [{ x: from.x, y: to.y }, to];
 }
 
 /** Traslada los codos de un cable, para cuando se mueve todo el conjunto. */

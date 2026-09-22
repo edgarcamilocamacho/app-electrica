@@ -1,11 +1,13 @@
 /** Fixtures para documentos de tablero: aparatos y cables a mano, con ids deterministas. */
 import { boardRegistry } from '../../src/core/board/catalog';
-import type { BoardDocument, TerminalRef, WireColor, WireGauge } from '../../src/core/board/model';
+import type { BoardDocument, TerminalRef, WireColor, WireEnd, WireGauge } from '../../src/core/board/model';
 import {
   DEFAULT_WIRE_COLOR,
   DEFAULT_WIRE_GAUGE,
   emptyBoard,
-  terminalPosition,
+  endPosition,
+  terminalOf,
+  toTerminal,
 } from '../../src/core/board/model';
 import { defaultDeviceProps, findTerminal } from '../../src/core/board/registry';
 import { autoRoute, bendsOf } from '../../src/core/board/wireGeometry';
@@ -45,7 +47,7 @@ export class BoardBuilder {
   }
 
   /** Cable entre dos bornes. Sin codos explícitos usa la ruta automática. */
-  wire(a: TerminalRef, b: TerminalRef, options: WireOptions = {}): string {
+  wire(a: WireEnd, b: WireEnd, options: WireOptions = {}): string {
     const id = this.ids.next('w');
     const bends = options.bends ?? bendsOf(this.autoRouteBetween(a, b));
     this.doc = {
@@ -65,20 +67,23 @@ export class BoardBuilder {
     return id;
   }
 
-  position(ref: TerminalRef): Point {
-    return terminalPosition(this.doc, registry, ref);
+  position(end: WireEnd | TerminalRef): Point {
+    const asEnd: WireEnd = 'kind' in end ? end : toTerminal(end);
+    return endPosition(this.doc, registry, asEnd);
   }
 
-  private autoRouteBetween(a: TerminalRef, b: TerminalRef): Point[] {
-    const da = registry.require(this.doc.devices[a.deviceId]!.type);
-    const db = registry.require(this.doc.devices[b.deviceId]!.type);
-    return autoRoute(
-      this.position(a),
-      findTerminal(da, a.terminalId)!.dir,
-      this.position(b),
-      findTerminal(db, b.terminalId)!.dir,
-    );
+  private autoRouteBetween(a: WireEnd, b: WireEnd): Point[] {
+    const dirOf = (end: WireEnd): 'N' | 'E' | 'S' | 'W' => {
+      const r = terminalOf(end);
+      if (!r) return 'N';
+      const def = registry.require(this.doc.devices[r.deviceId]!.type);
+      return findTerminal(def, r.terminalId)!.dir;
+    };
+    return autoRoute(this.position(a), dirOf(a), this.position(b), dirOf(b));
   }
 }
 
-export const term = (deviceId: string, terminalId: string): TerminalRef => ({ deviceId, terminalId });
+export const term = (deviceId: string, terminalId: string): WireEnd => toTerminal({ deviceId, terminalId });
+
+/** Referencia cruda del borne, cuando hace falta la posición y no la punta del cable. */
+export const ref = (deviceId: string, terminalId: string): TerminalRef => ({ deviceId, terminalId });

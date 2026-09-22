@@ -7,13 +7,14 @@
  */
 import type { IdGen } from '../model/ids';
 import type { Id, Point, TextAnnotation } from '../model/types';
-import type { BoardDocument, DeviceInstance, TerminalRef, Wire, WireColor, WireGauge } from './model';
+import type { BoardDocument, DeviceInstance, Wire, WireColor, WireEnd, WireGauge } from './model';
 import {
   DEFAULT_WIRE_COLOR,
   DEFAULT_WIRE_GAUGE,
-  sameTerminal,
+  endPosition,
+  sameEnd,
   terminalExists,
-  terminalPosition,
+  terminalOf,
 } from './model';
 import { defaultDeviceProps, findTerminal, type DeviceRegistry } from './registry';
 import { addedViolations, type Violation } from './validity';
@@ -99,23 +100,34 @@ export function moveSelection(doc: BoardDocument, args: MoveArgs, ctx: OpContext
   const withDevices: BoardDocument = { ...doc, devices, annotations };
   const wires: Record<Id, Wire> = { ...doc.wires };
   for (const wire of Object.values(doc.wires)) {
-    const movedA = moved.has(wire.a.deviceId);
-    const movedB = moved.has(wire.b.deviceId);
+    const movedA = isMoved(wire.a, moved);
+    const movedB = isMoved(wire.b, moved);
     if (!movedA && !movedB) continue;
     if (movedA && movedB) {
       wires[wire.id] = { ...wire, bends: translateBends(wire.bends, dx, dy) };
       continue;
     }
     const route = wireRoute(doc, ctx.registry, wire);
-    const a = terminalPosition(withDevices, ctx.registry, wire.a);
-    const b = terminalPosition(withDevices, ctx.registry, wire.b);
-    wires[wire.id] = { ...wire, bends: repairRoute(route, a, b, dirOf(withDevices, ctx, wire.a), dirOf(withDevices, ctx, wire.b)).slice(1, -1) };
+    const a = endPosition(withDevices, ctx.registry, wire.a);
+    const b = endPosition(withDevices, ctx.registry, wire.b);
+    wires[wire.id] = {
+      ...wire,
+      bends: repairRoute(route, a, b, dirOf(withDevices, ctx, wire.a), dirOf(withDevices, ctx, wire.b)).slice(1, -1),
+    };
   }
 
   return finalize(doc, { ...withDevices, wires }, ctx);
 }
 
-function dirOf(doc: BoardDocument, ctx: OpContext, ref: TerminalRef): 'N' | 'E' | 'S' | 'W' {
+const isMoved = (end: WireEnd, moved: ReadonlySet<Id>): boolean => {
+  const ref = terminalOf(end);
+  return ref ? moved.has(ref.deviceId) : false;
+};
+
+/** Dirección por la que sale el cable de una punta; una punta suelta no impone dirección. */
+function dirOf(doc: BoardDocument, ctx: OpContext, end: WireEnd): 'N' | 'E' | 'S' | 'W' {
+  const ref = terminalOf(end);
+  if (!ref) return 'N';
   const device = doc.devices[ref.deviceId]!;
   const def = ctx.registry.require(device.type);
   return findTerminal(def, ref.terminalId)?.dir ?? 'N';
@@ -139,29 +151,31 @@ export function setDeviceProps(doc: BoardDocument, args: SetPropsArgs, ctx: OpCo
 // ── Cables ───────────────────────────────────────────────────────────────────────────────────
 
 export interface ConnectArgs {
-  readonly a: TerminalRef;
-  readonly b: TerminalRef;
+  readonly a: WireEnd;
+  readonly b: WireEnd;
   /** Codos dibujados por el usuario. Sin ellos se usa la ruta automática. */
   readonly bends?: readonly Point[];
   readonly color?: WireColor;
   readonly gauge?: WireGauge;
 }
 
-/** Un cable nuevo entre dos bornes [R5 §4]. */
+/**
+ * Un cable nuevo. Cada punta puede ser un borne o quedar suelta: así se puede cablear con libertad
+ * y la punta suelta se marca como error hasta conectarla [R5 §4, §17].
+ */
 export function connect(doc: BoardDocument, args: ConnectArgs, ctx: OpContext): BoardEditResult {
-  if (sameTerminal(args.a, args.b)) return rejected(doc, 'INVALID_INPUT');
-  if (!terminalExists(doc, ctx.registry, args.a) || !terminalExists(doc, ctx.registry, args.b)) {
-    return rejected(doc, 'NOT_FOUND');
+  if (sameEnd(args.a, args.b)) return rejected(doc, 'INVALID_INPUT');
+  for (const end of [args.a, args.b]) {
+    const ref = terminalOf(end);
+    if (ref && !terminalExists(doc, ctx.registry, ref)) return rejected(doc, 'NOT_FOUND');
   }
   const duplicated = Object.values(doc.wires).some(
-    (w) =>
-      (sameTerminal(w.a, args.a) && sameTerminal(w.b, args.b)) ||
-      (sameTerminal(w.a, args.b) && sameTerminal(w.b, args.a)),
+    (w) => (sameEnd(w.a, args.a) && sameEnd(w.b, args.b)) || (sameEnd(w.a, args.b) && sameEnd(w.b, args.a)),
   );
   if (duplicated) return rejected(doc, 'INVALID_INPUT');
 
-  const from = terminalPosition(doc, ctx.registry, args.a);
-  const to = terminalPosition(doc, ctx.registry, args.b);
+  const from = endPosition(doc, ctx.registry, args.a);
+  const to = endPosition(doc, ctx.registry, args.b);
   const route = args.bends
     ? normalizeRoute([from, ...args.bends, to])
     : autoRoute(from, dirOf(doc, ctx, args.a), to, dirOf(doc, ctx, args.b));
@@ -238,8 +252,8 @@ export function moveWireSegment(doc: BoardDocument, args: MoveWireSegmentArgs, c
 export function setWireBends(doc: BoardDocument, wireId: Id, bends: readonly Point[], ctx: OpContext): BoardEditResult {
   const wire = doc.wires[wireId];
   if (!wire) return rejected(doc, 'NOT_FOUND');
-  const from = terminalPosition(doc, ctx.registry, wire.a);
-  const to = terminalPosition(doc, ctx.registry, wire.b);
+  const from = endPosition(doc, ctx.registry, wire.a);
+  const to = endPosition(doc, ctx.registry, wire.b);
   const route = normalizeRoute([from, ...bends, to]);
   const wires = { ...doc.wires, [wireId]: { ...wire, bends: route.slice(1, -1) } };
   return finalize(doc, { ...doc, wires }, ctx);
@@ -266,7 +280,7 @@ export function remove(doc: BoardDocument, args: DeleteArgs, ctx: OpContext): Bo
   for (const [id, device] of Object.entries(doc.devices)) if (!deviceIds.has(id)) devices[id] = device;
   const wires: Record<Id, Wire> = {};
   for (const [id, wire] of Object.entries(doc.wires)) {
-    if (wireIds.has(id) || deviceIds.has(wire.a.deviceId) || deviceIds.has(wire.b.deviceId)) continue;
+    if (wireIds.has(id) || isMoved(wire.a, deviceIds) || isMoved(wire.b, deviceIds)) continue;
     wires[id] = wire;
   }
   const annotations: Record<Id, TextAnnotation> = {};
@@ -292,3 +306,105 @@ export function setAnnotationText(doc: BoardDocument, id: Id, text: string, ctx:
 /** Codos de un cable ya normalizados, para comparar en los tests. */
 export const wireBends = (doc: BoardDocument, registry: DeviceRegistry, id: Id): readonly Point[] =>
   bendsOf(wireRoute(doc, registry, doc.wires[id]!));
+
+// ── Copiar y pegar ───────────────────────────────────────────────────────────────────────────
+
+export interface BoardClip {
+  readonly devices: readonly DeviceInstance[];
+  /** Solo los cables cuyos dos extremos están dentro de lo copiado. */
+  readonly wires: readonly Wire[];
+  readonly annotations: readonly TextAnnotation[];
+}
+
+export interface CopyArgs {
+  readonly devices: readonly Id[];
+  readonly wires?: readonly Id[];
+  readonly annotations?: readonly Id[];
+}
+
+/** Recorta del documento lo seleccionado, con su cableado interno [R2 §13]. */
+export function copyClip(doc: BoardDocument, args: CopyArgs): BoardClip {
+  const devices = args.devices.map((id) => doc.devices[id]).filter((d): d is DeviceInstance => d !== undefined);
+  const inside = new Set(devices.map((d) => d.id));
+  const insideEnd = (end: WireEnd): boolean => {
+    const ref = terminalOf(end);
+    return ref ? inside.has(ref.deviceId) : true;
+  };
+  const wires = Object.values(doc.wires).filter((w) => insideEnd(w.a) && insideEnd(w.b) && (terminalOf(w.a) || terminalOf(w.b)));
+  const annotations = (args.annotations ?? [])
+    .map((id) => doc.annotations[id])
+    .filter((n): n is TextAnnotation => n !== undefined);
+  return { devices, wires, annotations };
+}
+
+/** Siguiente etiqueta libre con el mismo prefijo: `K1` → `K2` [I5]. */
+function nextRef(doc: BoardDocument, ref: string): string {
+  const match = /^([A-Za-zÁÉÍÓÚÑ]+)(\d+)$/.exec(ref);
+  if (!match) return ref;
+  const [, prefix] = match;
+  const used = new Set(
+    Object.values(doc.devices)
+      .map((d) => (typeof d.props.ref === 'string' ? d.props.ref : ''))
+      .filter((r) => r.startsWith(prefix!)),
+  );
+  for (let n = 1; n < 1000; n += 1) {
+    const candidate = `${prefix}${n}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return ref;
+}
+
+export interface PasteResult extends BoardEditResult {
+  readonly devices: readonly Id[];
+  readonly wires: readonly Id[];
+  readonly annotations: readonly Id[];
+}
+
+/** Pega lo copiado desplazado, con ids y etiquetas nuevas. */
+export function pasteClip(doc: BoardDocument, clip: BoardClip, delta: Point, ctx: OpContext): PasteResult {
+  if (clip.devices.length === 0 && clip.annotations.length === 0) {
+    return { ...rejected(doc, 'INVALID_INPUT'), devices: [], wires: [], annotations: [] };
+  }
+  const devices: Record<Id, DeviceInstance> = { ...doc.devices };
+  const idMap = new Map<Id, Id>();
+  let next = doc;
+  for (const device of clip.devices) {
+    const id = ctx.ids.next('d');
+    idMap.set(device.id, id);
+    const ref = typeof device.props.ref === 'string' && device.props.ref ? nextRef(next, device.props.ref) : '';
+    const placed: DeviceInstance = {
+      id,
+      type: device.type,
+      position: { x: device.position.x + delta.x, y: device.position.y + delta.y },
+      props: { ...device.props, ...(ref ? { ref } : {}) },
+    };
+    devices[id] = placed;
+    next = { ...next, devices };
+  }
+
+  const remap = (end: WireEnd): WireEnd => {
+    const ref = terminalOf(end);
+    if (!ref) return { kind: 'free', at: { x: (end as { at: Point }).at.x + delta.x, y: (end as { at: Point }).at.y + delta.y } };
+    const deviceId = idMap.get(ref.deviceId);
+    return deviceId ? { kind: 'terminal', ref: { deviceId, terminalId: ref.terminalId } } : end;
+  };
+
+  const wires: Record<Id, Wire> = { ...doc.wires };
+  const wireIds: Id[] = [];
+  for (const wire of clip.wires) {
+    const id = ctx.ids.next('w');
+    wireIds.push(id);
+    wires[id] = { ...wire, id, a: remap(wire.a), b: remap(wire.b), bends: translateBends(wire.bends, delta.x, delta.y) };
+  }
+
+  const annotations: Record<Id, TextAnnotation> = { ...doc.annotations };
+  const noteIds: Id[] = [];
+  for (const note of clip.annotations) {
+    const id = ctx.ids.next('n');
+    noteIds.push(id);
+    annotations[id] = { id, text: note.text, position: { x: note.position.x + delta.x, y: note.position.y + delta.y } };
+  }
+
+  const result = finalize(doc, { ...doc, devices, wires, annotations }, ctx);
+  return { ...result, devices: [...idMap.values()], wires: wireIds, annotations: noteIds };
+}

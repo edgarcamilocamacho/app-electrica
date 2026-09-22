@@ -7,11 +7,25 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { boardRegistry } from '../../core/board/catalog';
 import { blockingDiagnostics, computeDiagnostics, type BoardDiagnostic } from '../../core/board/diagnostics';
-import type { BoardDocument, TerminalRef, WireColor, WireGauge } from '../../core/board/model';
-import { DEFAULT_WIRE_COLOR, DEFAULT_WIRE_GAUGE, deviceOuterRect, emptyBoard } from '../../core/board/model';
+import type { BoardDocument, TerminalRef, WireColor, WireEnd, WireGauge } from '../../core/board/model';
+import {
+  DEFAULT_WIRE_COLOR,
+  DEFAULT_WIRE_GAUGE,
+  deviceOuterRect,
+  emptyBoard,
+  endPosition,
+  sameEnd,
+  terminalOf,
+  terminalPosition,
+  toFree,
+  toTerminal,
+} from '../../core/board/model';
 import {
   addAnnotation,
   connect,
+  copyClip,
+  pasteClip,
+  type BoardClip,
   moveSelection,
   moveWireSegment,
   placeDevice,
@@ -22,9 +36,16 @@ import {
   type BoardEditResult,
   type OpContext,
 } from '../../core/board/ops';
-import type { DeviceRegistry } from '../../core/board/registry';
+import { findTerminal, type DeviceRegistry } from '../../core/board/registry';
 import { BoardSimEngine, type SimSnapshot } from '../../core/board/sim/engine';
-import { wireRoute } from '../../core/board/wireGeometry';
+import {
+  approachTerminal,
+  autoRoute,
+  normalizeRoute,
+  STUB,
+  wirePathFrom,
+  wireRoute,
+} from '../../core/board/wireGeometry';
 import {
   canRedo,
   canUndo,
@@ -34,15 +55,17 @@ import {
   undo,
   type History,
 } from '../../core/history/history';
-import { rectFromPoints, rectUnion, type Rect } from '../../core/model/geometry';
+import { DIR_VECTOR, rectFromPoints, rectUnion, type Rect } from '../../core/model/geometry';
 import { createRandomIdGen, type IdGen } from '../../core/model/ids';
-import type { Id, Point } from '../../core/model/types';
+import type { Dir, Id, Point } from '../../core/model/types';
 
 export const GRID_PX = 10;
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 4;
 export const DEFAULT_ZOOM = 1;
 export const SPEEDS = [0.25, 1, 4] as const;
+/** Desplazamiento de lo pegado, en unidades de grid. */
+export const PASTE_OFFSET = 6;
 export type Speed = (typeof SPEEDS)[number];
 
 export type BoardToolKind = 'select' | 'wire' | 'erase' | 'text';
@@ -74,10 +97,49 @@ export interface Placing {
 
 /** Cable en curso: arranca en un borne y termina en otro [I8]. */
 export interface WiringDraft {
-  readonly from: TerminalRef;
-  readonly bends: readonly Point[];
+  readonly from: WireEnd;
+  /** Puntos ya fijados, empezando por el tornillo de origen. Siempre ortogonales entre sí. */
+  readonly points: readonly Point[];
+  /** Punto libre bajo el cursor, ya ajustado a la grilla o al borne apuntado. */
   readonly cursor: Point;
+  /** Borne bajo el cursor, si lo hay: ahí termina el cable. */
+  readonly over?: TerminalRef;
 }
+
+/** Punto justo afuera del tornillo, en la dirección por la que sale su cable. */
+export function stubOf(doc: BoardDocument, registry: DeviceRegistry, end: WireEnd): Point {
+  const at = endPosition(doc, registry, end);
+  const dir = dirOf(doc, registry, end);
+  return { x: at.x + DIR_VECTOR[dir].x * STUB, y: at.y + DIR_VECTOR[dir].y * STUB };
+}
+
+/**
+ * Ruta del trazado en curso hasta un borne. Sin codos propios se usa el ruteo automático, que sale
+ * y entra perpendicular a cada tornillo y cruza por el medio; con codos del usuario, se continúa
+ * con un tramo en L hasta la salida del tornillo de destino.
+ */
+function routeTo(doc: BoardDocument, registry: DeviceRegistry, wiring: WiringDraft, to: WireEnd): Point[] {
+  const from = endPosition(doc, registry, wiring.from);
+  const end = endPosition(doc, registry, to);
+  if (wiring.points.length <= 2 && wiring.from.kind === 'terminal') {
+    return autoRoute(from, dirOf(doc, registry, wiring.from), end, dirOf(doc, registry, to));
+  }
+  const last = wiring.points[wiring.points.length - 1]!;
+  const previous = wiring.points[wiring.points.length - 2];
+  const dir = dirOf(doc, registry, to);
+  const ref = terminalOf(to);
+  const tail = ref
+    ? approachTerminal(last, end, dir)
+    : normalizeRoute([...wirePathFrom(previous, last, end)]);
+  return normalizeRoute([...wiring.points, ...tail], true);
+}
+
+const dirOf = (doc: BoardDocument, registry: DeviceRegistry, end: WireEnd): Dir => {
+  const ref = terminalOf(end);
+  if (!ref) return 'N';
+  const def = registry.get(doc.devices[ref.deviceId]!.type);
+  return def ? (findTerminal(def, ref.terminalId)?.dir ?? 'N') : 'N';
+};
 
 export interface DragState {
   readonly devices: readonly Id[];
@@ -125,10 +187,16 @@ export interface BoardState {
 
   // Cableado
   beginWire(from: TerminalRef): void;
-  moveWireCursor(at: Point): void;
+  /** Empieza un cable en un punto vacío: la punta queda suelta hasta que se conecte [R5 §17]. */
+  beginWireAt(at: Point): void;
+  /** Termina el cable en el aire: la punta suelta queda marcada como error. */
+  finishFree(): void;
+  moveWireCursor(at: Point, over?: TerminalRef): void;
   addBend(at: Point): void;
   finishWire(to: TerminalRef): void;
   undoBend(): void;
+  /** Ruta completa del trazado en curso, con el tramo que sigue al cursor. */
+  draftRoute(): readonly Point[];
 
   // Mover, borrar, propiedades
   beginDrag(origin: Point): void;
@@ -138,8 +206,13 @@ export interface BoardState {
   eraseAt(target: { kind: 'device' | 'wire' | 'annotation'; id: Id }): void;
   deleteSelection(): void;
   setProps(deviceId: Id, props: Record<string, unknown>): void;
+  copySelection(): void;
+  paste(): void;
+  duplicateSelection(): void;
   setWireLook(color?: WireColor, gauge?: WireGauge): void;
   dragWireSegment(wireId: Id, segmentIndex: number, delta: Point): void;
+  /** Vista previa del tramo mientras se arrastra, sin tocar el historial. */
+  previewWireSegment(wireId: Id, segmentIndex: number, delta: Point): void;
   addText(at: Point, text: string): void;
   editText(id: Id, text: string): void;
 
@@ -220,6 +293,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
   const now = deps.now ?? (() => Date.now());
   const ctx: OpContext = { ids, registry };
   let engine: BoardSimEngine | null = null;
+  let clipboard: BoardClip | undefined;
 
   return createStore<BoardState>((set, get) => {
     /** Confirma una operación: si es válida entra al historial; si no, queda como vista previa. */
@@ -247,6 +321,20 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
         status: undefined,
       });
       return true;
+    };
+
+    /** Pega buscando un hueco: si cae encima de algo, se prueba un poco más lejos. */
+    const pasteAt = (clip: BoardClip, delta: Point): void => {
+      for (let step = 1; step <= 6; step += 1) {
+        const at = { x: delta.x * step, y: delta.y * step };
+        const result = pasteClip(docOf(get()), clip, at, ctx);
+        if (result.ok || step === 6) {
+          apply(result, {
+            selection: { devices: result.devices, wires: result.wires, annotations: result.annotations },
+          });
+          return;
+        }
+      }
     };
 
     const clearTransient = (): void => set({ placing: undefined, wiring: undefined, drag: undefined, marquee: undefined, preview: undefined });
@@ -311,33 +399,86 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       beginWire(from) {
-        set({ tool: 'wire', wiring: { from, bends: [], cursor: { x: 0, y: 0 } } });
+        // El cable sale perpendicular al tornillo antes de doblar, como en un tablero real.
+        const end = toTerminal(from);
+        const start = terminalPosition(docOf(get()), registry, from);
+        const stub = stubOf(docOf(get()), registry, end);
+        set({ tool: 'wire', wiring: { from: end, points: [start, stub], cursor: stub } });
       },
 
-      moveWireCursor(at) {
+      beginWireAt(at) {
+        const start = snap(at);
+        set({ tool: 'wire', wiring: { from: toFree(start), points: [start], cursor: start } });
+      },
+
+      finishFree() {
         const wiring = get().wiring;
-        if (wiring) set({ wiring: { ...wiring, cursor: snap(at) } });
+        if (!wiring || wiring.points.length < 2) {
+          set({ wiring: undefined, preview: undefined });
+          return;
+        }
+        const route = get().draftRoute();
+        const end = route[route.length - 1]!;
+        const { color, gauge } = get().wireStyle;
+        const result = connect(
+          docOf(get()),
+          { a: wiring.from, b: toFree(end), color, gauge, bends: route.slice(1, -1) },
+          ctx,
+        );
+        if (apply(result)) set({ wiring: undefined });
+      },
+
+      moveWireCursor(at, over) {
+        const wiring = get().wiring;
+        if (!wiring) return;
+        const cursor = over ? terminalPosition(docOf(get()), registry, over) : snap(at);
+        if (cursor.x === wiring.cursor.x && cursor.y === wiring.cursor.y && over === wiring.over) return;
+        set({ wiring: { ...wiring, cursor, ...(over ? { over } : {}) } });
       },
 
       addBend(at) {
         const wiring = get().wiring;
         if (!wiring) return;
-        set({ wiring: { ...wiring, bends: [...wiring.bends, snap(at)] } });
+        const last = wiring.points[wiring.points.length - 1]!;
+        const previous = wiring.points[wiring.points.length - 2];
+        const target = snap(at);
+        if (target.x === last.x && target.y === last.y) return;
+        set({ wiring: { ...wiring, points: [...wiring.points, ...wirePathFrom(previous, last, target)] } });
       },
 
       undoBend() {
         const wiring = get().wiring;
         if (!wiring) return;
-        set({ wiring: { ...wiring, bends: wiring.bends.slice(0, -1) } });
+        if (wiring.points.length <= 1) {
+          set({ wiring: undefined });
+          return;
+        }
+        set({ wiring: { ...wiring, points: wiring.points.slice(0, -1) } });
+      },
+
+      draftRoute() {
+        const wiring = get().wiring;
+        if (!wiring) return [];
+        const last = wiring.points[wiring.points.length - 1]!;
+        const previous = wiring.points[wiring.points.length - 2];
+        if (!wiring.over) return normalizeRoute([...wiring.points, ...wirePathFrom(previous, last, wiring.cursor)]);
+        return routeTo(docOf(get()), registry, wiring, toTerminal(wiring.over));
       },
 
       finishWire(to) {
         const wiring = get().wiring;
         if (!wiring) return;
+        const end = toTerminal(to);
+        if (sameEnd(wiring.from, end)) {
+          set({ wiring: undefined, preview: undefined });
+          return;
+        }
+        const route = routeTo(docOf(get()), registry, wiring, end);
         const { color, gauge } = get().wireStyle;
+        const bends = route.slice(1, -1);
         const result = connect(
           docOf(get()),
-          { a: wiring.from, b: to, color, gauge, ...(wiring.bends.length > 0 ? { bends: wiring.bends } : {}) },
+          { a: wiring.from, b: end, color, gauge, ...(bends.length > 0 ? { bends } : {}) },
           ctx,
         );
         if (apply(result)) set({ wiring: undefined });
@@ -423,6 +564,27 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
         apply(setDeviceProps(docOf(get()), { deviceId, props }, ctx), { coalesceKey: `props:${deviceId}` });
       },
 
+      copySelection() {
+        const selection = selectionOf(get());
+        if (selection.devices.length === 0 && selection.annotations.length === 0) return;
+        clipboard = copyClip(docOf(get()), {
+          devices: selection.devices,
+          annotations: selection.annotations,
+        });
+      },
+
+      paste() {
+        if (!clipboard) return;
+        pasteAt(clipboard, { x: PASTE_OFFSET, y: PASTE_OFFSET });
+      },
+
+      duplicateSelection() {
+        const selection = selectionOf(get());
+        if (selection.devices.length === 0 && selection.annotations.length === 0) return;
+        const clip = copyClip(docOf(get()), { devices: selection.devices, annotations: selection.annotations });
+        pasteAt(clip, { x: PASTE_OFFSET, y: PASTE_OFFSET });
+      },
+
       setWireLook(color, gauge) {
         const selection = selectionOf(get());
         set({
@@ -440,6 +602,21 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
 
       dragWireSegment(wireId, segmentIndex, delta) {
         apply(moveWireSegment(docOf(get()), { wireId, segmentIndex, delta }, ctx));
+      },
+
+      previewWireSegment(wireId, segmentIndex, delta) {
+        if (delta.x === 0 && delta.y === 0) {
+          set({ preview: undefined });
+          return;
+        }
+        const result = moveWireSegment(docOf(get()), { wireId, segmentIndex, delta }, ctx);
+        set({
+          preview: {
+            doc: result.doc,
+            ok: result.ok,
+            invalid: [...new Set(result.violations.flatMap((v) => [...(v.devices ?? []), ...(v.wires ?? [])]))],
+          },
+        });
       },
 
       addText(at, text) {

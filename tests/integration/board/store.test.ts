@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { boardRegistry } from '../../../src/core/board/catalog';
 import { computeNets } from '../../../src/core/board/nets';
 import { createBoardStore, docOf, selectionOf, type BoardStore } from '../../../src/app/board/store';
+import { terminalPosition } from '../../../src/core/board/model';
+import { isOrthogonalRoute, wireRoute } from '../../../src/core/board/wireGeometry';
 import { createCounterIdGen } from '../../../src/core/model/ids';
 
 const makeStore = (): BoardStore =>
@@ -52,6 +54,38 @@ describe('tienda del tablero — edición', () => {
       computeNets(doc, boardRegistry).connected({ deviceId: g, terminalId: 'L' }, { deviceId: h, terminalId: 'X1' }),
     ).toBe(true);
     expect(store.getState().wiring).toBeUndefined();
+  });
+
+  it('el trazado siempre queda ortogonal, aunque los clics sean en diagonal', () => {
+    const store = makeStore();
+    const g = place(store, 'supply-1p', 0, 0);
+    const h = place(store, 'pilot-lamp', 40, 40);
+    store.getState().beginWire({ deviceId: g, terminalId: 'L' });
+    // Clics en diagonal respecto del último punto: cada uno se resuelve en L.
+    store.getState().addBend({ x: 14, y: 22 });
+    store.getState().addBend({ x: 30, y: 31 });
+    store.getState().finishWire({ deviceId: h, terminalId: 'X1' });
+
+    const doc = docOf(store.getState());
+    const wire = Object.values(doc.wires)[0]!;
+    const route = wireRoute(doc, boardRegistry, wire);
+    expect(isOrthogonalRoute(route)).toBe(true);
+    expect(route[0]).toEqual(terminalPosition(doc, boardRegistry, { deviceId: g, terminalId: 'L' }));
+    expect(route[route.length - 1]).toEqual(
+      terminalPosition(doc, boardRegistry, { deviceId: h, terminalId: 'X1' }),
+    );
+  });
+
+  it('el cable sale perpendicular al tornillo y Retroceso deshace el último codo', () => {
+    const store = makeStore();
+    const g = place(store, 'supply-1p', 0, 0);
+    store.getState().beginWire({ deviceId: g, terminalId: 'L' });
+    expect(store.getState().wiring?.points).toHaveLength(2);
+    store.getState().addBend({ x: 20, y: 20 });
+    expect(store.getState().wiring!.points.length).toBeGreaterThan(2);
+    const before = store.getState().wiring!.points.length;
+    store.getState().undoBend();
+    expect(store.getState().wiring!.points).toHaveLength(before - 1);
   });
 
   it('el cable guarda el color y el calibre elegidos [R5 §3, §5]', () => {

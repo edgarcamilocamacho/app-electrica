@@ -8,7 +8,7 @@ import type { DeviceInstance } from '../../../core/board/model';
 import { terminalKey } from '../../../core/board/model';
 import type { DeviceDefinition, TerminalDef } from '../../../core/board/registry';
 import type { DeviceView } from '../../../core/board/sim/engine';
-import { BOARD_PALETTE, BOARD_STROKE } from '../theme';
+import { BOARD_PALETTE, BOARD_STROKE, BODY_STROKE } from '../theme';
 import {
   Body,
   BulbSymbol,
@@ -22,7 +22,6 @@ import {
   MechLink,
   Screw,
   Tag,
-  TerminalLabel,
   WireCount,
 } from './primitives';
 
@@ -34,6 +33,11 @@ export interface DeviceArtProps {
   readonly view?: DeviceView | undefined;
   /** Cuántos cables tiene cada borne, por clave de borne [R5 §6]. */
   readonly wireCounts?: ReadonlyMap<string, number> | undefined;
+  /**
+   * Qué capa dibujar. El cuerpo y el esquema van **debajo** de los cables; los tornillos y sus
+   * marcaciones, **encima**, para que el cable termine visiblemente en el tornillo.
+   */
+  readonly layer?: 'body' | 'screws' | 'both';
 }
 
 const closedOf = (view: DeviceView | undefined, deviceId: string, a: string, b: string, fallback: boolean): boolean =>
@@ -46,21 +50,22 @@ const labelOf = (device: DeviceInstance): string => (typeof device.props.label =
 const topRow = (def: DeviceDefinition): readonly TerminalDef[] =>
   def.terminals.filter((t) => t.dir === 'N').sort((a, b) => a.offset.x - b.offset.x);
 
-export function DeviceArt({ device, def, view, wireCounts }: DeviceArtProps): ReactElement {
+export function DeviceArt({ device, def, view, wireCounts, layer = 'both' }: DeviceArtProps): ReactElement {
   return (
     <g>
-      {internals(device, def, view)}
-      {def.terminals.map((t) => (
-        <g key={t.id}>
-          <Screw x={t.offset.x} y={t.offset.y} size={t.screw} />
-          <TerminalLabel x={t.offset.x} y={t.offset.y} text={t.label} side={t.dir === 'N' ? 'top' : 'bottom'} />
-          <WireCount
-            x={t.offset.x}
-            y={t.offset.y}
-            count={wireCounts?.get(terminalKey({ deviceId: device.id, terminalId: t.id })) ?? 0}
-          />
-        </g>
-      ))}
+      {layer !== 'screws' && internals(device, def, view)}
+      {layer !== 'body' &&
+        def.terminals.map((t) => (
+          <g key={t.id}>
+            <title>{t.label}</title>
+            <Screw x={t.offset.x} y={t.offset.y} size={t.screw} text={t.id} />
+            <WireCount
+              x={t.offset.x}
+              y={t.offset.y}
+              count={wireCounts?.get(terminalKey({ deviceId: device.id, terminalId: t.id })) ?? 0}
+            />
+          </g>
+        ))}
     </g>
   );
 }
@@ -74,35 +79,73 @@ function internals(device: DeviceInstance, def: DeviceDefinition, view: DeviceVi
   if (def.category === 'relays' || def.category === 'timers') {
     return <RelayArt device={device} def={def} view={view} />;
   }
+  if (def.type === 'bulb') return <BulbArt device={device} def={def} view={view} />;
   if (def.category === 'loads') return <LoadArt device={device} def={def} view={view} />;
   return <ManualArt device={device} def={def} view={view} />;
 }
 
-/** Acometida dibujada como la bajada de un poste [R5 §2]. */
+/** Acometida: poste de la calle con su cruceta, aisladores y la bajada a la bornera [R5 §2]. */
 function SupplyArt({ device, def }: { device: DeviceInstance; def: DeviceDefinition }): ReactElement {
   const drops = def.terminals.filter((t) => t.dir === 'S');
-  const armY = def.bounds.minY + 2;
+  const top = def.bounds.minY;
+  const armY = top + 1.6;
+  const arm2Y = top + 3.4;
   const box = { ...def.bounds, minY: def.bounds.maxY - 3.6 };
+  const label = labelOf(device);
   return (
     <g>
-      <rect
-        x={-0.5}
-        y={def.bounds.minY}
-        width={1}
-        height={def.bounds.maxY - def.bounds.minY - 2}
+      {/* Poste, apenas cónico. */}
+      <path
+        d={`M-0.75 ${top}h1.5L1.1 ${box.minY}h-2.2z`}
         fill={P.bodyShade}
         stroke={P.bodyEdge}
         strokeWidth={BOARD_STROKE}
       />
-      <Conductor d={`M${def.bounds.minX + 1} ${armY}H${def.bounds.maxX - 1}`} width={BOARD_STROKE * 1.6} />
-      {drops.map((t) => (
-        <g key={t.id}>
-          <circle cx={t.offset.x} cy={armY - 0.5} r={0.35} fill={P.metal} stroke={P.sym} strokeWidth={BOARD_STROKE * 0.8} />
-          <Conductor d={`M${t.offset.x} ${armY - 0.5}V${t.offset.y - 1}`} />
+      {/* Crucetas con sus aisladores. */}
+      {[armY, arm2Y].map((y, i) => (
+        <g key={y}>
+          <rect
+            x={def.bounds.minX + (i === 0 ? 0.6 : 1.8)}
+            y={y - 0.28}
+            width={def.bounds.maxX - def.bounds.minX - (i === 0 ? 1.2 : 3.6)}
+            height={0.56}
+            rx={0.2}
+            fill={P.metal}
+            stroke={P.bodyEdge}
+            strokeWidth={BOARD_STROKE * 0.7}
+          />
         </g>
       ))}
+      {drops.map((t, i) => {
+        const y = i % 2 === 0 ? armY : arm2Y;
+        return (
+          <g key={t.id}>
+            <rect
+              x={t.offset.x - 0.32}
+              y={y - 1.1}
+              width={0.64}
+              height={0.9}
+              rx={0.25}
+              fill={P.screw}
+              stroke={P.sym}
+              strokeWidth={BOARD_STROKE * 0.7}
+            />
+            {/* La bajada cuelga con una curva suave hasta la bornera. */}
+            <path
+              d={`M${t.offset.x} ${y - 1.1}C${t.offset.x} ${y + 3} ${t.offset.x + (t.offset.x < 0 ? -1.4 : 1.4)} ${
+                box.minY - 3
+              } ${t.offset.x} ${t.offset.y - 1}`}
+              fill="none"
+              stroke={P.sym}
+              strokeWidth={BOARD_STROKE * 1.2}
+              strokeLinecap="round"
+            />
+          </g>
+        );
+      })}
       <Body bounds={box} />
-      <Tag x={def.bounds.minX + 1.4} y={box.minY + 1.4} text={tagOf(device)} anchor="start" />
+      <Tag x={def.bounds.minX + 1.4} y={box.minY + 1.5} text={tagOf(device)} anchor="start" />
+      {label && <Caption x={def.bounds.maxX - 1.2} y={box.minY - 1} text={label} anchor="end" />}
     </g>
   );
 }
@@ -145,8 +188,9 @@ function ContactorArt({ device, def, view }: { device: DeviceInstance; def: Devi
   const at = (id: string) => def.terminals.find((t) => t.id === id)!;
   const a1 = at('A1');
   const a2 = at('A2');
-  const coilTop = 4.2;
   const on = view?.energized === true;
+  // Bobina chica, justo entre A1 y A2, para no cruzar la zona de contactos.
+  const coil = { x: (a1.offset.x + a2.offset.x) / 2 - 1.1, y: a1.offset.y + 1.2, w: 2.2, h: 1.6 };
   return (
     <g>
       <Body bounds={def.bounds} />
@@ -162,10 +206,12 @@ function ContactorArt({ device, def, view }: { device: DeviceInstance; def: Devi
           </g>
         );
       })}
-      <Conductor d={`M${a1.offset.x} ${a1.offset.y + 1.4}V${coilTop}`} />
-      <Conductor d={`M${a2.offset.x} ${a2.offset.y + 1.4}V${coilTop}`} />
-      <Coil x={a1.offset.x} y={coilTop} w={a2.offset.x - a1.offset.x} h={2.2} on={on} />
-      <MechLink d={`M${a1.offset.x + (a2.offset.x - a1.offset.x) / 2} ${coilTop}V0M${def.bounds.minX + 1.2} 0H${def.bounds.maxX - 1.2}`} />
+      <Conductor d={`M${a1.offset.x} ${a1.offset.y + 1.2}V${coil.y + coil.h / 2}H${coil.x}`} />
+      <Conductor d={`M${a2.offset.x} ${a2.offset.y + 1.2}V${coil.y + coil.h / 2}H${coil.x + coil.w}`} />
+      <Coil x={coil.x} y={coil.y} w={coil.w} h={coil.h} on={on} />
+      <MechLink
+        d={`M${coil.x + coil.w / 2} ${coil.y + coil.h}V0M${def.bounds.minX + 1.2} 0H${def.bounds.maxX - 1.2}`}
+      />
       <Tag x={2} y={def.bounds.maxY - 3.4} text={tagOf(device)} anchor="start" />
       <Caption x={2} y={def.bounds.maxY - 1.9} text={labelOf(device)} anchor="start" />
     </g>
@@ -327,7 +373,63 @@ function UpsArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefi
   );
 }
 
-/** Piloto y foco: el símbolo de la carga en la columna del aparato [R5 §10]. */
+/** Foco: la silueta del bombillo es el aparato, con los dos bornes abajo [R5 §10]. */
+function BulbArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const x1 = def.terminals.find((t) => t.id === 'X1')!;
+  const x2 = def.terminals.find((t) => t.id === 'X2')!;
+  const on = view?.energized === true;
+  const color = P.lamp.amber!;
+  const glass = { cx: 0, cy: -3.2, r: 4 };
+  const neckTop = 0.2;
+  const baseTop = 1.5;
+  const baseBottom = 5.4;
+  return (
+    <g>
+      {on && <circle cx={glass.cx} cy={glass.cy} r={glass.r * 1.6} fill={color} opacity={0.28} />}
+      {/* Cuello entre la ampolla y el casquillo. */}
+      <path
+        d={`M-2.9 ${neckTop}H2.9L2.4 ${baseTop}H-2.4Z`}
+        fill={on ? color : P.body}
+        stroke={P.bodyEdge}
+        strokeWidth={BODY_STROKE}
+      />
+      {/* Ampolla. */}
+      <circle
+        cx={glass.cx}
+        cy={glass.cy}
+        r={glass.r}
+        fill={on ? color : P.body}
+        stroke={P.bodyEdge}
+        strokeWidth={BODY_STROKE}
+      />
+      {/* Casquillo roscado. */}
+      <rect
+        x={-2.4}
+        y={baseTop}
+        width={4.8}
+        height={baseBottom - baseTop}
+        rx={0.5}
+        fill={P.bodyShade}
+        stroke={P.bodyEdge}
+        strokeWidth={BODY_STROKE}
+      />
+      <path
+        d={`M-2.4 2.5H2.4M-2.4 3.5H2.4M-2.4 4.5H2.4`}
+        stroke={P.bodyEdge}
+        strokeWidth={BOARD_STROKE * 0.8}
+        opacity={0.7}
+        fill="none"
+      />
+      {/* Filamento: sube de cada borne y hace la V dentro de la ampolla. */}
+      <Conductor
+        d={`M${x1.offset.x} ${x1.offset.y - 1.2}V${glass.cy + 1.6}l1.1 -2.2l0.9 1.6l0.9 -1.6l1.1 2.2V${x2.offset.y - 1.2}`}
+      />
+      <Tag x={def.bounds.maxX - 0.4} y={glass.cy} text={tagOf(device)} anchor="end" />
+    </g>
+  );
+}
+
+/** Piloto: el símbolo de la carga en la columna del aparato [R5 §10]. */
 function LoadArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
   const top = def.terminals.find((t) => t.dir === 'N')!;
   const bottom = def.terminals.find((t) => t.dir === 'S')!;

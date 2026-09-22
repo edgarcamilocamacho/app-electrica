@@ -2,8 +2,8 @@
  * Circuito de ejemplo del tablero: arranque directo con retención y piloto de marcha.
  * Se construye con las operaciones reales, así que siempre cumple las reglas vigentes.
  */
-import type { BoardDocument, TerminalRef, WireColor } from '../core/board/model';
-import { emptyBoard } from '../core/board/model';
+import type { BoardDocument, WireColor, WireEnd } from '../core/board/model';
+import { emptyBoard, toTerminal } from '../core/board/model';
 import { connect, placeDevice, setDeviceProps, type OpContext } from '../core/board/ops';
 import type { Point } from '../core/model/types';
 
@@ -25,11 +25,11 @@ function place(doc: BoardDocument, ctx: OpContext, type: string, position: Point
   return { id, doc: named.doc };
 }
 
-function wire(doc: BoardDocument, ctx: OpContext, a: TerminalRef, b: TerminalRef, color: WireColor, bends?: readonly Point[]): BoardDocument {
+function wire(doc: BoardDocument, ctx: OpContext, a: WireEnd, b: WireEnd, color: WireColor, bends?: readonly Point[]): BoardDocument {
   return connect(doc, { a, b, color, ...(bends ? { bends } : {}) }, ctx).doc;
 }
 
-const t = (deviceId: string, terminalId: string): TerminalRef => ({ deviceId, terminalId });
+const t = (deviceId: string, terminalId: string): WireEnd => toTerminal({ deviceId, terminalId });
 
 /** Arranque directo: marcha, paro, retención por el contacto 13-14 y piloto por un polo. */
 export function starterBoard(ctx: OpContext): BoardDocument {
@@ -77,7 +77,7 @@ export function starterBoard(ctx: OpContext): BoardDocument {
   ]);
   doc = wire(doc, ctx, t(K, 'A2'), t(G, 'N'), 'blue', [
     { x: 62, y: 13 },
-    { x: 2, y: 13 },
+    { x: -2, y: 13 },
   ]);
 
   // Retención con el contacto auxiliar 13-14.
@@ -94,7 +94,7 @@ export function starterBoard(ctx: OpContext): BoardDocument {
 
   // Potencia: L → 1/L1 ; 2/T1 → piloto ; piloto → N
   doc = wire(doc, ctx, t(G, 'L'), t(K, '1'), 'brown', [
-    { x: -2, y: 10 },
+    { x: 2, y: 10 },
     { x: 56, y: 10 },
   ]);
   doc = wire(doc, ctx, t(K, '2'), t(H, 'X1'), 'brown', [
@@ -107,7 +107,7 @@ export function starterBoard(ctx: OpContext): BoardDocument {
     { x: 96, y: 60 },
     { x: 8, y: 60 },
     { x: 8, y: 11 },
-    { x: 2, y: 11 },
+    { x: -2, y: 11 },
   ]);
 
   return doc;

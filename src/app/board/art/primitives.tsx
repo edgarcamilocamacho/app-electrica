@@ -34,27 +34,48 @@ export function Body({ bounds, shaded }: { bounds: Rect; shaded?: boolean }): Re
   );
 }
 
-/** Tornillo del borne. Los de potencia se dibujan más grandes [R5 §9]. */
+/**
+ * Tornillo del borne, con su número adentro [R5 §18]. Los de potencia se dibujan más grandes y el
+ * texto se achica cuando la marcación es larga.
+ */
 export function Screw({
   x,
   y,
   size = 'control',
+  text,
 }: {
   x: number;
   y: number;
   size?: 'control' | 'power';
+  text?: string;
 }): ReactElement {
   const r = SCREW_RADIUS[size];
+  const label = text ?? '';
+  const font = label.length <= 1 ? r * 1.15 : label.length === 2 ? r * 0.95 : r * 0.72;
   return (
     <g>
-      <circle cx={x} cy={y} r={r} fill={P.screw} stroke={P.screwEdge} strokeWidth={BOARD_STROKE * 0.8} />
-      <path
-        d={`M${x - r * 0.6} ${y}H${x + r * 0.6}M${x} ${y - r * 0.6}V${y + r * 0.6}`}
-        stroke={P.screwEdge}
-        strokeWidth={BOARD_STROKE * 0.9}
-        strokeLinecap="round"
-        fill="none"
-      />
+      <circle cx={x} cy={y} r={r} fill={P.screw} stroke={P.screwEdge} strokeWidth={BOARD_STROKE * 0.9} />
+      {label ? (
+        <text
+          x={x}
+          y={y + font * 0.35}
+          textAnchor="middle"
+          fontSize={font}
+          fontFamily={FONT_FAMILY}
+          fontWeight={700}
+          fill={P.ink}
+        >
+          {label}
+        </text>
+      ) : (
+        <path
+          d={`M${x - r * 0.6} ${y}H${x + r * 0.6}M${x} ${y - r * 0.6}V${y + r * 0.6}`}
+          stroke={P.screwEdge}
+          strokeWidth={BOARD_STROKE * 0.9}
+          strokeLinecap="round"
+          fill="none"
+        />
+      )}
     </g>
   );
 }
@@ -80,6 +101,10 @@ export function TerminalLabel({
       fontFamily={FONT_FAMILY}
       fontWeight={600}
       fill={P.muted}
+      stroke={P.body}
+      strokeWidth={0.45}
+      paintOrder="stroke"
+      strokeLinejoin="round"
     >
       {text}
     </text>

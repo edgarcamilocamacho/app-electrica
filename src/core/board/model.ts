@@ -37,10 +37,23 @@ export type WireGauge = (typeof WIRE_GAUGES)[number];
 export const DEFAULT_WIRE_COLOR: WireColor = 'red';
 export const DEFAULT_WIRE_GAUGE: WireGauge = 1;
 
+/**
+ * Punta de un cable: un borne o, mientras se arma el tablero, un punto suelto. La punta suelta es
+ * válida para poder cablear con libertad, pero queda marcada como error hasta conectarla [R5 §17].
+ */
+export type WireEnd =
+  | { readonly kind: 'terminal'; readonly ref: TerminalRef }
+  | { readonly kind: 'free'; readonly at: Point };
+
+export const toTerminal = (ref: TerminalRef): WireEnd => ({ kind: 'terminal', ref });
+export const toFree = (at: Point): WireEnd => ({ kind: 'free', at });
+export const terminalOf = (end: WireEnd): TerminalRef | undefined =>
+  end.kind === 'terminal' ? end.ref : undefined;
+
 export interface Wire {
   readonly id: Id;
-  readonly a: TerminalRef;
-  readonly b: TerminalRef;
+  readonly a: WireEnd;
+  readonly b: WireEnd;
   /** Codos intermedios; la ruta completa es borne A → codos → borne B, siempre ortogonal. */
   readonly bends: readonly Point[];
   readonly color: WireColor;
@@ -79,6 +92,16 @@ export function deviceDef(doc: BoardDocument, registry: DeviceRegistry, id: Id):
   if (!device) throw new Error(`Aparato inexistente: ${id}`);
   return registry.require(device.type);
 }
+
+/** Posición de una punta de cable: la del borne, o el punto suelto. */
+export function endPosition(doc: BoardDocument, registry: DeviceRegistry, end: WireEnd): Point {
+  return end.kind === 'free' ? end.at : terminalPosition(doc, registry, end.ref);
+}
+
+export const sameEnd = (a: WireEnd, b: WireEnd): boolean =>
+  a.kind === 'free' || b.kind === 'free'
+    ? a.kind === 'free' && b.kind === 'free' && a.at.x === b.at.x && a.at.y === b.at.y
+    : sameTerminal(a.ref, b.ref);
 
 /** Posición absoluta de un borne. Los aparatos no rotan, así que es posición + desplazamiento. */
 export function terminalPosition(doc: BoardDocument, registry: DeviceRegistry, ref: TerminalRef): Point {
@@ -134,14 +157,18 @@ export function deviceTerminals(
 
 /** Cables que llegan a un aparato. */
 export function wiresOfDevice(doc: BoardDocument, deviceId: Id): readonly Wire[] {
-  return Object.values(doc.wires).filter((w) => w.a.deviceId === deviceId || w.b.deviceId === deviceId);
+  return Object.values(doc.wires).filter(
+    (w) => terminalOf(w.a)?.deviceId === deviceId || terminalOf(w.b)?.deviceId === deviceId,
+  );
 }
 
 /** Cuántos cables llegan a cada borne: el número que se dibuja junto al tornillo [R5 §6]. */
 export function wireCountByTerminal(doc: BoardDocument): ReadonlyMap<string, number> {
   const counts = new Map<string, number>();
   for (const wire of Object.values(doc.wires)) {
-    for (const ref of [wire.a, wire.b]) {
+    for (const end of [wire.a, wire.b]) {
+      const ref = terminalOf(end);
+      if (!ref) continue;
       const key = terminalKey(ref);
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
