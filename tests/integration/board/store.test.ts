@@ -16,6 +16,19 @@ const place = (store: BoardStore, type: string, x: number, y: number): string =>
   return Object.keys(doc.devices)[Object.keys(doc.devices).length - 1]!;
 };
 
+/** ¿La ruta vuelve sobre sí misma? Eso es lo que se ve como "cuadrados raros". */
+const hasReversal = (route: readonly { x: number; y: number }[]): boolean => {
+  for (let i = 2; i < route.length; i += 1) {
+    const a = route[i - 2]!;
+    const b = route[i - 1]!;
+    const c = route[i]!;
+    const d1 = { x: Math.sign(b.x - a.x), y: Math.sign(b.y - a.y) };
+    const d2 = { x: Math.sign(c.x - b.x), y: Math.sign(c.y - b.y) };
+    if (d1.x === -d2.x && d1.y === -d2.y && (d2.x !== 0 || d2.y !== 0)) return true;
+  }
+  return false;
+};
+
 const wireUp = (store: BoardStore, a: [string, string], b: [string, string]): void => {
   store.getState().beginWire({ deviceId: a[0], terminalId: a[1] });
   store.getState().finishWire({ deviceId: b[0], terminalId: b[1] });
@@ -74,6 +87,55 @@ describe('tienda del tablero — edición', () => {
     expect(route[route.length - 1]).toEqual(
       terminalPosition(doc, boardRegistry, { deviceId: h, terminalId: 'X1' }),
     );
+  });
+
+  it('el trazado nunca vuelve sobre sí mismo, aunque los clics vayan y vengan', () => {
+    const store = makeStore();
+    const q = place(store, 'breaker-1p', 0, 0);
+    const k = place(store, 'contactor-3p', 50, 40);
+    store.getState().beginWire({ deviceId: q, terminalId: '2' }); // borne de abajo: sale al sur
+    store.getState().addBend({ x: 30, y: 20 });
+    store.getState().addBend({ x: 30, y: 6 }); // el usuario vuelve hacia arriba
+    store.getState().addBend({ x: 36, y: 6 });
+    store.getState().finishWire({ deviceId: k, terminalId: '5' }); // borne de arriba: entra por arriba
+
+    const doc = docOf(store.getState());
+    const wire = Object.values(doc.wires)[0];
+    expect(wire).toBeDefined();
+    const route = wireRoute(doc, boardRegistry, wire!);
+    expect(isOrthogonalRoute(route)).toBe(true);
+    expect(hasReversal(route)).toBe(false);
+  });
+
+  it('un cable que pasaría por un borne ajeno se rechaza con motivo y el trazado sigue vivo', () => {
+    const store = makeStore();
+    const q = place(store, 'breaker-1p', 0, 0);
+    const k = place(store, 'contactor-3p', 50, 40);
+    store.getState().beginWire({ deviceId: q, terminalId: '2' });
+    // Pasa justo por la columna del borne A1 del contactor (x = 44).
+    store.getState().addBend({ x: 44, y: 20 });
+    store.getState().addBend({ x: 44, y: 6 });
+    store.getState().finishWire({ deviceId: k, terminalId: '5' });
+
+    expect(Object.keys(docOf(store.getState()).wires)).toHaveLength(0);
+    expect(store.getState().wiring).toBeDefined();
+    expect(store.getState().status?.text).toContain('borne');
+  });
+
+  it('al pasar el cursor por un borne, el trazado avisa si no se va a poder conectar', () => {
+    const store = makeStore();
+    const q = place(store, 'breaker-1p', 0, 0);
+    const k = place(store, 'contactor-3p', 50, 40);
+    store.getState().beginWire({ deviceId: q, terminalId: '2' });
+    store.getState().addBend({ x: 44, y: 20 });
+    store.getState().addBend({ x: 44, y: 6 });
+    store.getState().moveWireCursor({ x: 50, y: 33 }, { deviceId: k, terminalId: '5' });
+    expect(store.getState().wiring?.invalid).toBeTruthy();
+
+    store.getState().undoBend();
+    store.getState().addBend({ x: 36, y: 6 });
+    store.getState().moveWireCursor({ x: 50, y: 33 }, { deviceId: k, terminalId: '5' });
+    expect(store.getState().wiring?.invalid).toBeUndefined();
   });
 
   it('el cable sale perpendicular al tornillo y Retroceso deshace el último codo', () => {

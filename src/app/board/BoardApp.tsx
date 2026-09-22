@@ -11,6 +11,7 @@ import { starterBoard } from '../../examples/board';
 import { browserStorage } from '../../platform/storage';
 import { t } from '../i18n/t';
 import { BoardCanvas } from './BoardCanvas';
+import { wireDebug } from './debugLog';
 import { DeviceThumb } from './DeviceThumb';
 import {
   exportBoard,
@@ -469,10 +470,22 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
           {state.mode === 'edit' ? t('status.edit') : state.mode === 'simulating' ? t('status.simulating') : t('status.error')}
         </span>
         <span>{`${Object.keys(doc.devices).length} · ${Object.keys(doc.wires).length}`}</span>
+        {state.status && <span className={`tb-msg is-${state.status.tone}`}>{state.status.text}</span>}
         {state.mode === 'simulating' && state.sim && (
           <span>{t('status.time', { value: (state.sim.clockMs / 1000).toFixed(1).replace('.', ',') })}</span>
         )}
         <span className="tb-spacer" />
+        {wireDebug.enabled && (
+          <button
+            type="button"
+            className="tb-btn"
+            onClick={() => {
+              void navigator.clipboard.writeText(wireDebug.dump());
+            }}
+          >
+            {t('board.copyLog')}
+          </button>
+        )}
         <span>{t('status.zoom', { value: Math.round(state.viewport.zoom * 100) })}</span>
       </footer>
     </div>

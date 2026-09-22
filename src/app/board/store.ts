@@ -5,6 +5,7 @@
  * empuja una entrada de historial. Las operaciones inválidas quedan como vista previa en rojo.
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
+import { t } from '../i18n/t';
 import { boardRegistry } from '../../core/board/catalog';
 import { blockingDiagnostics, computeDiagnostics, type BoardDiagnostic } from '../../core/board/diagnostics';
 import type { BoardDocument, TerminalRef, WireColor, WireEnd, WireGauge } from '../../core/board/model';
@@ -12,6 +13,7 @@ import {
   DEFAULT_WIRE_COLOR,
   DEFAULT_WIRE_GAUGE,
   deviceOuterRect,
+  terminalKey,
   emptyBoard,
   endPosition,
   sameEnd,
@@ -104,6 +106,8 @@ export interface WiringDraft {
   readonly cursor: Point;
   /** Borne bajo el cursor, si lo hay: ahí termina el cable. */
   readonly over?: TerminalRef;
+  /** El cable, tal como quedaría, no se puede confirmar: se dibuja en rojo. */
+  readonly invalid?: string;
 }
 
 /** Punto justo afuera del tornillo, en la dirección por la que sale su cable. */
@@ -131,7 +135,7 @@ function routeTo(doc: BoardDocument, registry: DeviceRegistry, wiring: WiringDra
   const tail = ref
     ? approachTerminal(last, end, dir)
     : normalizeRoute([...wirePathFrom(previous, last, end)]);
-  return normalizeRoute([...wiring.points, ...tail], true);
+  return normalizeRoute([...wiring.points, ...tail]);
 }
 
 const dirOf = (doc: BoardDocument, registry: DeviceRegistry, end: WireEnd): Dir => {
@@ -287,6 +291,14 @@ const META = (): BoardDocument['metadata'] => ({
   modifiedAt: new Date().toISOString(),
 });
 
+/** Motivo legible de una operación rechazada, para la barra de estado. */
+export function reasonText(result: BoardEditResult): string {
+  const code = result.violations[0]?.code;
+  if (code) return t(`board.invalid.${code}` as Parameters<typeof t>[0]);
+  if (result.reason === 'INVALID_INPUT') return t('board.invalid.input');
+  return t('board.invalid.generic');
+}
+
 export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument): BoardStore {
   const registry = deps.registry ?? boardRegistry;
   const ids = deps.ids ?? createRandomIdGen();
@@ -294,6 +306,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
   const ctx: OpContext = { ids, registry };
   let engine: BoardSimEngine | null = null;
   let clipboard: BoardClip | undefined;
+  let lastCursorSignature = '';
 
   return createStore<BoardState>((set, get) => {
     /** Confirma una operación: si es válida entra al historial; si no, queda como vista previa. */
@@ -306,7 +319,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
             ok: false,
             invalid: [...new Set(result.violations.flatMap((v) => [...(v.devices ?? []), ...(v.wires ?? [])]))],
           },
-          status: { text: result.violations[0]?.code ?? result.reason ?? '', tone: 'warning' },
+          status: { text: reasonText(result), tone: 'warning' },
         });
         return false;
       }
@@ -399,6 +412,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       beginWire(from) {
+        lastCursorSignature = '';
         // El cable sale perpendicular al tornillo antes de doblar, como en un tablero real.
         const end = toTerminal(from);
         const start = terminalPosition(docOf(get()), registry, from);
@@ -432,11 +446,32 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
         const wiring = get().wiring;
         if (!wiring) return;
         const cursor = over ? terminalPosition(docOf(get()), registry, over) : snap(at);
-        if (cursor.x === wiring.cursor.x && cursor.y === wiring.cursor.y && over === wiring.over) return;
-        set({ wiring: { ...wiring, cursor, ...(over ? { over } : {}) } });
+        // Se recalcula si cambió el cursor, el borne apuntado o la cantidad de codos ya fijados.
+        const sameOver = (over ? terminalKey(over) : '') === (wiring.over ? terminalKey(wiring.over) : '');
+        const signature = `${cursor.x},${cursor.y}|${over ? terminalKey(over) : ''}|${wiring.points.length}`;
+        if (signature === lastCursorSignature && sameOver) return;
+        lastCursorSignature = signature;
+        const next: WiringDraft = { ...wiring, cursor, ...(over ? { over } : {}) };
+        if (!over) {
+          set({ wiring: { ...next, over: undefined, invalid: undefined }, status: undefined });
+          return;
+        }
+        // Sobre un borne: se prueba la conexión tal cual quedaría, para avisar antes del clic.
+        const route = routeTo(docOf(get()), registry, next, toTerminal(over));
+        const { color, gauge } = get().wireStyle;
+        const result = connect(
+          docOf(get()),
+          { a: next.from, b: toTerminal(over), color, gauge, bends: route.slice(1, -1) },
+          ctx,
+        );
+        set({
+          wiring: { ...next, ...(result.ok ? { invalid: undefined } : { invalid: reasonText(result) }) },
+          ...(result.ok ? { status: undefined } : { status: { text: reasonText(result), tone: 'warning' as const } }),
+        });
       },
 
       addBend(at) {
+        lastCursorSignature = '';
         const wiring = get().wiring;
         if (!wiring) return;
         const last = wiring.points[wiring.points.length - 1]!;
@@ -447,6 +482,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       undoBend() {
+        lastCursorSignature = '';
         const wiring = get().wiring;
         if (!wiring) return;
         if (wiring.points.length <= 1) {
@@ -528,7 +564,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
         );
         if (!apply(result)) {
           // Soltar en una posición inválida devuelve todo a su lugar [R4 §1].
-          set({ preview: undefined, status: { text: result.violations[0]?.code ?? 'INVALID', tone: 'warning' } });
+          set({ preview: undefined, status: { text: reasonText(result), tone: 'warning' } });
         }
         set({ drag: undefined });
       },

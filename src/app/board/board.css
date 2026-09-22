@@ -494,3 +494,19 @@ button:focus-visible,
   outline: 2px solid var(--tb-accent);
   outline-offset: 1px;
 }
+
+.tb-msg {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--tb-line-soft);
+}
+
+.tb-msg.is-warning {
+  background: #fdf3e3;
+  color: var(--tb-warn);
+}
+
+.tb-msg.is-error {
+  background: var(--tb-danger-soft);
+  color: var(--tb-danger);
+}

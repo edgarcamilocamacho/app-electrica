@@ -17,11 +17,8 @@ export function wireRoute(doc: BoardDocument, registry: DeviceRegistry, wire: Wi
   return [endPosition(doc, registry, wire.a), ...wire.bends, endPosition(doc, registry, wire.b)];
 }
 
-/**
- * Quita puntos repetidos y codos que no cambian de dirección. Con `keepReversals` se conservan los
- * vértices donde el cable vuelve sobre sí mismo, que es como entra a un borne por su lado.
- */
-export function normalizeRoute(route: readonly Point[], keepReversals = false): Point[] {
+/** Quita puntos repetidos y codos que no cambian de dirección. */
+export function normalizeRoute(route: readonly Point[]): Point[] {
   const out: Point[] = [];
   for (const p of route) {
     const last = out[out.length - 1];
@@ -33,13 +30,7 @@ export function normalizeRoute(route: readonly Point[], keepReversals = false): 
     const cur = out[i]!;
     const next = out[i + 1]!;
     const collinear = (prev.x === cur.x && cur.x === next.x) || (prev.y === cur.y && cur.y === next.y);
-    // Un punto colineal se quita solo si el trazo sigue de largo; si el cable vuelve sobre sí mismo
-    // el punto es el vértice de la vuelta y hay que conservarlo.
-    const reverses =
-      collinear &&
-      ((prev.x === cur.x && Math.sign(cur.y - prev.y) === -Math.sign(next.y - cur.y)) ||
-        (prev.y === cur.y && Math.sign(cur.x - prev.x) === -Math.sign(next.x - cur.x)));
-    if (collinear && !(keepReversals && reverses)) out.splice(i, 1);
+    if (collinear) out.splice(i, 1);
     else i += 1;
   }
   return out;
@@ -139,26 +130,31 @@ export function repairRoute(
 }
 
 /**
- * Llegada a un borne: el cable entra siempre por el lado por el que sale el tornillo. Si el último
- * punto quedó del lado de adentro del aparato, se rodea en vez de atravesarlo.
+ * Llegada a un borne: el cable entra por el lado por el que sale el tornillo y **nunca vuelve sobre
+ * sí mismo**. Si viene de otra columna, rodea; si viene por la columna equivocada, se corre al
+ * costado; y si ya viene bien encarado, entra derecho.
  */
 export function approachTerminal(last: Point, end: Point, dir: Dir, stub = STUB): Point[] {
-  const out = step(end, dir, stub);
   const vertical = isVertical(dir);
+  const out = step(end, dir, stub);
   const towards = vertical ? DIR_VECTOR[dir].y : DIR_VECTOR[dir].x;
-  const lastAxis = vertical ? last.y : last.x;
-  const endAxis = vertical ? end.y : end.x;
-  // ¿El último punto está del lado contrario a la salida del tornillo?
-  const behind = Math.sign(lastAxis - endAxis) !== towards;
-  if (!behind) return normalizeRoute([...wirePath(last, out), end], true);
-
-  const side = vertical ? last.x : last.y;
+  const lastMain = vertical ? last.y : last.x;
+  const endMain = vertical ? end.y : end.x;
+  const lastSide = vertical ? last.x : last.y;
   const endSide = vertical ? end.x : end.y;
-  // Si además está en la misma columna, se corre al costado para poder rodear.
-  const detour = side === endSide ? side + 3 : side;
-  const corner = vertical ? { x: detour, y: out.y } : { x: out.x, y: detour };
+
+  if (lastSide !== endSide) {
+    // Viene de otra columna: baja (o sube) hasta la altura de salida y entra de costado.
+    const corner = vertical ? { x: last.x, y: out.y } : { x: out.x, y: last.y };
+    return normalizeRoute([corner, out, end]);
+  }
+  // Misma columna: si ya está del lado de la salida, entra derecho.
+  if (Math.sign(lastMain - endMain) === towards) return normalizeRoute([end]);
+  // Misma columna pero del lado de adentro: se corre al costado para rodear.
+  const detour = endSide + 3;
   const first = vertical ? { x: detour, y: last.y } : { x: last.x, y: detour };
-  return normalizeRoute([first, corner, out, end], true);
+  const corner = vertical ? { x: detour, y: out.y } : { x: out.x, y: detour };
+  return normalizeRoute([first, corner, out, end]);
 }
 
 /** Tramo en L del último punto fijo al destino, continuando por el eje en el que se venía. */

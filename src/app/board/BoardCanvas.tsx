@@ -13,6 +13,7 @@ import {
 import { useStore } from 'zustand';
 import type { Id, Point } from '../../core/model/types';
 import { BoardDiagram } from './BoardDiagram';
+import { wireDebug } from './debugLog';
 import { hitTest, objectsInRect } from './hitTest';
 import {
   docOf,
@@ -94,6 +95,7 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
       return;
     }
     const hit = hitTest(doc, state.registry, at);
+    logGesture('down', at, hit);
 
     if (state.mode !== 'edit') {
       if (hit.kind === 'device' || hit.kind === 'terminal') {
@@ -165,6 +167,19 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
     }
   };
 
+  const logGesture = (event: string, at: Point, hit?: { kind: string }): void => {
+    if (!wireDebug.enabled) return;
+    const s = store.getState();
+    wireDebug.log({
+      event,
+      tool: s.tool,
+      at,
+      ...(hit ? { hit: hit.kind } : {}),
+      ...(s.wiring ? { draft: s.wiring.points, preview: s.draftRoute() } : {}),
+      wires: Object.keys(docOf(s).wires).length,
+    });
+  };
+
   const onPointerMove = (e: ReactPointerEvent): void => {
     if (panning.current) {
       const dx = e.clientX - panning.current.start.x;
@@ -177,6 +192,7 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
     if (state.wiring) {
       const hit = hitTest(doc, state.registry, at);
       store.getState().moveWireCursor(at, hit.kind === 'terminal' ? hit.ref : undefined);
+      logGesture('move', at, hit);
     }
     if (state.drag) store.getState().updateDrag(at);
     if (segmentDrag.current) {
@@ -188,6 +204,7 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
 
   const onPointerUp = (e: ReactPointerEvent): void => {
     panning.current = undefined;
+    logGesture('up', toWorld(e));
     // Soltar sobre otro tornillo cierra el cable; soltar en el aire deja el trazado para seguir a clics.
     if (wireDrag.current) {
       const moved = Math.hypot(e.clientX - wireDrag.current.from.x, e.clientY - wireDrag.current.from.y) > 4;
@@ -350,12 +367,14 @@ function WiringPreview({ store }: { store: BoardStore }): ReactElement | null {
   const route = state.draftRoute();
   const tone = WIRE_TONES[state.wireStyle.color];
   const last = route[route.length - 1];
+  const invalid = wiring.invalid !== undefined;
+  const stroke = invalid ? P.invalid : tone.off;
   return (
     <g style={{ pointerEvents: 'none' }}>
       <path
         d={route.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join('')}
         fill="none"
-        stroke={P.selectionHalo}
+        stroke={invalid ? P.invalidHalo : P.selectionHalo}
         strokeWidth={WIRE_WIDTH[state.wireStyle.gauge] + 0.5}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -363,22 +382,22 @@ function WiringPreview({ store }: { store: BoardStore }): ReactElement | null {
       <path
         d={route.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join('')}
         fill="none"
-        stroke={tone.off}
+        stroke={stroke}
         strokeWidth={WIRE_WIDTH[state.wireStyle.gauge] + 0.08}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeDasharray="1.1 0.5"
       />
       {wiring.points.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={0.28} fill={P.selection} />
+        <circle key={i} cx={p.x} cy={p.y} r={0.28} fill={invalid ? P.invalid : P.selection} />
       ))}
       {last && (
         <circle
           cx={last.x}
           cy={last.y}
           r={wiring.over ? 0.9 : 0.4}
-          fill={wiring.over ? P.selectionHalo : 'none'}
-          stroke={P.selection}
+          fill={wiring.over ? (invalid ? P.invalidHalo : P.selectionHalo) : 'none'}
+          stroke={invalid ? P.invalid : P.selection}
           strokeWidth={0.14}
         />
       )}

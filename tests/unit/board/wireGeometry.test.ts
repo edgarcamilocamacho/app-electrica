@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  approachTerminal,
   autoRoute,
   bendsOf,
   isOrthogonalRoute,
@@ -80,5 +81,54 @@ describe('ruta de un cable del documento', () => {
     expect(route[route.length - 1]).toEqual(b.position(term(lamp, 'X1')));
     expect(isOrthogonalRoute(route)).toBe(true);
     expect(routeSegments(route).length).toBeGreaterThan(0);
+  });
+});
+
+/** ¿La ruta vuelve sobre sí misma en algún tramo? Eso es lo que dibuja "cuadrados raros". */
+function hasReversal(route: readonly { x: number; y: number }[]): boolean {
+  for (let i = 2; i < route.length; i += 1) {
+    const a = route[i - 2]!;
+    const b = route[i - 1]!;
+    const c = route[i]!;
+    const d1 = { x: Math.sign(b.x - a.x), y: Math.sign(b.y - a.y) };
+    const d2 = { x: Math.sign(c.x - b.x), y: Math.sign(c.y - b.y) };
+    if (d1.x === -d2.x && d1.y === -d2.y && (d2.x !== 0 || d2.y !== 0)) return true;
+  }
+  return false;
+}
+
+describe('approachTerminal', () => {
+  it('desde otra columna, rodea y entra por el lado del tornillo, sin volver sobre sí mismo', () => {
+    // Borne que sale al sur en (20, 10); el cable viene desde arriba a la izquierda.
+    const route = [pt(4, 4), ...approachTerminal(pt(4, 4), pt(20, 10), 'S')];
+    expect(isOrthogonalRoute(route)).toBe(true);
+    expect(hasReversal(route)).toBe(false);
+    expect(route[route.length - 1]).toEqual(pt(20, 10));
+    // El último tramo entra hacia el norte, es decir por debajo del borne.
+    const beforeEnd = route[route.length - 2]!;
+    expect(beforeEnd.x).toBe(20);
+    expect(beforeEnd.y).toBeGreaterThan(10);
+  });
+
+  it('si ya viene por el lado correcto y la misma columna, entra derecho', () => {
+    const route = [pt(20, 30), ...approachTerminal(pt(20, 30), pt(20, 10), 'S')];
+    expect(route).toEqual([pt(20, 30), pt(20, 10)]);
+  });
+
+  it('si viene por la columna equivocada, se corre al costado en vez de atravesar el aparato', () => {
+    const route = [pt(20, 2), ...approachTerminal(pt(20, 2), pt(20, 10), 'S')];
+    expect(isOrthogonalRoute(route)).toBe(true);
+    expect(hasReversal(route)).toBe(false);
+    expect(route.some((p) => p.x !== 20)).toBe(true);
+    expect(route[route.length - 1]).toEqual(pt(20, 10));
+  });
+
+  it('lo mismo con un borne que sale al norte', () => {
+    const route = [pt(40, 40), ...approachTerminal(pt(40, 40), pt(20, 10), 'N')];
+    expect(isOrthogonalRoute(route)).toBe(true);
+    expect(hasReversal(route)).toBe(false);
+    const beforeEnd = route[route.length - 2]!;
+    expect(beforeEnd.x).toBe(20);
+    expect(beforeEnd.y).toBeLessThan(10);
   });
 });
