@@ -169,6 +169,8 @@ export const es = {
   messages: {
     invalidPlacement: 'Posición inválida: quedaría una ambigüedad entre redes. Probá en otro lugar.',
     invalidNoRoute: 'Posición inválida: no hay forma de reconectar los cables sin ambigüedad.',
+    revertedPlacement: 'Posición inválida (quedaría una ambigüedad entre redes): volvió a su lugar.',
+    revertedNoRoute: 'Posición inválida (no hay forma de reconectar los cables): volvió a su lugar.',
     invalidWire: 'Ese cable se superpondría o tocaría otra red sin conectarse.',
     rotateRejected: 'La rotación superpone un cable con otra red. Usá Mover (M) y rotalo con R mientras lo reubicás.',
     groupRotateDisabled: 'La rotación de grupos no está disponible.',
@@ -184,10 +186,11 @@ export const es = {
     saveFailed: 'No se pudo guardar el archivo.',
     loadFailed: 'No se pudo abrir el archivo: {reason}',
     wireHint: 'Clic para fijar codos · clic sobre un cable o terminal para conectar · Enter o doble clic termina con extremo libre · Retroceso deshace el último tramo · Esc cancela.',
-    moveHint: 'Clic sobre un componente, tramo o texto para tomarlo; otro clic para soltarlo. R rota · Esc suelta sin cambios.',
+    moveHint: 'Clic sobre un componente, tramo o texto para tomarlo; otro clic o Enter para soltarlo. Las flechas desplazan lo tomado o la selección (Mayús: 5) · R rota · Esc suelta sin cambios.',
     eraseHint: 'Clic sobre lo que quieras borrar. Ctrl+Z recupera.',
     textHint: 'Clic en el lienzo para agregar un texto.',
-    carrying: 'Moviendo · clic para soltar · Esc para cancelar',
+    carrying: 'Moviendo · clic o Enter para soltar · flechas para ajustar · Esc para cancelar',
+    dragging: 'Arrastrando · soltá para colocar · Mayús fija el eje · R rota · Esc cancela',
   },
   loadErrors: {
     INVALID_JSON: 'no es un JSON válido',

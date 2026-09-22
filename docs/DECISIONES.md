@@ -7,8 +7,9 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 - Solo se registra la regla final: las decisiones que una ronda posterior revirtió ya no aparecen
   (por ejemplo, el temporizador retentivo RTO o el borrado en cascada).
 - La columna **Origen** conserva de dónde salió cada regla: `R1 §n`, `R2 §n` y `R3 Qn` son las secciones
-  de las tres rondas de respuestas de producto; `I1`–`I18`, las interpretaciones aceptadas (§11). Las
-  etiquetas que aparecen en [PLAN.md](../PLAN.md) y en los comentarios del código remiten a esta columna.
+  de las tres rondas de respuestas de producto; `R4 §n`, los pedidos de producto posteriores a V1
+  (2026-09-22); `I1`–`I18`, las interpretaciones aceptadas (§11). Las etiquetas que aparecen en
+  [PLAN.md](../PLAN.md) y en los comentarios del código remiten a esta columna.
 - Los documentos originales de las rondas (`RESPONSE_ROUND_1–3.md`) y sus cuestionarios se retiraron
   del repo; su última versión está en el commit `58324d6` del historial de git.
 - Una decisión nueva se agrega acá, con su origen, y se refleja en el registro de [PLAN.md](../PLAN.md) §2.
@@ -71,11 +72,14 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 
 | Decisión | Origen |
 |---|---|
-| Los componentes **no se mueven arrastrando**: herramienta **Mover (M)**, clic toma, el objeto sigue al cursor, otro clic lo coloca. Puede mostrarse una vista previa válida o inválida | R2 §2 |
+| **Dos maneras de mover**, con las mismas reglas de conexión y reparación y con vista previa válida o inválida: **arrastrar** con Seleccionar (apretar sobre un objeto, arrastrar, soltar) y la herramienta **Mover (M)** (clic toma, el objeto sigue al cursor, otro clic lo coloca) | R2 §2, R4 §1 |
+| Se arrastran componentes, textos y también **cables**: un tramo solo se desplaza en perpendicular, como con Mover. Sobre algo seleccionado se arrastra toda la selección | R4 §2, I9 |
+| Soltar un arrastre en una posición **inválida** lo **devuelve a su lugar**, con el motivo en la barra de estado. Un arrastre confirmado es una sola entrada de historial | R4 §1 |
+| Con algo tomado con Mover, las **flechas** lo desplazan una casilla (`Mayús`: cinco) y **`Enter`** lo suelta | R4 §3 |
 | Al soltar: un terminal **libre** puede conectarse al caer exactamente sobre un segmento, un extremo libre o un terminal; el cuerpo del símbolo cruza cables sin conectar; un terminal **ya conectado** no puede tocar un conductor de otra red | R2 §2, I1 |
-| Si un solo terminal queda en posición inválida, se rechaza la colocación completa; el clic no confirma y el objeto sigue tomado hasta una posición válida o hasta cancelar | R2 §2 |
+| Si un solo terminal queda en posición inválida, se rechaza la colocación completa. Con Mover, el clic no confirma y el objeto sigue tomado hasta una posición válida o hasta cancelar; arrastrando, vuelve a su lugar | R2 §2, R4 §1 |
 | Mover un componente **no rompe** sus conexiones: el punto de unión original sigue conectado y se crean o eliminan los segmentos ortogonales necesarios para alcanzar la nueva posición del terminal | R1 §6, R2 §2 |
-| Mover un **segmento**: perpendicular a sí mismo, con clic-tomar-clic; los vecinos se estiran, se acortan o generan codos; siempre ortogonal; una operación geométrica no cambia la conectividad; luego se normaliza | R2 §3 |
+| Mover un **segmento**: perpendicular a sí mismo, con Mover o arrastrándolo; los vecinos se estiran, se acortan o generan codos; siempre ortogonal; una operación geométrica no cambia la conectividad; luego se normaliza | R2 §3 |
 | No hay segmentos "fijados": un ajuste manual puede repararse después al mover componentes conectados | R2 §3 |
 | **R** rota 90° el componente a colocar, el tomado o el único seleccionado. Una rotación en el lugar que dejaría una posición inválida se **rechaza** con el motivo. No hay rotación de grupos | Spec §6.4, R2 §31, R3 Q3.5 |
 | Borrar un componente **no borra sus cables**: quedan como extremos libres, para poder reemplazarlo | R1 §10 |
@@ -128,6 +132,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | Lienzo que se siente **infinito**, con desplazamiento, zoom y snap a grilla fluidos | R2 §21, R2 §30.3 |
 | Grilla de 10 px al 100 %, zoom de 25 % a 400 %, como valores ajustables | R2 §21, I17 |
 | **Toda la interfaz en español**, con atajos coherentes con los nombres en español (`B` Borrar, `M` Mover). Textos centralizados para poder agregar idiomas sin reescribir componentes | R2 §26, R2 §30.8 |
+| Cada botón de herramienta muestra **su tecla** al lado del ícono, en gris claro | R4 §4 |
 | Sin telemetría ni analítica; sin requisitos regulatorios identificados | R2 §30.6 |
 | Monousuario y local; sin colaboración en tiempo real | R2 §30.7 |
 | La accesibilidad avanzada puede evolucionar después, pero sin diseñar en su contra | R2 §30.8 |
@@ -180,7 +185,7 @@ el plan se citan con la etiqueta **[Interpretación]**.
 | I10 | Mover y vértices | Clic con Mover sobre un punto de unión, esquina o extremo libre no toma nada. Para reconectar un extremo libre se traza un cable desde él | §6.2 |
 | I11 | Mover un segmento | Esquinas y extremos libres se desplazan con él; puntos de unión y terminales quedan anclados y se agrega un tramo nuevo. Un grupo de segmentos se mueve en 2D | §5.3 |
 | I12 | `Ctrl+Z` con algo tomado | Equivale a `Esc`: suelta sin cambios, no toca el historial | §6.2 |
-| I13 | Seleccionar y arrastre | Arrastrar desde un espacio vacío dibuja el rectángulo; arrastrar desde un objeto no lo mueve | §6.1 |
+| I13 | Seleccionar y arrastre | Arrastrar desde un espacio vacío dibuja el rectángulo. (Arrastrar desde un objeto ahora **lo mueve**: R4 §1) | §6.1 |
 | I14 | Terminal sobre terminal | Se dibuja con punto ●. La goma sobre ese punto borra **los dos** componentes (es la regla del punto de unión aplicada literalmente, y la única coherente) | §4.2, §7 |
 | I15 | Preset de temporizadores | En segundos con coma decimal, mínimo 0,1 s, máximo 3600 s, resolución 0,01 s | §10.4 |
 | I16 | Autoguardado | Al abrir, se restaura solo, con un aviso y la opción "Empezar uno nuevo" | §14.3 |

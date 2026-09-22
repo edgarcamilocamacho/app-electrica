@@ -2,7 +2,7 @@
 
 > Documento vivo: completado · en curso · tests fallando · limitaciones · decisiones abiertas.
 > Se actualiza al cerrar cada tanda de trabajo (ver [CLAUDE.md](CLAUDE.md)).
-> Última actualización: 2026-09-21.
+> Última actualización: 2026-09-22.
 
 ## Resumen
 
@@ -11,10 +11,10 @@ niveles.
 
 | Nivel | Resultado |
 |---|---|
-| Unitarias + integración (Vitest) | **209 / 209** |
-| E2E (Playwright, Chromium + Firefox) | **82 / 82** (41 flujos × 2 navegadores) |
-| E2E repetidos 10 veces seguidas | **820 / 820**, sin intermitencias |
-| E2E contra el contenedor real | **41 / 41** |
+| Unitarias + integración (Vitest) | **225 / 225** |
+| E2E (Playwright, Chromium + Firefox) | **90 / 90** (45 flujos × 2 navegadores) |
+| E2E repetidos 10 veces seguidas | **820 / 820**, sin intermitencias (corrida de V1, 41 flujos) |
+| E2E contra el contenedor real | **41 / 41** (corrida de V1) |
 | Humo del contenedor + actualización en caliente | todo OK |
 
 ## Completado
@@ -32,6 +32,7 @@ niveles.
 | M17 | Exportación PNG, SVG y PDF (A4 / A3 / ajustada), diagrama completo, colores tal como se ven |
 | M18 | Versión y caché: `version.json` sin caché, aviso de versión nueva, contenedor probado en caliente |
 | M19 | Estabilización: suite E2E sin intermitencias, presupuesto de rendimiento, documentación |
+| R4 | Mover **arrastrando** con Seleccionar (también cables; soltar en posición inválida lo devuelve a su lugar), **flechas y `Enter`** con Mover, tecla visible junto a cada herramienta, ícono de Texto más chico, barra de herramientas que ya no se desborda entre 960 y 1440 px |
 
 ## En curso
 
@@ -81,5 +82,17 @@ Ninguno.
   reencamina para rodearlo.
 - **Después de trazar un cable no queda nada seleccionado**, para que un clic posterior con Mover
   tome solo el tramo clicado.
+- **Arrastre (R4)** [Técnica]: empieza al superar 4 px de pantalla; por debajo es un clic. Durante el
+  arrastre `Esc` cancela, `R` rota y `Mayús` fija el eje dominante (también al llevar algo con Mover).
+  Un `pointercancel` del navegador cancela el arrastre. Apretar sobre un objeto de una selección
+  múltiple arrastra toda la selección; si fue un clic, al soltar queda solo ese objeto.
+- **Con algo tomado o arrastrándose** [Técnica], `Supr` no hace nada y `Ctrl+Y` cancela antes de
+  rehacer (como `Ctrl+Z`, I12). Antes, borrar o rehacer con algo tomado dejaba una vista previa vieja
+  y soltar restauraba lo borrado.
+- **Flechas con Mover y nada tomado** [Técnica]: toman la selección. Si el cursor no está sobre el
+  lienzo, el primer movimiento del mouse fija el ancla sin hacer saltar el objeto.
+- **Barra de herramientas angosta** [Técnica]: con 1400 px o menos se oculta el título; con 1200 px o
+  menos, los menús y la velocidad muestran solo el ícono (el nombre queda como tooltip y para lectores
+  de pantalla); con 960 px o menos la barra se desplaza horizontalmente.
 - **Preset mínimo de 100 ms** y tope de eventos en un mismo instante, para que un lazo temporizado
   nunca cuelgue la simulación.

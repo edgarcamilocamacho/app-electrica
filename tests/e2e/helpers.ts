@@ -21,6 +21,16 @@ export async function clickAt(page: Page, x: number, y: number, modifiers: ('Shi
   for (const m of modifiers) await page.keyboard.up(m);
 }
 
+/** Arrastre con el botón izquierdo entre dos puntos de grid del mundo. */
+export async function dragAt(page: Page, from: [number, number], to: [number, number]): Promise<void> {
+  const a = await toScreen(page, ...from);
+  const b = await toScreen(page, ...to);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(b.x, b.y, { steps: 6 });
+  await page.mouse.up();
+}
+
 export async function hoverAt(page: Page, x: number, y: number): Promise<void> {
   const p = await toScreen(page, x, y);
   await page.mouse.move(p.x, p.y);

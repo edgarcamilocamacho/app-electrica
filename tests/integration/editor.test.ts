@@ -6,10 +6,10 @@ import { ManualClock } from '../../src/platform/clock';
 import { AUTOSAVE_KEY, memoryStorage } from '../../src/platform/storage';
 import { selectionOfState } from '../../src/app/store/editorStore';
 import { buildExample } from '../../src/examples';
-import { click, createTestStore, doc, move } from './helpers';
+import { click, createTestStore, doc, drag, move } from './helpers';
 import { normalFormViolations } from '../fixtures/invariants';
 import { defaultRegistry } from '../../src/core/registry/catalog';
-import { spans } from '../fixtures/queries';
+import { sameNet, spans } from '../fixtures/queries';
 
 const components = (store: ReturnType<typeof createTestStore>['store']) => Object.values(doc(store).components);
 const refOf = (store: ReturnType<typeof createTestStore>['store'], ref: string) => components(store).find((c) => c.props.ref === ref)!;
@@ -227,6 +227,228 @@ describe('herramienta Mover (clic-tomar / clic-colocar, R2 §2)', () => {
     expect(serializeDocument(doc(store))).toBe(before);
     s().redo();
     expect(refOf(store, 'H1').position).toEqual({ x: 16, y: 9 });
+  });
+});
+
+describe('Mover con el teclado (R4 §3)', () => {
+  it('las flechas desplazan lo tomado y Enter suelta en una sola entrada', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    const before = s().history.past.length;
+    s().setTool('move');
+    click(store, 10, 5);
+    s().nudge(1, 0);
+    s().nudge(1, 0);
+    s().nudge(0, 5);
+    expect(s().preview?.ok).toBe(true);
+    s().confirmTool();
+    expect(refOf(store, 'H1').position).toEqual({ x: 12, y: 10 });
+    expect(s().history.past.length).toBe(before + 1);
+    expect((s().tool as { carry?: unknown }).carry).toBeUndefined();
+    expectNormal(store);
+  });
+
+  it('después de las flechas el mouse sigue moviendo lo tomado desde donde quedó', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    s().setTool('move');
+    click(store, 10, 5);
+    s().nudge(3, 0);
+    move(store, 10, 6);
+    s().confirmTool();
+    expect(refOf(store, 'H1').position).toEqual({ x: 13, y: 6 });
+  });
+
+  it('con Mover activa y nada tomado, las flechas toman la selección sin saltar al volver el mouse', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    click(store, 10, 5); // selecciona H1
+    s().setTool('move');
+    s().pointerLeave(); // el cursor no está en el lienzo
+    s().nudge(0, 2);
+    expect(s().tool).toMatchObject({ kind: 'move', carry: { delta: { x: 0, y: 2 } } });
+    move(store, 30, 30); // el primer movimiento fija el ancla: no salta
+    expect(s().tool).toMatchObject({ carry: { delta: { x: 0, y: 2 } } });
+    move(store, 31, 30);
+    s().confirmTool();
+    expect(refOf(store, 'H1').position).toEqual({ x: 11, y: 7 });
+  });
+
+  it('un tramo tomado ignora las flechas a lo largo de su eje', () => {
+    const { store } = createTestStore();
+    const s = () => store.getState();
+    s().setTool('wire');
+    click(store, 0, 0);
+    click(store, 10, 0);
+    click(store, 10, 5);
+    s().wireFinish();
+    s().setTool('move');
+    click(store, 5, 0);
+    s().nudge(4, 0);
+    s().nudge(0, -3);
+    s().confirmTool();
+    expect(spans(doc(store))).toEqual(['0,-3-10,-3', '10,-3-10,5']);
+  });
+
+  it('sin Mover activa las flechas no hacen nada', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    const before = serializeDocument(doc(store));
+    click(store, 10, 5);
+    s().nudge(1, 0);
+    s().confirmTool();
+    expect(s().tool).toEqual({ kind: 'select' });
+    expect(serializeDocument(doc(store))).toBe(before);
+  });
+});
+
+describe('arrastrar con Seleccionar (R4 §1–§2)', () => {
+  it('arrastrar un componente lo mueve en una sola entrada y conserva la conexión', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    const before = s().history.past.length;
+    drag(store, [10, 5], [12, 7], [14, 8]);
+    expect(refOf(store, 'H1').position).toEqual({ x: 14, y: 8 });
+    expect(s().history.past.length).toBe(before + 1);
+    expect(s().tool).toEqual({ kind: 'select' });
+    expect(s().preview).toBeNull();
+    expect(selectionOfState(s()).components).toEqual([refOf(store, 'H1').id]);
+    expect(sameNet(doc(store), [refOf(store, 'K1').id, 'A2'], [refOf(store, 'H1').id, 'X1'])).toBe(true);
+    expectNormal(store);
+  });
+
+  it('mientras se arrastra muestra la vista previa y el cursor de arrastre', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    s().pointerDown({ x: 10, y: 5 }, { shift: false });
+    move(store, 14, 8);
+    expect(s().preview?.ok).toBe(true);
+    expect(s().preview?.active).toEqual([refOf(store, 'H1').id]);
+    expect(s().message?.key).toBe('messages.dragging');
+    expect(s().tool).toMatchObject({ kind: 'select', drag: { carry: { delta: { x: 4, y: 3 } } } });
+  });
+
+  it('un movimiento por debajo del umbral es un clic: selecciona y no mueve', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    const before = serializeDocument(doc(store));
+    drag(store, [10, 5], [10.2, 5.1]); // 2 px de pantalla a zoom 100 %
+    expect(serializeDocument(doc(store))).toBe(before);
+    expect(selectionOfState(s()).components).toEqual([refOf(store, 'H1').id]);
+    expect(s().tool).toEqual({ kind: 'select' });
+  });
+
+  it('soltar en una posición inválida lo devuelve a su lugar con el motivo', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    s().setTool('wire');
+    click(store, 0, 20);
+    move(store, 30, 20);
+    s().wireFinish();
+    s().setTool('select');
+    const before = serializeDocument(doc(store));
+    const past = s().history.past.length;
+    drag(store, [10, 5], [10, 23]); // X1 (conectado) caería sobre el cable de otra red
+    expect(serializeDocument(doc(store))).toBe(before);
+    expect(s().history.past.length).toBe(past);
+    expect(s().message).toMatchObject({ key: 'messages.revertedPlacement', tone: 'warning' });
+    expect(s().preview).toBeNull();
+    expect(s().tool).toEqual({ kind: 'select' });
+  });
+
+  it('arrastrar un cable lo desplaza solo en perpendicular', () => {
+    const { store } = createTestStore();
+    const s = () => store.getState();
+    s().setTool('wire');
+    click(store, 0, 0);
+    click(store, 10, 0);
+    click(store, 10, 5);
+    s().wireFinish();
+    s().setTool('select');
+    drag(store, [5, 0], [7, -1], [9, -3]);
+    expect(spans(doc(store))).toEqual(['0,-3-10,-3', '10,-3-10,5']);
+    expectNormal(store);
+  });
+
+  it('arrastrar algo seleccionado lleva toda la selección; un clic sobre él deja solo ese objeto', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    s().selectAll();
+    drag(store, [10, 5], [15, 5]);
+    expect(refOf(store, 'K1').position).toEqual({ x: 15, y: -5 });
+    expect(refOf(store, 'H1').position).toEqual({ x: 15, y: 5 });
+    expect(selectionOfState(s()).segments).toHaveLength(1);
+    click(store, 15, 5);
+    expect(selectionOfState(s())).toEqual({ components: [refOf(store, 'H1').id], segments: [], annotations: [] });
+    expectNormal(store);
+  });
+
+  it('Mayús fija el eje dominante y R rota lo arrastrado', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    s().pointerDown({ x: 10, y: 5 }, { shift: false });
+    s().pointerMove({ x: 16, y: 7 }, { shift: true });
+    s().rotate();
+    s().pointerUp({ x: 16, y: 7 });
+    expect(refOf(store, 'H1').position).toEqual({ x: 16, y: 5 });
+    expect(refOf(store, 'H1').rotation).toBe(90);
+  });
+
+  it('Esc o una interrupción del navegador devuelven todo; soltar después no hace nada', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    const before = serializeDocument(doc(store));
+    const past = s().history.past.length;
+    s().pointerDown({ x: 10, y: 5 }, { shift: false });
+    move(store, 16, 9);
+    s().cancel();
+    move(store, 18, 9);
+    s().pointerUp({ x: 18, y: 9 });
+    s().pointerDown({ x: 10, y: 5 }, { shift: false });
+    move(store, 16, 9);
+    s().pointerCancel({ x: 16, y: 9 });
+    expect(serializeDocument(doc(store))).toBe(before);
+    expect(s().history.past.length).toBe(past);
+    expect(s().preview).toBeNull();
+  });
+
+  it('Supr o rehacer con algo en vuelo no dejan una vista previa vieja que resucite lo borrado', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    // Mover: Supr con algo tomado no hace nada; el objeto sigue tomado.
+    s().setTool('move');
+    click(store, 10, 5);
+    move(store, 14, 8);
+    s().deleteSelection();
+    expect(components(store)).toHaveLength(2);
+    s().cancel();
+    // Arrastre: rehacer lo cancela antes de cambiar el documento.
+    s().setTool('select');
+    s().deleteSelection(); // borra H1 (seleccionado)
+    s().undo();
+    s().pointerDown({ x: 10, y: 5 }, { shift: false });
+    move(store, 14, 8);
+    s().redo();
+    s().pointerUp({ x: 14, y: 8 });
+    expect(components(store).map((c) => c.props.ref)).toEqual(['K1']);
+    expectNormal(store);
+  });
+
+  it('arrastrar desde el vacío sigue dibujando el rectángulo de selección', () => {
+    const { store } = coilAndLamp();
+    const s = () => store.getState();
+    const before = serializeDocument(doc(store));
+    drag(store, [5, 0], [15, 10]);
+    expect(serializeDocument(doc(store))).toBe(before);
+    expect(selectionOfState(s()).components).toEqual([refOf(store, 'H1').id]);
+  });
+
+  it('durante la simulación no se arrastra', () => {
+    const { store } = coilAndLamp();
+    const before = serializeDocument(doc(store));
+    store.setState({ mode: 'simulating' });
+    drag(store, [10, 5], [14, 8]);
+    expect(serializeDocument(doc(store))).toBe(before);
   });
 });
 

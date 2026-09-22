@@ -38,6 +38,10 @@ export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 4;
 export const DEFAULT_ZOOM = 1.5;
 export const SPEEDS = [0.25, 1, 4] as const;
+/** Distancia en pantalla que separa un clic de un arrastre con Seleccionar. */
+export const DRAG_THRESHOLD_PX = 4;
+/** Casillas que avanza `Mayús` + flecha con algo tomado. */
+export const NUDGE_FAST = 5;
 export type Speed = (typeof SPEEDS)[number];
 
 // ── Tipos de estado ─────────────────────────────────────────────────────────────────────────
@@ -56,10 +60,23 @@ export interface Carry {
   readonly segment?: { readonly id: Id; readonly axis: 'H' | 'V' };
   /** Pegar / duplicar: el fragmento todavía no está en el documento. */
   readonly fragment?: Fragment;
+  /** Tomado con las flechas sin el cursor en el lienzo: el primer movimiento fija el ancla sin saltos. */
+  readonly reanchor?: boolean;
+}
+
+/**
+ * Arrastre con Seleccionar (R4 §1). Hasta superar el umbral es un clic en potencia; después lleva lo
+ * tomado con las mismas reglas que Mover.
+ */
+export interface Drag {
+  readonly origin: Point;
+  /** Clic sin arrastre sobre un objeto de una selección múltiple: al soltar queda solo ese objeto. */
+  readonly collapseTo?: Selection;
+  readonly carry?: Carry;
 }
 
 export type Tool =
-  | { readonly kind: 'select' }
+  | { readonly kind: 'select'; readonly drag?: Drag }
   | { readonly kind: 'place'; readonly type: string; readonly rotation: Rotation }
   | { readonly kind: 'move'; readonly carry?: Carry }
   | { readonly kind: 'wire'; readonly points: readonly Point[] }
@@ -158,10 +175,16 @@ export interface EditorState {
   setTool(kind: ToolKind): void;
   startPlacing(type: string): void;
   cancel(): void;
-  pointerMove(p: Point): void;
+  pointerMove(p: Point, opts?: { shift?: boolean }): void;
   pointerDown(p: Point, opts: { shift: boolean }): void;
   pointerUp(p: Point): void;
+  /** El navegador interrumpió el gesto: un arrastre en curso vuelve a su lugar. */
+  pointerCancel(p: Point): void;
   pointerLeave(): void;
+  /** Flechas: desplaza lo tomado con Mover; con Mover activa y nada tomado, toma la selección. */
+  nudge(dx: number, dy: number): void;
+  /** Enter: suelta lo tomado con Mover o termina el cable en curso. */
+  confirmTool(): void;
   wireFinish(): void;
   wireBack(): void;
   rotate(): void;
@@ -216,6 +239,11 @@ export const snap = (p: Point): Point => ({ x: Math.round(p.x), y: Math.round(p.
 const sameP = (a: Point | undefined, b: Point | undefined) => !!a && !!b && a.x === b.x && a.y === b.y;
 const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 
+/** Lo que se lleva: tomado con Mover o arrastrado con Seleccionar. */
+export function carryOf(tool: Tool): Carry | undefined {
+  return tool.kind === 'move' ? tool.carry : tool.kind === 'select' ? tool.drag?.carry : undefined;
+}
+
 export const docOf = (s: EditorState): CircuitDocument => s.history.present.doc;
 export const selectionOfState = (s: EditorState): Selection => s.history.present.selection;
 
@@ -257,7 +285,7 @@ export function contentBounds(doc: CircuitDocument, ctx: Pick<OpContext, 'regist
   return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
 }
 
-function reasonKey(result: EditResult): MessageKey {
+function reasonKey(result: { readonly reason?: string | undefined }): MessageKey {
   return result.reason === 'NO_ROUTE' ? 'messages.invalidNoRoute' : 'messages.invalidPlacement';
 }
 
@@ -333,12 +361,13 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
     const updatePreview = () => {
       const s = get();
       const tool = s.tool;
+      const carry = carryOf(tool);
       const p = s.pointer ? snap(s.pointer) : undefined;
       if (tool.kind === 'place' && p) {
         const r = placeComponent(doc(), { type: tool.type, position: p, rotation: tool.rotation }, ctx);
         set({ preview: { doc: r.doc, ok: r.ok, violations: r.violations, active: r.componentId ? [r.componentId] : [], ...(r.reason ? { reason: r.reason } : {}) } });
-      } else if (tool.kind === 'move' && tool.carry) {
-        set({ preview: carryPreview(tool.carry) });
+      } else if (carry) {
+        set({ preview: carryPreview(carry) });
       } else if (tool.kind === 'wire' && tool.points.length > 0 && p) {
         const last = tool.points[tool.points.length - 1]!;
         const pts = [...tool.points, ...wirePath(last, p)];
@@ -357,22 +386,15 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
 
     // ── Acciones de herramientas ────────────────────────────────────────────────────────────
 
-    const pickUp = (p: Point) => {
-      const hit = pickForSelect(hitsAt(p));
-      if (!hit) return;
+    /** Lo que toma un clic sobre `hit`: toda la selección si ya estaba en ella (I9); si no, solo él. */
+    const grab = (hit: NonNullable<ReturnType<typeof pickForSelect>>): { sel: Selection; inSelection: boolean } => {
       const current = selection();
-      const inSelection =
-        (hit.kind === 'component' && current.components.includes(hit.id)) ||
-        (hit.kind === 'segment' && current.segments.includes(hit.id)) ||
-        (hit.kind === 'annotation' && current.annotations.includes(hit.id));
-      const sel: Selection = inSelection
-        ? current
-        : {
-            components: hit.kind === 'component' ? [hit.id] : [],
-            segments: hit.kind === 'segment' ? [hit.id] : [],
-            annotations: hit.kind === 'annotation' ? [hit.id] : [],
-          };
-      if (!inSelection) setSel(sel);
+      const key = hit.kind === 'component' ? 'components' : hit.kind === 'segment' ? 'segments' : 'annotations';
+      const inSelection = current[key].includes(hit.id);
+      return { sel: inSelection ? current : { ...EMPTY_SELECTION, [key]: [hit.id] }, inSelection };
+    };
+
+    const carryFor = (sel: Selection, anchor: Point): Carry => {
       let segment: Carry['segment'];
       if (sel.segments.length === 1 && sel.components.length === 0 && sel.annotations.length === 0) {
         const s = doc().segments[sel.segments[0]!]!;
@@ -380,29 +402,84 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
         const b = vertexPosition(doc(), doc().vertices[s.b]!, ctx.registry);
         segment = { id: s.id, axis: a.y === b.y ? 'H' : 'V' };
       }
-      const carry: Carry = { selection: sel, anchor: snap(p), delta: { x: 0, y: 0 }, rotationSteps: 0, ...(segment ? { segment } : {}) };
-      set({ tool: { kind: 'move', carry }, message: { key: 'messages.carrying', tone: 'info' } });
+      return { selection: sel, anchor, delta: { x: 0, y: 0 }, rotationSteps: 0, ...(segment ? { segment } : {}) };
+    };
+
+    /** Reemplaza lo que se lleva, en la herramienta que lo lleva. */
+    const withCarry = (tool: Tool, carry: Carry): Tool =>
+      tool.kind === 'select' && tool.drag ? { kind: 'select', drag: { ...tool.drag, carry } } : { kind: 'move', carry };
+
+    /**
+     * Desplazamiento de lo que se lleva con el cursor en `c`. Un segmento solo se mueve en su eje
+     * perpendicular (R2 §3); con `Mayús`, cualquier otra cosa se limita al eje dominante (R4 §1).
+     */
+    const carryDelta = (carry: Carry, c: Point, axisLock: boolean): Point => {
+      const raw = { x: c.x - carry.anchor.x, y: c.y - carry.anchor.y };
+      if (carry.segment) return carry.segment.axis === 'H' ? { x: 0, y: raw.y } : { x: raw.x, y: 0 };
+      if (!axisLock) return raw;
+      return Math.abs(raw.x) >= Math.abs(raw.y) ? { x: raw.x, y: 0 } : { x: 0, y: raw.y };
+    };
+
+    const pickUp = (p: Point) => {
+      const hit = pickForSelect(hitsAt(p));
+      if (!hit) return;
+      const { sel, inSelection } = grab(hit);
+      if (!inSelection) setSel(sel);
+      set({ tool: { kind: 'move', carry: carryFor(sel, snap(p)) }, message: { key: 'messages.carrying', tone: 'info' } });
       updatePreview();
     };
 
-    const drop = () => {
-      const s = get();
-      if (s.tool.kind !== 'move' || !s.tool.carry) return;
-      const carry = s.tool.carry;
+    /**
+     * Confirma lo que se lleva en una sola entrada de historial (R2 §2). Si no se movió no hace nada; si
+     * la posición es inválida no toca el documento y devuelve el motivo.
+     */
+    const commitCarry = (carry: Carry): { ok: boolean; reason?: string | undefined } => {
       const still = carry.delta.x === 0 && carry.delta.y === 0 && carry.rotationSteps === 0 && !carry.fragment;
-      if (still) {
-        set({ tool: { kind: 'move' }, preview: null, message: null });
-        return;
-      }
-      const preview = s.preview ?? carryPreview(carry);
-      if (!preview.ok) {
-        message(preview.reason === 'NO_ROUTE' ? 'messages.invalidNoRoute' : 'messages.invalidPlacement', undefined, 'warning');
-        return;
-      }
+      if (still) return { ok: true };
+      const preview = get().preview ?? carryPreview(carry);
+      if (!preview.ok) return { ok: false, reason: preview.reason };
       let sel = pruneSelection(preview.doc, carry.selection);
       if (carry.fragment) sel = pasteFragment(doc(), carry.fragment, carry.delta, ctx).selection;
       commitDoc(preview.doc, sel);
+      return { ok: true };
+    };
+
+    /** Mover: una posición inválida no suelta; el objeto sigue tomado (R2 §2). */
+    const drop = () => {
+      const tool = get().tool;
+      if (tool.kind !== 'move' || !tool.carry) return;
+      const r = commitCarry(tool.carry);
+      if (!r.ok) {
+        message(reasonKey(r), undefined, 'warning');
+        return;
+      }
       set({ tool: { kind: 'move' }, preview: null, message: null });
+    };
+
+    /** Soltar un arrastre: en una posición inválida lo arrastrado vuelve a su lugar (R4 §1). */
+    const endDrag = () => {
+      const tool = get().tool;
+      if (tool.kind !== 'select' || !tool.drag) return;
+      const { carry, collapseTo } = tool.drag;
+      if (!carry) {
+        set({ tool: { kind: 'select' } });
+        if (collapseTo) setSel(collapseTo);
+        return;
+      }
+      const r = commitCarry(carry);
+      const reverted: MessageKey = r.reason === 'NO_ROUTE' ? 'messages.revertedNoRoute' : 'messages.revertedPlacement';
+      set({ tool: { kind: 'select' }, preview: null, message: r.ok ? null : { key: reverted, tone: 'warning' } });
+    };
+
+    const abortDrag = () => {
+      const tool = get().tool;
+      if (tool.kind === 'select' && tool.drag) set({ tool: { kind: 'select' }, preview: null, message: null });
+    };
+
+    /** Hay algo tomado o un arrastre en curso: su vista previa se calculó sobre el documento actual. */
+    const inFlight = () => {
+      const tool = get().tool;
+      return !!carryOf(tool) || (tool.kind === 'select' && !!tool.drag);
     };
 
     const wireClick = (c: Point) => {
@@ -460,9 +537,14 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
         const list = current[key];
         const next = list.includes(hit.id) ? list.filter((id) => id !== hit.id) : [...list, hit.id];
         setSel({ ...current, [key]: next });
-      } else {
-        setSel({ ...EMPTY_SELECTION, [key]: [hit.id] });
+        return;
       }
+      // Sin Mayús el objeto queda listo para arrastrarse: si ya estaba seleccionado se arrastra toda la
+      // selección, y si al final fue un clic queda solo él.
+      const { sel, inSelection } = grab(hit);
+      const only = { ...EMPTY_SELECTION, [key]: [hit.id] };
+      if (!inSelection) setSel(sel);
+      set({ tool: { kind: 'select', drag: { origin: p, ...(inSelection && selectionSize(current) > 1 ? { collapseTo: only } : {}) } } });
     };
 
     const finishRubberBand = () => {
@@ -562,6 +644,10 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
           set({ rubberBand: null });
           return;
         }
+        if (s.tool.kind === 'select' && s.tool.drag) {
+          abortDrag();
+          return;
+        }
         if (s.tool.kind === 'move' && s.tool.carry) {
           set({ tool: { kind: 'move' }, preview: null, message: null });
           return;
@@ -577,7 +663,7 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
         if (selectionSize(selection()) > 0) setSel(EMPTY_SELECTION);
       },
 
-      pointerMove(p) {
+      pointerMove(p, opts) {
         const s = get();
         const prev = s.pointer ? snap(s.pointer) : undefined;
         set({ pointer: p });
@@ -586,13 +672,22 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
           return;
         }
         if (!isEditing()) return;
+        let tool = s.tool;
+        if (tool.kind === 'select' && tool.drag && !tool.drag.carry) {
+          const k = GRID_PX * s.viewport.zoom;
+          const { origin } = tool.drag;
+          if (Math.hypot(p.x - origin.x, p.y - origin.y) * k < DRAG_THRESHOLD_PX) return;
+          tool = { kind: 'select', drag: { origin, carry: carryFor(selection(), snap(origin)) } };
+          set({ tool, message: { key: 'messages.dragging', tone: 'info' } });
+        }
         const c = snap(p);
-        if (sameP(prev, c) && s.preview) return; // solo se recalcula al cambiar de celda
-        const tool = s.tool;
-        if (tool.kind === 'move' && tool.carry) {
-          const raw = { x: c.x - tool.carry.anchor.x, y: c.y - tool.carry.anchor.y };
-          const delta = tool.carry.segment ? (tool.carry.segment.axis === 'H' ? { x: 0, y: raw.y } : { x: raw.x, y: 0 }) : raw;
-          if (!sameP(delta, tool.carry.delta) || !s.preview) set({ tool: { kind: 'move', carry: { ...tool.carry, delta } } });
+        if (sameP(prev, c) && get().preview) return; // solo se recalcula al cambiar de celda
+        const carry = carryOf(tool);
+        if (carry?.reanchor) {
+          set({ tool: withCarry(tool, { ...carry, anchor: { x: c.x - carry.delta.x, y: c.y - carry.delta.y }, reanchor: false }) });
+        } else if (carry) {
+          const delta = carryDelta(carry, c, !!opts?.shift);
+          if (!sameP(delta, carry.delta) || !get().preview) set({ tool: withCarry(tool, { ...carry, delta }) });
         }
         updatePreview();
       },
@@ -637,7 +732,38 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
 
       pointerUp() {
         if (get().rubberBand) finishRubberBand();
+        endDrag();
         if (!isEditing()) get().simPointerUp();
+      },
+
+      pointerCancel(p) {
+        abortDrag();
+        get().pointerUp(p);
+      },
+
+      nudge(dx, dy) {
+        if (!isEditing()) return;
+        const tool = get().tool;
+        if (tool.kind !== 'move') return;
+        let carry = tool.carry;
+        if (!carry) {
+          const sel = selection();
+          if (selectionSize(sel) === 0) return;
+          const p = get().pointer;
+          carry = { ...carryFor(sel, p ? snap(p) : { x: 0, y: 0 }), reanchor: !p };
+          set({ message: { key: 'messages.carrying', tone: 'info' } });
+        }
+        // Se corre el ancla junto con el objeto: el mouse sigue moviéndolo desde donde quedó.
+        const step = carry.segment ? (carry.segment.axis === 'H' ? { x: 0, y: dy } : { x: dx, y: 0 }) : { x: dx, y: dy };
+        const anchor = { x: carry.anchor.x - step.x, y: carry.anchor.y - step.y };
+        set({ tool: { kind: 'move', carry: { ...carry, anchor, delta: { x: carry.delta.x + step.x, y: carry.delta.y + step.y } } } });
+        updatePreview();
+      },
+
+      confirmTool() {
+        const tool = get().tool;
+        if (tool.kind === 'move') drop();
+        else get().wireFinish();
       },
 
       pointerLeave() {
@@ -669,13 +795,13 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
           updatePreview();
           return;
         }
-        if (tool.kind === 'move' && tool.carry) {
-          const c = tool.carry;
+        const c = carryOf(tool);
+        if (c) {
           if (c.fragment || c.segment || c.selection.components.length !== 1 || c.selection.segments.length + c.selection.annotations.length > 0) {
             message('messages.groupRotateDisabled', undefined, 'warning');
             return;
           }
-          set({ tool: { kind: 'move', carry: { ...c, rotationSteps: (c.rotationSteps + 1) % 4 } } });
+          set({ tool: withCarry(tool, { ...c, rotationSteps: (c.rotationSteps + 1) % 4 }) });
           updatePreview();
           return;
         }
@@ -690,7 +816,7 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
       },
 
       deleteSelection() {
-        if (!isEditing()) return;
+        if (!isEditing() || inFlight()) return;
         const sel = selection();
         if (selectionSize(sel) === 0) return;
         const r = deleteSelection(doc(), sel, ctx);
@@ -717,6 +843,7 @@ export function createEditorStore(deps: EditorDeps, initial?: CircuitDocument): 
 
       redo() {
         if (!isEditing()) return;
+        if (inFlight()) get().cancel();
         const s = get();
         if (!canRedo(s.history)) return;
         const history = redo(s.history);

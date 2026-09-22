@@ -1,7 +1,7 @@
 # Plan de implementación — Electrical Control Circuit Simulator
 
 > **Implementación:** V1 completa — estado, limitaciones y desviaciones en [STATUS.md](STATUS.md).
-> **Estado del plan:** **v0.5 — LISTO PARA IMPLEMENTAR.** Incorpora las rondas 1, 2 y 3, y el agregado del contenedor. **Sin decisiones abiertas que afecten el código.**
+> **Estado del plan:** **v0.5 — LISTO PARA IMPLEMENTAR.** Incorpora las rondas 1, 2 y 3, el agregado del contenedor y los pedidos posteriores a V1 (§0.4). **Sin decisiones abiertas que afecten el código.**
 > **Fuente de verdad del producto:** [electrical_control_simulator_spec.md](electrical_control_simulator_spec.md), modificada por [docs/DECISIONES.md](docs/DECISIONES.md) (estado vigente de las tres rondas de respuestas). **Ante contradicción prevalece DECISIONES.md.** Las etiquetas `[R1 §n]`, `[R2 §n]` y `[R3 Qn]` de este plan remiten a su columna «Origen».
 > **Contexto para sesiones nuevas:** [CLAUDE.md](CLAUDE.md)
 > **Rondas de preguntas:** cerradas. Los cuestionarios (`QUESTIONS1–3.md`) y el prompt inicial (`AGENT_PROMPT.md`) se retiraron del repo y quedan en el historial de git; las decisiones están en las respuestas de cada ronda y en el §2.
@@ -22,6 +22,7 @@ eso, cada decisión relevante de este plan lleva una etiqueta de origen:
 | **[Técnica]** | Propuesta del equipo técnico. **No confirmada por producto.** Puede cambiar sin reabrir decisiones de producto. Las que producto aprobó en la ronda 3 están marcadas en el §2.2 |
 | **[Interpretación]** | Algo que producto delegó o que el equipo tuvo que inferir. **Las 18 (I1–I18) fueron aceptadas por producto en la ronda 3** y están listadas en [docs/DECISIONES.md §11](docs/DECISIONES.md); se conserva la etiqueta para que se vea de dónde salió cada regla |
 | **[R3 §11]** | Agregado posterior a la ronda 3: la app corre en un contenedor |
+| **[R4 §n]** | Pedido de producto posterior a V1 (2026-09-22). Ver §0.4 |
 
 ### 0.2 Qué cambia en las v0.4 y v0.5 (ronda 3 y agregado del contenedor)
 
@@ -63,6 +64,16 @@ eso, cada decisión relevante de este plan lleva una etiqueta de origen:
 **Se mantiene sin cambios de la v0.2:** grafo de vértices y segmentos, canonicalización como pieza
 central, extremos libres, borrado de componente sin cascada, geometría como dato del documento,
 conectividad nunca geométrica, cargas que sensan, las tres reglas de cortocircuito.
+
+### 0.4 Ronda 4 (2026-09-22, después de V1)
+
+| Tema | Decisión | Origen | Dónde |
+|---|---|---|---|
+| Mover arrastrando | **Se agrega** además de Mover (`M`): arrastrar con Seleccionar mueve lo que está bajo el cursor (o toda la selección). Anula "sin arrastre" de R2 §2 | R4 §1 | §6.1 |
+| Soltar un arrastre en una posición inválida | **Vuelve a su lugar**, con el motivo | R4 §1 | §6.1 |
+| Arrastrar cables | **Sí**: un tramo solo se desplaza en perpendicular, como con Mover | R4 §2 | §6.1 |
+| Mover con el teclado | Flechas desplazan lo tomado (`Mayús`: 5), `Enter` suelta | R4 §3 | §6.2 |
+| Barra de herramientas | Cada herramienta muestra su tecla al lado del ícono | R4 §4 | — |
 
 ---
 
@@ -149,9 +160,10 @@ Una sola tabla con todo lo decidido, para no tener que reconstruirlo leyendo tre
 | | Solapamiento colineal de redes distintas: **impedido** al editar; **bloqueante** si existe | R2 §6 |
 | | T sin punto, puntos coincidentes de redes distintas y cable sobre terminal ajeno: **mismo tratamiento** que el solapamiento | R3 Q3.1 |
 | | Soltar un componente con ambos terminales libres sobre el mismo tramo recto: **se inserta en serie** | R3 Q3.3 |
-| **Edición** | Mover = herramienta `M`, clic toma, clic coloca, sin arrastre | R2 §2 |
-| | Al soltar: terminal libre puede conectar; terminal conectado no puede tocar otro conductor; un terminal inválido rechaza todo; el clic inválido no confirma y el objeto sigue tomado | R2 §2 |
-| | Mover un segmento: perpendicular a sí mismo, clic-tomar-clic; vecinos se estiran o generan codos; sin segmentos "fijados" | R2 §3 |
+| **Edición** | Mover = herramienta `M` (clic toma, clic coloca) **o** arrastrar con Seleccionar | R2 §2, R4 §1 |
+| | Al soltar: terminal libre puede conectar; terminal conectado no puede tocar otro conductor; un terminal inválido rechaza todo; con `M` el clic inválido no confirma y el objeto sigue tomado; un arrastre inválido vuelve a su lugar | R2 §2, R4 §1 |
+| | Mover un segmento: perpendicular a sí mismo, con `M` o arrastrando; vecinos se estiran o generan codos; sin segmentos "fijados" | R2 §3, R4 §2 |
+| | Con `M`: flechas desplazan lo tomado (`Mayús`: 5), `Enter` suelta | R4 §3 |
 | | Borrar un componente conserva sus cables como extremos libres | R1 §10 |
 | | Goma `B`: clic explícito, sigue activa, sin confirmación, sin borrado continuo | R1 §11, R2 §5 |
 | | Goma: junction → todo lo incidente + componente ligado · esquina → ambos segmentos · extremo libre → su segmento · segmento → solo él · los vértices tienen prioridad | R2 §5 |
@@ -518,14 +530,20 @@ libres y al pegar.
 
 | Herramienta | Tecla | Qué hace | Origen |
 |---|---|---|---|
-| **Seleccionar** | `S` | clic selecciona; `Mayús`+clic suma; arrastrar **desde un espacio vacío** dibuja rectángulo | Tecla: Técnica |
+| **Seleccionar** | `S` | clic selecciona; `Mayús`+clic suma; arrastrar **desde un espacio vacío** dibuja rectángulo; arrastrar **desde un objeto** lo mueve | Tecla: Técnica · R4 §1 |
 | **Cable** | `C` | traza cables ortogonales | Tecla: Técnica |
-| **Mover** | `M` | clic toma, clic coloca | R2 §2 |
+| **Mover** | `M` | clic toma, clic o `Enter` coloca; flechas ajustan | R2 §2, R4 §3 |
 | **Borrar** | `B` | goma, un objeto por clic | R2 §5 |
 | **Texto** | `T` | clic crea una anotación y abre su edición | Tecla: Técnica |
 
-Arrastrar un objeto con Seleccionar **no lo mueve** [R2 §2]: para mover está `M`. El rectángulo de
-selección sí es un arrastre, pero no modifica el documento. [Interpretación]
+**Arrastrar con Seleccionar** [R4 §1, §2]. Apretar sobre un objeto lo deja listo para arrastrar; al
+superar 4 px de pantalla empieza el arrastre, que reutiliza el mismo "tomado" de Mover (§6.2): misma
+vista previa, mismas reglas, un tramo solo en perpendicular, toda la selección si el objeto ya estaba
+en ella. Soltar confirma en **una** transacción; en una posición inválida **vuelve a su lugar** con el
+motivo. Por debajo del umbral es un clic: selecciona (y, sobre una selección múltiple, al soltar queda
+solo ese objeto). Durante el arrastre: `Esc` cancela, `R` rota, `Mayús` fija el eje dominante; si el
+navegador interrumpe el gesto (`pointercancel`), se cancela. [Técnica: umbral, `Mayús`, `Esc`/`R`
+durante el arrastre]. Arrastrar desde el vacío sigue siendo el rectángulo de selección.
 
 ### 6.2 Mover (clic-tomar / clic-colocar) [R2 §2, §3]
 
@@ -539,8 +557,13 @@ selección sí es un arrastre, pero no modifica el documento. [Interpretación]
 - Clic en posición inválida → no pasa nada; sigue tomado.
 - `R` con un solo componente tomado → rota. Con un grupo tomado → desactivado.
 - `Esc` → suelta sin cambios. `Ctrl+Z` estando tomado → equivale a `Esc`, no toca el historial.
-  [Interpretación]
+  [Interpretación] `Ctrl+Y` también cancela antes de rehacer, y `Supr` no hace nada mientras algo
+  está tomado o se arrastra: la vista previa se calculó sobre el documento anterior. [Técnica]
 - Clic con `M` sobre un vértice (junction, esquina, extremo libre) → no toma nada. [Interpretación]
+- Flechas → desplazan lo tomado una casilla (`Mayús`: cinco); el ancla se corre con el objeto, así el
+  mouse lo sigue moviendo desde donde quedó. `Enter` → suelta, igual que el clic. [R4 §3]
+- Con `M` activa y nada tomado, una flecha toma la selección. Si el cursor no está sobre el lienzo, el
+  primer movimiento del mouse fija el ancla sin hacer saltar el objeto. [Técnica]
 
 **`R` sobre un componente seleccionado y no tomado** [R3 Q3.5]: si la rotación en el lugar produce una
 posición inválida, **se rechaza**. La barra de estado explica el motivo y sugiere tomarlo con `M` y
@@ -573,7 +596,8 @@ El resto es propuesta [Técnica, R2 §31 lo delega], documentada en `docs/ATAJOS
 | `E` | Ejecutar / detener simulación | | `Ctrl+0` | Zoom 100 % |
 | `A` | Ajustar la vista al diagrama | | `Supr` · `Retroceso` | Borrar selección |
 | `Esc` | Cancelar ✔ | | `Espacio` + arrastrar · botón central | Desplazar la vista |
-| | | | Rueda | Zoom hacia el cursor |
+| Flechas · `Mayús`+flechas | Con `M`: desplazar lo tomado 1 · 5 casillas ✔ | | Rueda | Zoom hacia el cursor |
+| `Enter` | Soltar lo tomado ✔ · terminar el cable | | | |
 
 ✔ = confirmada por producto. En macOS, `Cmd` reemplaza a `Ctrl`. Los atajos se ignoran mientras el
 foco está en un campo de texto. `Ctrl+D`, `Ctrl+S` y `Ctrl+O` anulan la acción por defecto del
@@ -583,10 +607,15 @@ navegador solo mientras el foco está en la app.
 
 ```
 SELECCIONAR ──arrastre desde vacío──▶ RECTÁNGULO ──soltar──▶ SELECCIONAR
+            ──apretar sobre objeto──▶ LISTO ──soltar (< 4 px)──▶ SELECCIONAR (clic)
+                                            └─mover ≥ 4 px──▶ ARRASTRANDO ──soltar válido──▶ SELECCIONAR (commit)
+                                                                          ├─soltar inválido──▶ SELECCIONAR (vuelve)
+                                                                          └─Esc · pointercancel──▶ SELECCIONAR (sin cambios)
 librería ──▶ COLOCANDO ──clic válido──▶ COLOCANDO (repetida)  ──Esc──▶ SELECCIONAR
                        └─clic inválido──▶ COLOCANDO (muestra motivo)
-M ──▶ MOVER ──clic sobre objeto──▶ TOMADO ──clic válido──▶ MOVER (commit)
-                                         ├─clic inválido──▶ TOMADO
+M ──▶ MOVER ──clic sobre objeto · flecha con selección──▶ TOMADO ──clic · Enter válido──▶ MOVER (commit)
+                                         ├─clic · Enter inválido──▶ TOMADO
+                                         ├─flechas──▶ TOMADO (desplazado)
                                          ├─R──▶ TOMADO (rotado)
                                          └─Esc──▶ MOVER (sin cambios)
 C ──▶ CABLE ──clic──▶ TRAZANDO ──clic en vacío──▶ TRAZANDO (codo)
@@ -922,7 +951,7 @@ commit(tx) · undo() · redo()          // snapshots inmutables — T-04, aproba
 | Interacción | Entradas de historial | Origen |
 |---|---|---|
 | Colocar un componente | 1 por clic | Spec §15 |
-| Mover (componente, segmento, grupo o pegado) | 1 al confirmar | R2 §2 |
+| Mover o arrastrar (componente, segmento, grupo o pegado) | 1 al confirmar o al soltar | R2 §2, R4 §1 |
 | Rotar | 1 | Spec §15 |
 | Trazar un cable completo | 1 | Interpretación |
 | **Cada clic de la goma** | **1, nunca agrupadas** | R1 §12, R2 §5 |
@@ -931,8 +960,9 @@ commit(tx) · undo() · redo()          // snapshots inmutables — T-04, aproba
 | Pegar / duplicar | 1 | R2 §13 |
 | Editar una propiedad | 1 por campo (coalescida al tipear, 500 ms) | Técnica |
 
-Con clic-tomar-clic, **la coalescencia de arrastres desaparece**: un movimiento es una sola confirmación
-por diseño. Solo queda coalescencia en la edición de texto de propiedades.
+**No hay coalescencia de arrastres**: tanto con clic-tomar-clic como arrastrando, el documento no
+cambia hasta confirmar, así que un movimiento es una sola confirmación por diseño. Solo queda
+coalescencia en la edición de texto de propiedades.
 
 La canonicalización corre dentro de la transacción; el historial solo guarda documentos en forma
 normal. La selección forma parte del snapshot. Límite de 200 entradas. El historial **no** se persiste
@@ -1128,6 +1158,8 @@ foco visible, estado nunca solo por color. Sin auditoría formal en V1.
 |---|:-:|:-:|:-:|
 | Colocar (incluida repetición, rotación previa, `Esc`) | ✓ | ✓ | ✓ |
 | Mover componente (clic-tomar-clic, reparación, posición inválida) | ✓ | ✓ | ✓ |
+| Arrastrar con Seleccionar (componente, tramo, grupo, umbral, vuelta atrás al soltar inválido) [R4] | — | ✓ | ✓ |
+| Mover con flechas y `Enter` [R4] | — | ✓ | ✓ |
 | Mover segmento (eje perpendicular, anclas, sin conexiones nuevas) | ✓ | ✓ | ✓ |
 | Rotar (incluido el rechazo de una rotación en el lugar inválida) | ✓ | ✓ | ✓ |
 | Inserción en serie al soltar sobre un tramo recto | ✓ | ✓ | ✓ |

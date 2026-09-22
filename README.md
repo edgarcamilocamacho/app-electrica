@@ -75,8 +75,9 @@ y no queden atrapados en una vieja. Los archivos de `/assets/` sí se pueden cac
 ## Uso rápido
 
 1. **Ejemplos** → elegí un circuito, o armá uno desde la biblioteca de la izquierda.
-2. **C** traza cables (clic en un cable existente crea un punto de unión), **M** mueve (clic toma,
-   clic suelta), **B** borra, **R** rota. Todos los atajos: [docs/ATAJOS.md](docs/ATAJOS.md).
+2. **C** traza cables (clic en un cable existente crea un punto de unión). Para mover, arrastrá con
+   Seleccionar o usá **M** (clic toma, clic o `Enter` suelta, flechas para ajustar). **B** borra,
+   **R** rota. Todos los atajos: [docs/ATAJOS.md](docs/ATAJOS.md).
 3. **Simular** (E): pulsadores con mantener apretado, interruptores con un clic. Un corto o un lazo
    que no se estabiliza detienen todo en modo ERROR hasta «Volver a editar».
 

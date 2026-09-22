@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { useShallow } from 'zustand/react/shallow';
 import { t } from '../i18n/t';
 import { useEditor, useEditorStore, useRegistry } from '../store/context';
-import { docOf, GRID_PX, screenToWorld, snap, selectionOfState } from '../store/editorStore';
+import { carryOf, docOf, GRID_PX, screenToWorld, snap, selectionOfState } from '../store/editorStore';
 import { COLORS } from '../theme';
 import { Diagram, type Marker } from './Diagram';
 import type { Id } from '../../core/model/types';
@@ -119,7 +119,7 @@ export function Canvas() {
       store.getState().panBy(e.movementX, e.movementY);
       return;
     }
-    store.getState().pointerMove(toWorld(e));
+    store.getState().pointerMove(toWorld(e), { shift: e.shiftKey });
   };
 
   const onPointerUp = (e: ReactPointerEvent<SVGSVGElement>) => {
@@ -128,6 +128,14 @@ export function Canvas() {
       return;
     }
     store.getState().pointerUp(toWorld(e));
+  };
+
+  const onPointerCancel = (e: ReactPointerEvent<SVGSVGElement>) => {
+    if (panning.current) {
+      panning.current = null;
+      return;
+    }
+    store.getState().pointerCancel(toWorld(e));
   };
 
   const k = GRID_PX * viewport.zoom;
@@ -147,7 +155,7 @@ export function Canvas() {
     return blocking.length ? blocking.map((d) => ({ at: d.at!, segmentIds: d.segmentIds })) : NO_MARKERS;
   }, [preview, diagnostics, mode]);
 
-  const cursor = spaceDown ? 'grab' : mode !== 'edit' ? 'pointer' : cursorFor(tool.kind, tool.kind === 'move' && !!tool.carry);
+  const cursor = spaceDown ? 'grab' : mode !== 'edit' ? 'pointer' : cursorFor(tool.kind, !!carryOf(tool));
   const snapped = pointer ? snap(pointer) : null;
   const showCrosshair = mode === 'edit' && snapped && (tool.kind === 'wire' || tool.kind === 'place' || tool.kind === 'text');
 
@@ -165,7 +173,7 @@ export function Canvas() {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onPointerLeave={() => store.getState().pointerLeave()}
       onDoubleClick={() => store.getState().wireFinish()}
       onContextMenu={(e) => e.preventDefault()}
@@ -227,7 +235,7 @@ function cursorFor(tool: string, carrying: boolean): string {
     case 'erase':
       return 'cell';
     default:
-      return 'default';
+      return carrying ? 'grabbing' : 'default';
   }
 }
 

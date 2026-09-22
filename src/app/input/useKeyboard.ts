@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { isTyping } from '../canvas/Canvas';
-import type { EditorStore } from '../store/editorStore';
+import { NUDGE_FAST, type EditorStore } from '../store/editorStore';
 
 /**
  * Mapa de teclas (PLAN §6.4, R2 §31). Confirmadas por producto: B, M, R, Esc, Ctrl+Z, Ctrl+Y,
@@ -60,8 +60,19 @@ export function useKeyboard(store: EditorStore): void {
           s.cancel();
           return;
         case 'Enter':
-          s.wireFinish();
+          s.confirmTool();
           return;
+        case 'ArrowLeft':
+        case 'ArrowRight':
+        case 'ArrowUp':
+        case 'ArrowDown': {
+          const step = e.shiftKey ? NUDGE_FAST : 1;
+          const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+          const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+          e.preventDefault();
+          s.nudge(dx, dy);
+          return;
+        }
         case 'Backspace':
           e.preventDefault();
           if (s.tool.kind === 'wire' && s.tool.points.length > 0) s.wireBack();

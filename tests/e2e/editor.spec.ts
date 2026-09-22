@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { byRef, centerOf, clickAt, clickRef, connected, docJson, hoverAt, idOfRef, openApp, place, wire } from './helpers';
+import { byRef, centerOf, clickAt, clickRef, connected, docJson, dragAt, hoverAt, idOfRef, openApp, place, wire } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await openApp(page);
@@ -72,6 +72,57 @@ test('Mover un tramo: solo se desplaza en perpendicular', async ({ page }) => {
   await clickAt(page, 5, 0);
   await hoverAt(page, 9, -3);
   await clickAt(page, 9, -3);
+  const doc = await docJson(page);
+  const ys = Object.values(doc.vertices).filter((v) => v.kind === 'point').map((v) => v.position!.y).sort((a, b) => a - b);
+  expect(ys).toEqual([-3, -3, 6]);
+});
+
+test('Mover con el teclado: las flechas desplazan lo tomado (Mayús: 5) y Enter suelta', async ({ page }) => {
+  await place(page, 'coil', 10, -5);
+  await place(page, 'lamp', 10, 5);
+  await wire(page, [10, -2], [10, 2]);
+  await page.keyboard.press('m');
+  await clickAt(page, 10, 5);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Shift+ArrowDown');
+  await page.keyboard.press('Enter');
+  const doc = await docJson(page);
+  expect(doc.components[idOfRef(doc, 'H1')]!.position).toEqual({ x: 11, y: 10 });
+  expect(connected(doc, [idOfRef(doc, 'K1'), 'A2'], [idOfRef(doc, 'H1'), 'X1'])).toBe(true);
+  await expect(page.getByTestId('canvas')).toHaveAttribute('data-tool', 'move');
+});
+
+test('arrastrar con Seleccionar: mueve conservando la conexión en una sola acción de deshacer', async ({ page }) => {
+  await place(page, 'coil', 10, -5);
+  await place(page, 'lamp', 10, 5);
+  await wire(page, [10, -2], [10, 2]);
+  const before = await docJson(page);
+  await page.keyboard.press('s');
+  await dragAt(page, [10, 5], [16, 9]);
+  const doc = await docJson(page);
+  expect(doc.components[idOfRef(doc, 'H1')]!.position).toEqual({ x: 16, y: 9 });
+  expect(connected(doc, [idOfRef(doc, 'K1'), 'A2'], [idOfRef(doc, 'H1'), 'X1'])).toBe(true);
+  await expect(page.getByTestId('canvas')).toHaveAttribute('data-tool', 'select');
+  await page.keyboard.press('Control+z');
+  expect(await docJson(page)).toEqual(before);
+});
+
+test('arrastrar a una posición inválida lo devuelve a su lugar con el motivo', async ({ page }) => {
+  await place(page, 'coil', 10, -5);
+  await place(page, 'lamp', 10, 5);
+  await wire(page, [10, -2], [10, 2]);
+  await wire(page, [0, 20], [30, 20]);
+  const before = await docJson(page);
+  await page.keyboard.press('s');
+  await dragAt(page, [10, 5], [10, 23]); // X1 (ya conectado) caería sobre otra red
+  await expect(page.getByTestId('status-message')).toContainText('volvió a su lugar');
+  expect(await docJson(page)).toEqual(before);
+});
+
+test('arrastrar un tramo: solo se desplaza en perpendicular', async ({ page }) => {
+  await wire(page, [0, 0], [10, 0], [10, 6]);
+  await page.keyboard.press('s');
+  await dragAt(page, [5, 0], [9, -3]);
   const doc = await docJson(page);
   const ys = Object.values(doc.vertices).filter((v) => v.kind === 'point').map((v) => v.position!.y).sort((a, b) => a - b);
   expect(ys).toEqual([-3, -3, 6]);
@@ -167,11 +218,12 @@ test('propiedades: vincular un contacto a una bobina le asigna la referencia der
   await expect(byRef(page, 'K1.1')).toHaveCount(1);
 });
 
-test('atajos de herramientas en español: S, C, M, B, T', async ({ page }) => {
+test('atajos de herramientas en español: S, C, M, B, T, y cada botón muestra su tecla', async ({ page }) => {
   const canvas = page.getByTestId('canvas');
   for (const [key, tool] of [['c', 'wire'], ['m', 'move'], ['b', 'erase'], ['t', 'text'], ['s', 'select']] as const) {
     await page.keyboard.press(key);
     await expect(canvas).toHaveAttribute('data-tool', tool);
+    await expect(page.getByTestId(`tool-${tool}`).locator('kbd')).toHaveText(key.toUpperCase());
   }
 });
 

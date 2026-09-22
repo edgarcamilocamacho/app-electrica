@@ -32,5 +32,15 @@ export function move(store: EditorStore, x: number, y: number): void {
   store.getState().pointerMove({ x, y });
 }
 
+/** Simula un arrastre con el botón apretado, pasando por los puntos intermedios. */
+export function drag(store: EditorStore, from: [number, number], ...to: [number, number][]): void {
+  const s = () => store.getState();
+  s().pointerMove({ x: from[0], y: from[1] });
+  s().pointerDown({ x: from[0], y: from[1] }, { shift: false });
+  for (const [x, y] of to) s().pointerMove({ x, y });
+  const [x, y] = to[to.length - 1] ?? from;
+  s().pointerUp({ x, y });
+}
+
 export const doc = (store: EditorStore) => docOf(store.getState());
 export const px = (units: number) => units * GRID_PX;
