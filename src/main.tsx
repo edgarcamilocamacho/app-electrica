@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
+import { BoardPreview } from './app/board/BoardPreview';
 import { createAppServices } from './app/services';
 import { installE2EHooks } from './app/testHooks';
 import { ManualClock, realClock } from './platform/clock';
@@ -36,8 +37,9 @@ window.addEventListener('pagehide', () => services.flushAutosave());
 const root = document.getElementById('root');
 if (!root) throw new Error('No se encontró el elemento #root');
 
+// Refactor R5: la vista gráfica de tablero se mira con ?tablero=1 hasta que reemplace a la clásica.
 createRoot(root).render(
   <StrictMode>
-    <App store={services.store} />
+    {params.has('tablero') ? <BoardPreview /> : <App store={services.store} />}
   </StrictMode>,
 );
