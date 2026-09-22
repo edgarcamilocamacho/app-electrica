@@ -1,7 +1,7 @@
 import { customAlphabet } from 'nanoid';
 
-/** Prefijo por clase de entidad: componente, vértice, segmento, anotación. */
-export type IdPrefix = 'c' | 'v' | 's' | 'n';
+/** Prefijo por clase de entidad: componente, vértice, segmento, anotación, aparato, cable. */
+export type IdPrefix = 'c' | 'v' | 's' | 'n' | 'd' | 'w';
 
 /**
  * Generador de ids inyectable: la app usa ids aleatorios; los tests, un contador
@@ -19,7 +19,7 @@ export function createRandomIdGen(): IdGen {
 
 /** Ids `c1`, `v1`, `s1`… con un contador por prefijo. Solo para tests y fixtures. */
 export function createCounterIdGen(): IdGen {
-  const counters: Record<IdPrefix, number> = { c: 0, v: 0, s: 0, n: 0 };
+  const counters: Record<IdPrefix, number> = { c: 0, v: 0, s: 0, n: 0, d: 0, w: 0 };
   return {
     next(prefix) {
       counters[prefix] += 1;
