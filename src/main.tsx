@@ -1,7 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
-import { BoardPreview } from './app/board/BoardPreview';
+import { BoardApp } from './app/board/BoardApp';
+import { createBoardStore } from './app/board/store';
+import { starterBoard } from './examples/board';
+import { boardRegistry } from './core/board/catalog';
+import { createRandomIdGen } from './core/model/ids';
 import { createAppServices } from './app/services';
 import { installE2EHooks } from './app/testHooks';
 import { ManualClock, realClock } from './platform/clock';
@@ -34,12 +38,19 @@ const services = createAppServices({
 if (manualClock) installE2EHooks(services.store, manualClock);
 window.addEventListener('pagehide', () => services.flushAutosave());
 
+// El tablero arranca con el ejemplo cargado hasta que haya archivos (G5).
+const boardIds = createRandomIdGen();
+const boardStore = createBoardStore(
+  { ids: boardIds, registry: boardRegistry },
+  starterBoard({ ids: boardIds, registry: boardRegistry }),
+);
+
 const root = document.getElementById('root');
 if (!root) throw new Error('No se encontró el elemento #root');
 
 // Refactor R5: la vista gráfica de tablero se mira con ?tablero=1 hasta que reemplace a la clásica.
 createRoot(root).render(
   <StrictMode>
-    {params.has('tablero') ? <BoardPreview /> : <App store={services.store} />}
+    {params.has('tablero') ? <BoardApp store={boardStore} /> : <App store={services.store} />}
   </StrictMode>,
 );
