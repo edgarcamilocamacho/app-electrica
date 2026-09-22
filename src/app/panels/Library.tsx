@@ -3,7 +3,6 @@ import { t } from '../i18n/t';
 import { useEditor, useEditorStore, useRegistry } from '../store/context';
 import { SYMBOLS } from '../symbols/Symbols';
 import { usePalette } from '../theme';
-import { TEXT_ICON_PATH } from '../toolbar/icons';
 
 const CATEGORIES: readonly ComponentCategory[] = ['sources', 'manual', 'relays', 'contacts', 'timers', 'loads'];
 
@@ -21,9 +20,8 @@ function SymbolThumb({ type }: { type: string }) {
 export function Library() {
   const store = useEditorStore();
   const registry = useRegistry();
-  const placing = useEditor((s) => (s.tool.kind === 'place' ? s.tool.type : s.tool.kind === 'text' ? 'text' : null));
+  const placing = useEditor((s) => (s.tool.kind === 'place' ? s.tool.type : null));
   const editing = useEditor((s) => s.mode === 'edit');
-  const palette = usePalette();
 
   return (
     <nav className="panel library" aria-label={t('library.title')}>
@@ -54,24 +52,6 @@ export function Library() {
           </div>
         </section>
       ))}
-      <section className="lib-group">
-        <h3>{t('library.categories.annotations')}</h3>
-        <div className="lib-items">
-          <button
-            type="button"
-            className={`lib-item${placing === 'text' ? ' active' : ''}`}
-            aria-pressed={placing === 'text'}
-            disabled={!editing}
-            data-testid="library-text"
-            onClick={() => store.getState().setTool('text')}
-          >
-            <svg className="lib-thumb" viewBox="0 0 24 24" aria-hidden="true">
-              <path d={TEXT_ICON_PATH} fill="none" stroke={palette.ink} strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-            <span>{t('components.text')}</span>
-          </button>
-        </div>
-      </section>
     </nav>
   );
 }

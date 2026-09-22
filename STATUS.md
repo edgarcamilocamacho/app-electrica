@@ -32,7 +32,7 @@ niveles.
 | M17 | Exportación PNG, SVG y PDF (A4 / A3 / ajustada), diagrama completo, colores tal como se ven |
 | M18 | Versión y caché: `version.json` sin caché, aviso de versión nueva, contenedor probado en caliente |
 | M19 | Estabilización: suite E2E sin intermitencias, presupuesto de rendimiento, documentación |
-| R4 | Mover **arrastrando** con Seleccionar (también cables; soltar en posición inválida lo devuelve a su lugar), **flechas y `Enter`** con Mover, tecla visible junto a cada herramienta, ícono de Texto más chico, barra de herramientas que ya no se desborda entre 960 y 1440 px, **modo oscuro** (interfaz, lienzo e íconos de la biblioteca), nombres de los componentes pegados al símbolo (abajo a la derecha si está vertical; debajo y centrados si está horizontal) |
+| R4 | Mover **arrastrando** con Seleccionar (también cables; soltar en posición inválida lo devuelve a su lugar), **flechas y `Enter`** con Mover, tecla visible junto a cada herramienta, ícono de Texto más chico, barra de herramientas que ya no se desborda entre 960 y 1440 px, **modo oscuro** (interfaz, lienzo e íconos de la biblioteca), biblioteca sin la entrada duplicada de texto libre, nombres de los componentes pegados al símbolo (abajo a la derecha si está vertical; debajo y centrados si está horizontal) |
 
 ## En curso
 

@@ -75,7 +75,6 @@ export const es = {
       contacts: 'Contactos',
       timers: 'Temporizadores',
       loads: 'Cargas e indicadores',
-      annotations: 'Anotaciones',
     },
   },
   components: {
@@ -94,7 +93,6 @@ export const es = {
     'timed-contact-no': 'Contacto temporizado NA',
     'timed-contact-nc': 'Contacto temporizado NC',
     lamp: 'Lámpara / señalizador',
-    text: 'Texto libre',
   },
   properties: {
     title: 'Propiedades',
