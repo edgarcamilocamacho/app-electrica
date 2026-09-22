@@ -1,8 +1,12 @@
 # CLAUDE.md
 
-Editor y simulador de circuitos de control eléctrico (símbolos IEC, cableado ortogonal, simulación
-lógica por eventos discretos). 100 % client-side; se distribuye como imagen de contenedor (nginx).
-**V1 completa** — estado vivo en [STATUS.md](STATUS.md).
+Editor y simulador de circuitos de control eléctrico: **vista gráfica de tablero** (cada aparato con
+sus bornes de tornillo y su esquema IEC adentro), cableado ortogonal de borne a borne y simulación
+lógica por eventos discretos. 100 % client-side; se distribuye como imagen de contenedor (nginx).
+
+**En refactor (ronda R5).** La versión anterior —esquema IEC con bobinas y contactos sueltos— está
+congelada en el tag `classic`; no se mantiene. Plan del refactor: [PLAN.md](PLAN.md) §0.5 y §22.
+Estado vivo en [STATUS.md](STATUS.md).
 
 Idioma: el usuario y la interfaz, en **español**; el código (identificadores, tipos, commits de
 código), en inglés salvo los mensajes de commit, que van en español.
@@ -42,19 +46,23 @@ Navegadores de E2E: `pnpm exec playwright install chromium firefox`.
 
 1. **Capas.** `src/core` es TypeScript puro: sin React, zustand, DOM, `app/`, `platform/` ni textos de
    UI (devuelve códigos; la UI traduce). Lo garantizan `tsconfig.core.json` (sin `lib: DOM`) y ESLint.
-2. **Conectividad explícita, nunca geométrica.** Dos redes se unen solo si comparten un vértice. Las
-   conexiones las crean acciones de autoría (`connectAt`, `landFreeTerminals`), nunca la reparación.
-3. **La geometría es dato** (vértices `point`/`terminal` + segmentos). Tras **toda** mutación
-   topológica corre `canonicalize` dentro de la operación; nunca cambia la partición en redes.
+2. **Conectividad explícita, nunca geométrica.** Dos bornes quedan en la misma red solo si un cable
+   los une. Un cable va **de borne a borne**: sin empalmes en el aire, sin derivaciones a mitad de
+   cable y sin extremos libres. Cruzarse, solaparse o pasar por encima de un aparato no conecta.
+3. **La geometría es dato** (posición del aparato + codos del cable). Tras **toda** mutación corre la
+   normalización de codos dentro de la operación; nunca cambia la partición en redes.
 4. **Operaciones puras** `(doc, args, ctx) → EditResult`. `ctx.ids` inyectado (contador en tests).
    El resultado trae el documento aunque sea inválido (vista previa); solo se confirma si `ok`.
-5. **Validez = no agregar violaciones** (V1 solapamiento, V2 punto dentro de otra red, V3 puntos
-   coincidentes de redes distintas, V5 diagonal), comparadas por clave geométrica.
+5. **Validez = no agregar violaciones** (W1 solapamiento colineal entre redes distintas, W2 cable
+   sobre un borne ajeno, W3 codo dentro del tramo de otra red, W4 aparatos superpuestos), comparadas
+   por clave geométrica. El cruce perpendicular es válido.
 6. **Toda mutación del documento pasa por el historial** (`commitDoc` en la tienda). Un clic de goma =
    una entrada; una acción masiva = una entrada; tipear en un campo se coalesce.
 7. **Simulación determinista**: el motor nunca lee el reloj; `advanceTo(t)` lo empuja la UI (o el test).
    Las cargas sensan y no conducen; tres cortos (fase-fase, fase-neutro, fase A–neutro B); una carga
-   enciende solo con fase y neutro de la misma fuente; los timers no agendan dentro de `settle`.
+   enciende solo con fase y neutro de la misma acometida (entre dos fases **no** enciende); los
+   timers no agendan dentro de `settle`. Los contactos de un aparato los mueve un actuador **del
+   mismo aparato**: no hay vínculos por referencia.
 8. **ERROR congela todo** y solo se sale con «Volver a editar» (ni `E` ni Detener lo abandonan).
 
 ## Pruebas

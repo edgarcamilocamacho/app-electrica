@@ -79,6 +79,33 @@ conectividad nunca geométrica, cargas que sensan, las tres reglas de cortocircu
 | Textos del componente | Referencia, descripción y tiempo del temporizador apilados contra el contorno del símbolo (sin las patas): abajo a la derecha si está vertical; justo debajo y centrados si está horizontal. L y N de la fuente pasan a la izquierda del cable [Técnica] | R4 §7, §8 | — |
 | Modo oscuro en el lienzo | El lienzo y los íconos de la biblioteca también se oscurecen (paleta oscura del diagrama); la exportación sigue con la clara | R4 §6 | §15 |
 
+### 0.5 Ronda 5 (2026-09-22, refactor a vista gráfica de tablero)
+
+La versión anterior —esquema IEC con representación dispersa— queda congelada en el tag `classic`.
+Los puntos de esta ronda son los que citan las etiquetas `R5 §n` de
+[docs/DECISIONES.md](docs/DECISIONES.md) y de los comentarios del código.
+
+| # | Decisión |
+|---|---|
+| R5 §1 | **Vista gráfica de tablero**: cada aparato se dibuja como su base, con los bornes de tornillo numerados y su esquema IEC adentro. Reemplaza la representación dispersa (bobina y contactos sueltos unidos por referencia). Los aparatos no rotan ni se superponen; la etiqueta va dentro del cuerpo |
+| R5 §2 | Acometidas **monofásica, bifásica y trifásica**, dibujadas como la bajada de un poste. Internamente, varias fuentes independientes con el neutro unido |
+| R5 §3 | Los cables llevan **su propio color**, un poco oscuro; al energizarse **se iluminan** y proyectan un brillo de su mismo color |
+| R5 §4 | Un cable une **exactamente dos bornes**, empieza y termina en un tornillo, y solo puede solaparse con otro de su misma red. Sin empalmes en el aire ni extremos libres |
+| R5 §5 | **Tres calibres** de cable |
+| R5 §6 | Un **número pequeño** junto al borne indica cuántos cables tiene. Sin límite definido por ahora |
+| R5 §7 | **Pulsadores** con un contacto, un borne arriba y otro abajo, como el piloto; adentro solo el símbolo, sin tapa redonda |
+| R5 §8 | **Tacos** de uno, dos y tres polos |
+| R5 §9 | **Contactor**: tornillos de potencia más grandes; A1 y A2 arriba, entre 1/L1, 3/L2 y 5/L3 y un poco más altos; 1NA + 1NC |
+| R5 §10 | **Piloto** sin doble círculo: el círculo del símbolo es el que alumbra. Se agrega una carga con forma de **foco** |
+| R5 §11 | **UPS / inversor**: entrada de alterna que solo enciende su indicador y salida de alterna **constante**, como fuente independiente |
+| R5 §12 | Fuera de alcance: motores, relé térmico y cargas entre dos fases |
+| R5 §13 | **TON y TOF** son dos aparatos independientes |
+| R5 §14 | El cortocircuito **sigue congelando todo** en ERROR |
+| R5 §15 | **Sin compatibilidad** con los archivos de la versión clásica |
+| R5 §16 | **Solo modo claro**, con el lienzo en un fondo tipo hoja, apenas amarillo; la exportación sale con fondo blanco |
+
+Detalle del refactor y sus hitos: §22.
+
 ---
 
 ## 1. Interpretación del producto
@@ -1389,7 +1416,119 @@ fixtures lo piden; documentación final; auditoría contra el §21.
 
 ---
 
-## 22. Bitácora
+## 22. Refactor a vista gráfica de tablero [R5]
+
+Lo de antes sigue siendo cierto en su mayor parte: capas, pureza del núcleo, operaciones que
+devuelven un borrador validado, historial por snapshots, simulación por eventos discretos. Lo que
+cambia es **qué se dibuja** y **cómo se conecta**.
+
+### 22.1 El cambio de fondo
+
+| Antes (`classic`) | Ahora |
+|---|---|
+| Representación **dispersa**: la bobina `K1` y cada contacto `K1` son componentes separados, unidos por una referencia de texto | Representación **integrada**: un contactor es un aparato con sus 12 bornes; bobina y contactos viven adentro |
+| Cableado como **grafo** de vértices y tramos, con empalmes, derivaciones y extremos libres | Cable de **dos extremos**: de un borne a otro, con codos propios |
+| Conectividad por **vértice compartido** | Conectividad por **borne** |
+| Símbolo IEC suelto sobre el papel | Base del aparato + esquema IEC adentro |
+
+### 22.2 Modelo de documento (esquema v2)
+
+```ts
+interface DeviceInstance { id; type; position: Point; props }      // sin rotación [R5 §1]
+interface Wire {
+  id;
+  a: TerminalRef; b: TerminalRef;        // { deviceId, terminalId } — siempre dos bornes [R5 §4]
+  bends: readonly Point[];               // codos propios del cable, ruta ortogonal
+  color: WireColor;                      // paleta fija [R5 §3]
+  gauge: 1 | 2 | 3;                      // tres calibres [R5 §5]
+}
+```
+
+La geometría sigue siendo dato (§1.2), pero el grafo desaparece: no hay `vertices` ni `segments`
+compartidos. La **red** es el conjunto de bornes unidos por cables, calculado con union-find sobre
+`Wire.a`/`Wire.b`; `connectivity/nets.ts` se vuelve trivial y `topology/canonicalize.ts` se reduce a
+normalizar los codos redundantes de **un mismo** cable.
+
+### 22.3 Catálogo declarativo
+
+Cada tipo declara sus bornes, sus **elementos internos** y cómo se dibuja:
+
+```ts
+interface DeviceDefinition {
+  type; category; refPrefix;
+  size: { w; h };                                   // en unidades de grid
+  terminals: readonly { id; offset; dir; screw: 'power' | 'control' }[];   // [R5 §9]
+  internals: {
+    actuators: readonly { id; kind: 'coil' | 'timer' | 'manual'; ... }[];
+    contacts:  readonly { a; b; normal: 'NO' | 'NC'; actuator }[];
+    loads:     readonly { a; b; look: 'pilot' | 'bulb' | 'indicator' }[];
+    sources:   readonly { phases: readonly TerminalId[]; neutral: TerminalId }[];
+  };
+  art: DeviceArt;                                   // cuerpo, filas de tornillos, posición de cada símbolo
+  props: readonly PropSpec[];
+}
+```
+
+El motor eléctrico trabaja sobre **elementos**, no sobre tipos: un contacto sabe qué actuador lo
+mueve dentro de su propio aparato y el índice de vínculos por referencia desaparece (§8).
+
+### 22.4 Modelo eléctrico
+
+- La identidad de fase sigue siendo `(sourceId, phaseIndex)` [R2 §11], que era justamente la
+  previsión para esto: una acometida declara **una a tres fases** y un neutro común [R5 §2].
+- "Misma alimentación" = mismo `sourceId`, así que una carga entre fase y neutro del mismo poste
+  enciende, y entre dos fases **no** [R5 §12].
+- La UPS es un aparato con **una carga** (su entrada, que solo enciende el indicador) y **una fuente
+  propia siempre activa** (su salida). Unir esa salida con la red es corto por la regla de fases de
+  fuentes distintas [R5 §11].
+- `solve`, `settle`, la cola de eventos y el modo ERROR no cambian [R5 §14].
+
+### 22.5 Validez y edición
+
+Reglas del validador (reemplazan V1–V5):
+
+| # | Regla |
+|---|---|
+| W1 | Dos cables de **redes distintas** no pueden solaparse en colineal; los de la misma red sí [R5 §4] |
+| W2 | Un cable no puede pasar exactamente por un **borne ajeno** |
+| W3 | Un codo de un cable no puede caer **dentro de un tramo** de otro cable de otra red (T sin unión) |
+| W4 | Dos **aparatos** no pueden superponerse [R5 §1] |
+
+El cruce perpendicular sigue siendo válido. Una operación es válida si no **agrega** violaciones,
+igual que antes (§5.5). Al mover un aparato, cada cable conectado se vuelve a rutear entre sus dos
+bornes conservando la forma; es un caso más simple que la reparación actual, porque el cable no
+comparte geometría con nadie.
+
+### 22.6 Dibujo
+
+`app/symbols/Symbols.tsx` pasa a ser la **biblioteca de símbolos internos** (bobina, contactos NA/NC,
+contactos temporizados, lámpara, foco), y un renderizador único dibuja cualquier aparato a partir de
+su `art`: cuerpo, filas de tornillos con su número, etiquetas de borne, símbolos internos y las
+partes móviles que conmutan en la simulación. Agregar un aparato es agregar datos, no un componente
+React nuevo. Solo modo claro, papel color hoja y fondo blanco al exportar [R5 §16].
+
+### 22.7 Hitos
+
+| Hito | Contenido |
+|---|---|
+| **G0** | Ronda R5 en DECISIONES.md, este plan, invariantes de CLAUDE.md y STATUS.md. Tag `classic` |
+| **G1** | Núcleo: documento v2, cables de dos extremos, nets y validador nuevos, catálogo declarativo con elementos internos, `solve`/`settle` sobre elementos. Aparatos mínimos: acometida monofásica, taco, contactor, pulsador, piloto. Pruebas unitarias |
+| **G2** | Interfaz: renderizador declarativo de aparatos, biblioteca, herramienta Cable de borne a borne con color y calibre, propiedades, goma, mover y arrastrar. Pruebas de integración |
+| **G3** | Catálogo completo: acometida bifásica y trifásica, tacos 2P y 3P, relés de 8 y 11 pines, TON, TOF, interruptor, selector, parada de emergencia, foco, UPS |
+| **G4** | Simulación en la vista nueva: contactos que conmutan, cables que se iluminan, temporizadores con su tiempo, ERROR congelado |
+| **G5** | Persistencia v2 sin migración, autoguardado, ejemplos nuevos, exportación con fondo blanco, modo claro único |
+| **G6** | E2E completos, limpieza del catálogo disperso y de los restos del grafo, documentación al día |
+
+### 22.8 Qué se conserva del código
+
+Historial, persistencia (zod, versionado), diagnósticos, i18n, exportación, plataforma, contenedor,
+tienda y máquina de herramientas, cola de eventos y `settle`, y la disciplina de capas. Se
+reescriben: `registry/`, `topology/` (ops, validez, reparación, canonicalize reducida),
+`connectivity/`, el armado del modelo de simulación, los símbolos y los ejemplos.
+
+---
+
+## 23. Bitácora
 
 | Fecha | Versión | Cambio |
 |---|---|---|
@@ -1398,3 +1537,4 @@ fixtures lo piden; documentación final; auditoría contra el §21.
 | 2026-09-21 | v0.3 | Ronda 2: RTO eliminado (V1 = TON + TOF); Mover clic-tomar-clic; validador con restricción dura contra solapamientos; semántica completa de la goma; diagnósticos bloqueantes; copiar/pegar, exportación, autoguardado y ejemplos en V1; atajos en español; etiquetas de origen en cada decisión; hitos reordenados con el núcleo topológico primero. Ver §0.3 |
 | 2026-09-21 | v0.4 | Ronda 3 (respondida en la conversación): contactos ambiguos inválidos y bloqueantes; stack aprobado, git solo local; inserción en serie; contactos temporizados genéricos; rotación inválida rechazada; prioridad de la goma; exportación PNG/PDF/SVG del diagrama completo; `estadoInicial` en el documento; interpretaciones I1–I18 aceptadas. **Plan listo para implementar.** Ver §0.2 |
 | 2026-09-21 | v0.5 | Agregado de producto: la app corre dentro de un contenedor. Imagen multi-etapa con nginx sin privilegios, política de caché dentro de la imagen, `compose.yaml`, contenedor desde M0, pruebas de humo y de versión contra la imagen real. Q3.9 deja de afectar el diseño. Ver §16 |
+| 2026-09-22 | v0.6 | Ronda 5: refactor a **vista gráfica de tablero**. Aparatos con sus bornes y su esquema adentro, cable de dos extremos con color y calibre, acometidas de una a tres fases, UPS, solo modo claro. La versión anterior queda en el tag `classic`. Ver §0.5 y §22 |

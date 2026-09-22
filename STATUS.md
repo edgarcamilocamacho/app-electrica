@@ -6,8 +6,21 @@
 
 ## Resumen
 
-**V1 implementada.** Los hitos M0–M19 del [PLAN.md](PLAN.md) están completos, con pruebas en los tres
-niveles.
+**Refactor R5 en marcha: vista gráfica de tablero.** Cada aparato pasa a dibujarse como su base, con
+los bornes de tornillo numerados y su esquema IEC adentro, y el cable pasa a unir exactamente dos
+bornes. El detalle está en [PLAN.md](PLAN.md) §0.5 y §22, y las reglas vigentes en
+[docs/DECISIONES.md](docs/DECISIONES.md).
+
+- La versión anterior (esquema IEC disperso, V1 + R4) quedó congelada en el tag **`classic`**, en el
+  commit `f5ceecc`. No se mantiene ni se despliega en paralelo.
+- Hito **G0 (documentación) terminado**. Sigue **G1**: núcleo del modelo nuevo.
+- Referencia visual del estilo: la maqueta que aprobó producto (contactor, relé, temporizador,
+  pulsadores, pilotos y cableado iluminado).
+- Mientras dure el refactor, lo que sigue abajo describe la versión `classic`, salvo lo que este
+  resumen contradiga.
+
+**V1 implementada** (estado del tag `classic`). Los hitos M0–M19 del [PLAN.md](PLAN.md) están
+completos, con pruebas en los tres niveles.
 
 | Nivel | Resultado |
 |---|---|
@@ -36,7 +49,19 @@ niveles.
 
 ## En curso
 
-Nada. A la espera de revisión de producto.
+**G1 — núcleo de la vista gráfica.** Documento v2 (aparatos + cables de dos extremos), redes por
+borne, validador W1–W4, catálogo declarativo con elementos internos y modelo de simulación sobre
+esos elementos.
+
+Consecuencias del refactor que ya están decididas y todavía no implementadas:
+
+- Desaparecen los componentes sueltos (bobina, contactos, contactos temporizados) y con ellos los
+  diagnósticos de referencia rota o duplicada bloqueante.
+- Desaparecen los extremos libres, los empalmes, la inserción en serie, el terminal sobre terminal y
+  la rotación de componentes.
+- Se quita el **modo oscuro** (R5 §16): queda solo el claro, con el lienzo en color hoja y la
+  exportación en blanco.
+- Los archivos de la versión clásica dejan de abrirse, con un mensaje claro (R5 §15).
 
 ## Tests fallando
 
