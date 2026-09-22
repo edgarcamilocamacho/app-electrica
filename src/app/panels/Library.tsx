@@ -3,6 +3,7 @@ import { t } from '../i18n/t';
 import { useEditor, useEditorStore, useRegistry } from '../store/context';
 import { SYMBOLS } from '../symbols/Symbols';
 import { COLORS } from '../theme';
+import { TEXT_ICON_PATH } from '../toolbar/icons';
 
 const CATEGORIES: readonly ComponentCategory[] = ['sources', 'manual', 'relays', 'contacts', 'timers', 'loads'];
 
@@ -63,7 +64,7 @@ export function Library() {
             onClick={() => store.getState().setTool('text')}
           >
             <svg className="lib-thumb" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 6V4h14v2M12 4v16M9 20h6" fill="none" stroke={COLORS.ink} strokeWidth="1.8" strokeLinecap="round" />
+              <path d={TEXT_ICON_PATH} fill="none" stroke={COLORS.ink} strokeWidth="1.8" strokeLinecap="round" />
             </svg>
             <span>{t('components.text')}</span>
           </button>
