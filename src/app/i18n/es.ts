@@ -125,6 +125,23 @@ export const es = {
     wireHint: 'Hacé clic en un tornillo para empezar el cable y en otro para terminarlo.',
     terminals: 'Bornes',
     wireCount: '{count} cables',
+    diag: {
+      WIRE_OVERLAP: 'Dos cables de redes distintas comparten recorrido en ({x}, {y}).',
+      WIRE_ON_TERMINAL: 'Un cable pasa justo por un borne ajeno en ({x}, {y}).',
+      BEND_ON_WIRE: 'Un codo cae sobre un cable de otra red en ({x}, {y}).',
+      DEVICE_OVERLAP: 'Dos aparatos quedan superpuestos.',
+      BROKEN_WIRE: 'Un cable apunta a un borne que ya no existe.',
+      REF_REPEATED: 'La etiqueta {ref} se repite en {count} aparatos.',
+      NO_SOURCE: 'El tablero no tiene ninguna acometida.',
+      UNWIRED_DEVICE: 'Hay un aparato sin cables.',
+    },
+    fault: {
+      shortPhasePhase: 'Cortocircuito entre dos fases.',
+      shortPhaseNeutral: 'Cortocircuito entre fase y neutro.',
+      oscillation: 'El circuito oscila: un cambio se realimenta sin estabilizarse.',
+      frozen: 'Todo quedó congelado para poder inspeccionarlo.',
+      back: 'Volver a editar',
+    },
   },
   properties: {
     title: 'Propiedades',

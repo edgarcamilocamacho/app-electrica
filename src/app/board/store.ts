@@ -6,6 +6,7 @@
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { boardRegistry } from '../../core/board/catalog';
+import { blockingDiagnostics, computeDiagnostics, type BoardDiagnostic } from '../../core/board/diagnostics';
 import type { BoardDocument, TerminalRef, WireColor, WireGauge } from '../../core/board/model';
 import { DEFAULT_WIRE_COLOR, DEFAULT_WIRE_GAUGE, deviceOuterRect, emptyBoard } from '../../core/board/model';
 import {
@@ -150,6 +151,9 @@ export interface BoardState {
   setViewport(viewport: Partial<Viewport>): void;
   fitView(size: { width: number; height: number }): void;
   loadDocument(doc: BoardDocument): void;
+
+  /** Diagnósticos del documento actual; simular exige cero bloqueantes. */
+  diagnostics(): readonly BoardDiagnostic[];
 
   // Simulación
   startSim(): void;
@@ -494,8 +498,15 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
         });
       },
 
+      diagnostics: () => computeDiagnostics(docOf(get()), registry),
+
       startSim() {
         clearTransient();
+        const blocking = blockingDiagnostics(computeDiagnostics(docOf(get()), registry));
+        if (blocking.length > 0) {
+          set({ status: { text: String(blocking.length), tone: 'error' } });
+          return;
+        }
         engine = new BoardSimEngine(docOf(get()), registry);
         const snapshot = engine.start();
         set({ mode: snapshot.mode === 'error' ? 'error' : 'simulating', sim: snapshot });

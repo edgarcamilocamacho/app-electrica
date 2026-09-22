@@ -6,6 +6,7 @@ import { useEffect, useMemo, type ReactElement } from 'react';
 import { useStore } from 'zustand';
 import { WIRE_COLORS, WIRE_GAUGES, type WireColor, type WireGauge } from '../../core/board/model';
 import type { DeviceDefinition } from '../../core/board/registry';
+import type { SimSnapshot } from '../../core/board/sim/engine';
 import { t } from '../i18n/t';
 import { BoardCanvas } from './BoardCanvas';
 import { docOf, selectionOf, SPEEDS, type BoardStore, type BoardToolKind } from './store';
@@ -114,6 +115,9 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
     return [...groups.entries()];
   }, [state.registry]);
 
+  const diagnostics = useMemo(() => state.diagnostics(), [state]);
+  const blocking = diagnostics.filter((d) => d.severity === 'blocking');
+
   const selectedDevice = selection.devices.length === 1 ? doc.devices[selection.devices[0]!] : undefined;
   const selectedDef = selectedDevice ? state.registry.get(selectedDevice.type) : undefined;
 
@@ -152,7 +156,13 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
         </button>
         <span className="tablero__sep" />
         {state.mode === 'edit' ? (
-          <button type="button" className="tablero__btn" onClick={() => store.getState().startSim()}>
+          <button
+            type="button"
+            className="tablero__btn"
+            disabled={blocking.length > 0}
+            title={blocking.length > 0 ? t('messages.cannotSimulate', { count: blocking.length }) : undefined}
+            onClick={() => store.getState().startSim()}
+          >
             {t('toolbar.simulate')}
           </button>
         ) : (
@@ -196,6 +206,16 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
 
       <div className="tablero__canvas">
         <BoardCanvas store={store} />
+        {state.mode === 'error' && (
+          <div className="tablero__error" role="alert">
+            <strong>{t('status.error')}</strong>
+            <span>{faultMessage(state.sim?.fault)}</span>
+            <span>{t('board.fault.frozen')}</span>
+            <button type="button" className="tablero__btn" onClick={() => store.getState().backToEdit()}>
+              {t('board.fault.back')}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="tablero__props">
@@ -205,6 +225,25 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
         ) : (
           <p className="tablero__hint">{t('properties.nothing')}</p>
         )}
+        <div className="tablero__group">
+          <div className="tablero__grouptitle">{t('diagnostics.title')}</div>
+          {diagnostics.length === 0 ? (
+            <p className="tablero__hint">{t('diagnostics.none')}</p>
+          ) : (
+            <ul className="tablero__diags">
+              {diagnostics.map((d) => (
+                <li key={d.key} className={`tablero__diag tablero__diag--${d.severity}`}>
+                  {t(`board.diag.${d.code}` as Parameters<typeof t>[0], {
+                    ...d.params,
+                    x: d.at ? Math.round(d.at.x) : 0,
+                    y: d.at ? Math.round(d.at.y) : 0,
+                    count: d.deviceIds.length,
+                  })}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <div className="tablero__group">
           <div className="tablero__grouptitle">{t('board.wireStyle')}</div>
           <label className="tablero__field">
@@ -247,6 +286,12 @@ export function BoardApp({ store }: { store: BoardStore }): ReactElement {
       </div>
     </div>
   );
+}
+
+function faultMessage(fault: SimSnapshot['fault']): string {
+  if (!fault) return '';
+  if (fault.kind === 'oscillation') return t('board.fault.oscillation');
+  return fault.reason === 'phase-phase' ? t('board.fault.shortPhasePhase') : t('board.fault.shortPhaseNeutral');
 }
 
 function DeviceProps({

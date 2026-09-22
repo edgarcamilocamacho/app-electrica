@@ -204,3 +204,42 @@
 .tablero__swatch--on {
   border-color: var(--tb-accent);
 }
+
+.tablero__diags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12.5px;
+}
+
+.tablero__diag {
+  padding: 5px 7px;
+  margin-bottom: 4px;
+  border-left: 3px solid var(--tb-border);
+  border-radius: 0 5px 5px 0;
+  background: #f7f7f4;
+}
+
+.tablero__diag--blocking {
+  border-left-color: var(--tb-danger);
+  color: var(--tb-danger);
+}
+
+.tablero__diag--warning {
+  border-left-color: var(--tb-warn);
+  color: var(--tb-warn);
+}
+
+.tablero__error {
+  position: absolute;
+  inset: auto 16px 16px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--tb-danger);
+  border-radius: 9px;
+  background: #fff5f5;
+  color: var(--tb-danger);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
