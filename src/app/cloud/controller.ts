@@ -542,6 +542,8 @@ export class CloudController {
     const lease = await this.api.lease(id, { session: this.session, name: this.by(), take: false });
     if (lease.ok && lease.value.granted) await this.becomeEditor(lease.value.version);
     else this.becomeViewer(lease.ok ? lease.value.editor : null);
+    // Un rechazo que no es falta de red no se debe tragar: se queda mirando, pero avisa.
+    if (!lease.ok && lease.code !== 'NETWORK') this.fail(lease.code);
   }
 
   /** Carga un documento del servidor en el tablero. No es una edición: no se vuelve a subir. */

@@ -1628,8 +1628,8 @@ puede cumplir eso sin CORS, que no se habilita.
 | `PATCH /api/docs/:id` | Renombra: `{ name }` |
 | `DELETE /api/docs/:id` | A la papelera |
 | `POST /api/docs/:id/restore` | Sale de la papelera |
-| `POST /api/docs/:id/lease` · `DELETE …/lease` | Pedir o tomar el turno · soltarlo |
-| `GET /api/docs/:id/state` | Versión, nombre, papelera y editor: lo que consulta quien mira |
+| `POST /api/docs/:id/lease` · `POST …/release` | Pedir o tomar el turno · soltarlo (con `keepalive` al cerrar la pestaña) |
+| `GET /api/docs/:id/state` | Versión, nombre, papelera y editor: lo que consulta quien mira (sesión en `X-Simulador-Session`) |
 
 Límites [Técnica]: documento ≤ 2 MB, nombre ≤ 120 caracteres, 5000 tableros y 1 GB en total.
 Errores con código (`NOT_FOUND`, `NOT_EDITOR`, `STALE`, `INVALID_DOCUMENT`, `QUOTA`…), sin detalles

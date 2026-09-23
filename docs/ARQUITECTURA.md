@@ -92,11 +92,19 @@ Simular → cero diagnósticos bloqueantes → new BoardSimEngine(doc) → start
 - `vite.config.ts` inyecta `__BUILD_ID__` (variable `BUILD_ID`) y emite `dist/version.json`.
 - El cliente consulta `version.json` sin caché al abrir, al volver a la pestaña y cada 5 minutos;
   ante un build distinto ofrece recargar.
-- `Dockerfile`: compila con Node 24 y sirve con nginx sin privilegios en el puerto 8080.
+- `Dockerfile`: una etapa compila cliente y API con Node 24; de ahí salen dos imágenes. `api`: Node
+  24 sin npm, un solo `server.js`, usuario `node`, datos en `/data`. `web` (la última, la de
+  `docker build .`): nginx sin privilegios en el puerto 8080.
+- `compose.yaml`: proyecto fijo `simulador`, volumen `simulador_datos`, puerto atado a `127.0.0.1`,
+  los dos servicios con `read_only`, `cap_drop: ALL`, `no-new-privileges` y límites de memoria y
+  procesos; la API solo en la red `fondo` (`internal: true`), sin salida a internet.
 - `deploy/nginx.conf`: `no-store` para `/`, `index.html`, `version.json` y `/healthz`; `immutable` para
-  `/assets/`; 404 real para assets inexistentes; CSP `default-src 'self'` en todas las rutas.
-- `scripts/docker-smoke.mjs`: construye la imagen, verifica cabeceras, corre E2E contra ella
-  (`--e2e`) y prueba la actualización en caliente reemplazando el contenedor (`--upgrade`).
+  `/assets/`; 404 real para assets inexistentes; CSP `default-src 'self'` en todas las rutas. Proxy de
+  `/api` a `api:3000` resuelto en cada petición, con límite por IP (30/s, ráfaga 100), cuerpo de hasta
+  5 MB y el host original (puerto incluido) para que la API compare el `Origin`.
+- `scripts/docker-smoke.mjs`: levanta el compose en un proyecto aparte y verifica cabeceras, la API a
+  través de nginx, el endurecimiento y que los tableros sobreviven a recrear los contenedores; con
+  `--e2e` corre los E2E contra ellos y con `--upgrade` cambia el build con la página abierta.
 
 ## Pruebas
 

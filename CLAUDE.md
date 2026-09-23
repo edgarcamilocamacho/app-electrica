@@ -26,8 +26,8 @@ código), en inglés salvo los mensajes de commit, que van en español.
 
 No volver a preguntar decisiones ya registradas en DECISIONES.md salvo que aparezca una contradicción
 técnica concreta. Una decisión nueva de producto se agrega ahí con su origen; lo que se decida sin
-producto se etiqueta `[Técnica]` y se anota en STATUS.md. Única
-decisión abierta: proveedor de despliegue (no afecta el código).
+producto se etiqueta `[Técnica]` y se anota en STATUS.md. No hay
+decisiones abiertas: el despliegue es un servidor propio con Docker y acceso por Tailscale (R6 §11).
 
 ## Comandos
 
@@ -38,9 +38,9 @@ pnpm check            # typecheck + lint + unit/integración — obligatorio ant
 pnpm e2e              # Playwright, Chromium + Firefox (build + preview automáticos)
 pnpm e2e:chromium     # más rápido mientras se itera
 pnpm exec vitest run tests/unit/board       # una carpeta
-node scripts/docker-smoke.mjs [--e2e] [--upgrade]   # imagen real: cabeceras, E2E, actualización en caliente
+node scripts/docker-smoke.mjs [--e2e] [--upgrade]   # contenedores reales: cabeceras, API, endurecimiento, persistencia
 node scripts/shot.mjs catalogo out.png [REF]         # captura del lienzo para revisar el dibujo a ojo
-docker compose up --build                            # http://localhost:8080
+docker compose up -d --build                         # http://localhost:8080 (web + api, datos en simulador_datos)
 ```
 
 Navegadores de E2E: `pnpm exec playwright install chromium firefox`.

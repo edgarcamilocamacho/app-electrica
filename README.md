@@ -44,26 +44,34 @@ pnpm preview        # sirve dist/ en http://localhost:4173
 
 ## Contenedor
 
-La app se distribuye como imagen de contenedor: nginx sin privilegios sirviendo `dist/` en el puerto
-**8080**. La política de caché viaja dentro de la imagen ([deploy/nginx.conf](deploy/nginx.conf)).
+La app se distribuye como dos contenedores ([compose.yaml](compose.yaml)): **web** (nginx sin
+privilegios con `dist/` y el proxy de `/api`) y **api** (Node con la base SQLite en el volumen
+`simulador_datos`). Los dos corren sin root y con el sistema de archivos de solo lectura; la API no
+tiene salida a internet. La política de caché viaja dentro de la imagen
+([deploy/nginx.conf](deploy/nginx.conf)).
 
 ```bash
-docker compose up --build                  # http://localhost:8080
-# o bien
-pnpm docker:build                          # BUILD_ID = hash del commit
-docker run --rm -p 8080:8080 simulador-control-electrico
+docker compose up -d --build               # http://localhost:8080 (solo en 127.0.0.1)
+SIMULADOR_PUERTO=9090 docker compose up -d # otro puerto
+docker compose logs -f api                 # registros de la API
+docker compose exec api node server.js backup   # copia de la base en /data/copias
 ```
 
-Prueba de humo sobre la imagen real (construye, levanta, verifica salud y cabeceras de caché):
+El proyecto se llama siempre `simulador`, así que **actualizar es traer el código y relanzar**: los
+tableros quedan en el volumen aunque el repo se vuelva a clonar en otra carpeta. Solo
+`docker compose down -v` los borra. La API deja además una copia diaria de la base en `/data/copias`
+(guarda las últimas 14).
+
+Prueba de humo sobre los contenedores reales, en un proyecto aparte que se borra al terminar:
 
 ```bash
-pnpm docker:smoke                         # construye y verifica
-node scripts/docker-smoke.mjs --e2e       # además corre los E2E (Chromium) contra el contenedor
-node scripts/docker-smoke.mjs --upgrade   # reemplaza el contenedor por otro build con la página
-                                          # abierta y verifica que el cliente se actualiza
+pnpm docker:smoke                         # cabeceras, API por nginx, endurecimiento y persistencia
+node scripts/docker-smoke.mjs --e2e       # además corre los E2E (Chromium) contra los contenedores
+node scripts/docker-smoke.mjs --upgrade   # cambia el build con la página abierta y verifica que el
+                                          # cliente se actualiza sin perder los tableros
 ```
 
-**HTTPS** lo resuelve el host o un proxy inverso delante del contenedor.
+**HTTPS y acceso** los pone Tailscale delante (`tailscale serve`) [R6 §11].
 
 ### Qué no se debe cachear delante del contenedor
 
