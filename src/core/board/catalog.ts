@@ -39,6 +39,15 @@ const bottom = (id: string, label: string, x: number, y: number, screw: 'power' 
   screw,
 });
 
+/** Borne en un costado: el cable sale al oeste o al este. Lo usan los zócalos de 11 pines. */
+const side = (id: string, x: number, y: number, dir: 'E' | 'W'): TerminalDef => ({
+  id,
+  label: id,
+  offset: { x, y },
+  dir,
+  screw: 'control',
+});
+
 const NO_INTERNALS = { actuators: [], contacts: [], loads: [], sources: [] } as const;
 
 const PRESET: PropSpec = { key: 'presetMs', kind: 'durationMs', default: 5000, min: MIN_PRESET_MS, max: MAX_PRESET_MS };
@@ -315,23 +324,44 @@ const SOCKET_8 = {
 
 const RELAY_8 = socketBase({ type: 'relay-8', category: 'relays', ...SOCKET_8 });
 
-/** Zócalo de 11 pines: tres contactos conmutados, con la bobina entre 10 y 2. */
-const RELAY_11 = socketBase({
+/**
+ * Zócalo de 11 pines (tres contactos conmutados). La posición de los tornillos es la del zócalo
+ * real: cuatro arriba (8 7 6 5), cuatro abajo (10 11 1 2), el 9 en el costado izquierdo y el 4 y
+ * el 3 en el derecho. La numeración va dando la vuelta al anillo.
+ */
+const RELAY_11: DeviceDefinition = {
   type: 'relay-11',
   category: 'relays',
-  columns: 6,
-  coil: [
-    { id: '10', column: 0 },
-    { id: '2', column: 4 },
+  refPrefix: 'K',
+  bounds: { minX: -9, minY: -9, maxX: 9, maxY: 9 },
+  terminals: [
+    top('8', '8', -6, -8),
+    top('7', '7', -2, -8),
+    top('6', '6', 2, -8),
+    top('5', '5', 6, -8),
+    side('4', 8, -3, 'E'),
+    side('3', 8, 3, 'E'),
+    side('9', -8, 3, 'W'),
+    bottom('10', '10', -6, 8),
+    bottom('11', '11', -2, 8),
+    bottom('1', '1', 2, 8),
+    bottom('2', '2', 6, 8),
   ],
-  poles: [
-    { common: { id: '11', column: 1 }, no: { id: '9', column: 0 }, nc: { id: '8', column: 1 } },
-    { common: { id: '1', column: 2 }, no: { id: '3', column: 2 }, nc: { id: '4', column: 3 } },
-    { common: { id: '6', column: 3 }, no: { id: '7', column: 4 }, nc: { id: '5', column: 5 } },
-  ],
-});
+  internals: {
+    ...NO_INTERNALS,
+    actuators: [{ id: 'K', kind: 'coil', terminals: ['10', '2'] }],
+    contacts: [
+      { a: '11', b: '9', normal: 'NO', actuator: 'K' },
+      { a: '11', b: '8', normal: 'NC', actuator: 'K' },
+      { a: '1', b: '3', normal: 'NO', actuator: 'K' },
+      { a: '1', b: '4', normal: 'NC', actuator: 'K' },
+      { a: '6', b: '7', normal: 'NO', actuator: 'K' },
+      { a: '6', b: '5', normal: 'NC', actuator: 'K' },
+    ],
+  },
+  props: [REF, LABEL],
+};
 
-/** Temporizadores: dos aparatos independientes, en el mismo zócalo de 8 pines [R5 §13]. */
 const TIMER_TON = socketBase({
   type: 'timer-ton',
   category: 'timers',

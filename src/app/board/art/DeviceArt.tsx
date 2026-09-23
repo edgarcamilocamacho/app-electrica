@@ -8,12 +8,15 @@ import type { DeviceInstance } from '../../../core/board/model';
 import { terminalKey } from '../../../core/board/model';
 import type { DeviceDefinition, TerminalDef } from '../../../core/board/registry';
 import type { DeviceView } from '../../../core/board/sim/engine';
+import type { Dir, Point } from '../../../core/model/types';
 import { BOARD_PALETTE, BOARD_STROKE, BODY_STROKE, FONT_FAMILY, LEAD, SMALL_FONT } from '../theme';
 import {
   Body,
   BulbSymbol,
   Caption,
   Changeover,
+  changeoverTip,
+  type ChangeoverGeometry,
   Coil,
   Conductor,
   Contact,
@@ -75,14 +78,14 @@ export function DeviceArt({ device, def, view, wireCounts, layer = 'both' }: Dev
                 x={t.offset.x}
                 y={t.offset.y}
                 text={t.label}
-                side={t.dir === 'N' ? 'top' : 'bottom'}
+                edge={t.dir}
               />
             )}
             <Screw x={t.offset.x} y={t.offset.y} size={t.screw} text={t.id} />
             <WireCount
               x={t.offset.x}
               y={t.offset.y}
-              side={t.dir === 'N' ? 'top' : 'bottom'}
+              edge={t.dir}
               count={wireCounts?.get(terminalKey({ deviceId: device.id, terminalId: t.id })) ?? 0}
             />
           </g>
@@ -273,9 +276,77 @@ function ManualArt({ device, def, view }: { device: DeviceInstance; def: DeviceD
 }
 
 /**
- * Base enchufable (relé o temporizador), con la disposición del zócalo real: cada común abajo, sus
- * dos contactos arriba y la bobina entre los dos pines del extremo. La geometría sale de la
- * posición de los bornes, así que sirve igual para la base de 8 y la de 11 pines.
+ * Disposición del esquema de cada zócalo. Los tornillos van donde están en el zócalo real, así que
+ * los bornes de un mismo polo caen en costados distintos: por eso cada polo declara dónde queda su
+ * conmutador, y los conductores se rutean solos desde cada borne hasta el punto que le toca.
+ */
+interface PoleLayout {
+  /** Pivote de la cuchilla. */
+  readonly pivot: Point;
+  /** Hacia dónde quedan los dos contactos fijos. */
+  readonly toward: Dir;
+  /** Lado del eje (−1 o +1) en el que se apoya el contacto NA. */
+  readonly noSide: -1 | 1;
+  /** Largo de la cuchilla, si el sitio pide una más corta. */
+  readonly length?: number;
+}
+
+interface SocketLayout {
+  /** Por borne común. */
+  readonly poles: Readonly<Record<string, PoleLayout>>;
+  /** Centro de la bobina. */
+  readonly coil: Point;
+  /** Tramos punteados del vínculo mecánico. */
+  readonly link: string;
+}
+
+const BLADE_LENGTH = 3.2;
+const BLADE_SPREAD = 1;
+const COIL_SIZE = { w: 2.6, h: 1.7 };
+
+/** Zócalo de 8 pines: los dos comunes abajo y sus cuatro contactos arriba. */
+const SOCKET_8_ART: SocketLayout = {
+  poles: {
+    '8': { pivot: { x: -4, y: -2.2 }, toward: 'N', noSide: -1 },
+    '1': { pivot: { x: 4, y: -2.2 }, toward: 'N', noSide: 1 },
+  },
+  coil: { x: 0, y: 5.15 },
+  link: 'M-5 -3.8H5M0 -3.8V4.3',
+};
+
+/** Zócalo de 11 pines: el 9 sale por el costado izquierdo y el 3 y el 4 por el derecho. */
+const SOCKET_11_ART: SocketLayout = {
+  poles: {
+    // El polo del 9 abre hacia el oeste: sus dos fijos se apilan y cada borne entra derecho.
+    '11': { pivot: { x: -2.8, y: 2 }, toward: 'W', noSide: 1, length: 2.6 },
+    '1': { pivot: { x: 2, y: 0.8 }, toward: 'E', noSide: 1 },
+    '6': { pivot: { x: 2, y: -2.4 }, toward: 'N', noSide: -1 },
+  },
+  coil: { x: 0, y: 5.15 },
+  link: 'M-4.5 0.8H5M-4.5 0.8V2.8M2 0.8V-2.4M0 0.8V4.3',
+};
+
+const SOCKET_ART: Readonly<Record<string, SocketLayout>> = {
+  'relay-8': SOCKET_8_ART,
+  'timer-ton': SOCKET_8_ART,
+  'timer-tof': SOCKET_8_ART,
+  'relay-11': SOCKET_11_ART,
+};
+
+/** Conductor de un borne a un punto del esquema: sale recto del tornillo y dobla una vez. */
+function leadPath(terminal: TerminalDef, to: Point): string {
+  const from = {
+    x: terminal.offset.x + (terminal.dir === 'W' ? LEAD : terminal.dir === 'E' ? -LEAD : 0),
+    y: terminal.offset.y + (terminal.dir === 'N' ? LEAD : terminal.dir === 'S' ? -LEAD : 0),
+  };
+  const vertical = terminal.dir === 'N' || terminal.dir === 'S';
+  const corner = vertical ? { x: from.x, y: to.y } : { x: to.x, y: from.y };
+  return `M${from.x} ${from.y}L${corner.x} ${corner.y}L${to.x} ${to.y}`;
+}
+
+/**
+ * Base enchufable (relé o temporizador): el cuerpo con sus tornillos donde están en el zócalo real
+ * y, adentro, la bobina y un conmutador por polo.
  */
 function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
   const actuator = def.internals.actuators[0];
@@ -283,85 +354,51 @@ function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDe
   const timer = actuator?.kind === 'timer' ? actuator.timerType : undefined;
   const on = timer ? view?.timer?.output === true : view?.energized === true;
   const coilPins = actuator && actuator.kind !== 'manual' ? actuator.terminals : undefined;
-
-  // Los contactos, arriba y pegados a sus bornes; los comunes suben por columnas limpias [maqueta].
-  const FIXED_Y = -5.4;
-  const PIVOT_Y = -2.2;
-  const SPREAD = 1;
-  const LINK_Y = (FIXED_Y + PIVOT_Y) / 2;
+  const art = SOCKET_ART[def.type];
+  if (!art) return <Body bounds={def.bounds} />;
 
   const commons = [...new Set(def.internals.contacts.map((c) => c.a))];
-  const poles = commons.map((common) => {
-    const no = def.internals.contacts.find((c) => c.a === common && c.normal === 'NO');
-    const nc = def.internals.contacts.find((c) => c.a === common && c.normal === 'NC');
-    if (!no || !nc) return undefined;
-    const noT = at(no.b);
-    const ncT = at(nc.b);
-    const pivotX = (noT.offset.x + ncT.offset.x) / 2;
-    const noSide = noT.offset.x >= ncT.offset.x ? 1 : -1;
-    return {
-      common,
-      noT,
-      ncT,
-      pivotX,
-      noSide,
-      closed: closedOf(view, device.id, common, no.b, false),
-    };
-  });
-
-  // La bobina se centra entre sus pines, pero corrida al carril libre entre dos columnas: así
-  // ninguna columna de común la atraviesa.
-  const gridX0 = Math.min(...def.terminals.map((t) => t.offset.x));
-  const lane = (x: number): number => gridX0 + 2 + Math.round((x - gridX0 - 2) / 4) * 4;
-  const coilCx = coilPins ? lane((at(coilPins[0]).offset.x + at(coilPins[1]).offset.x) / 2) : 0;
-  const coil = { x: coilCx - 1.3, y: 4.5, w: 2.6, h: 1.7 };
-  const pivots = poles.flatMap((pole) => (pole ? [pole.pivotX] : []));
+  const coil = { x: art.coil.x - COIL_SIZE.w / 2, y: art.coil.y - COIL_SIZE.h / 2, ...COIL_SIZE };
 
   return (
     <g>
       <Body bounds={def.bounds} />
       {coilPins && (
         <g>
-          <Conductor
-            d={`M${at(coilPins[0]).offset.x} ${at(coilPins[0]).offset.y - LEAD}V${coil.y + coil.h / 2}H${coil.x}`}
-          />
-          <Conductor
-            d={`M${at(coilPins[1]).offset.x} ${at(coilPins[1]).offset.y - LEAD}V${coil.y + coil.h / 2}H${
-              coil.x + coil.w
-            }`}
-          />
+          <Conductor d={leadPath(at(coilPins[0]), { x: coil.x, y: art.coil.y })} />
+          <Conductor d={leadPath(at(coilPins[1]), { x: coil.x + coil.w, y: art.coil.y })} />
           <Coil x={coil.x} y={coil.y} w={coil.w} h={coil.h} on={on} {...(timer ? { timer } : {})} />
         </g>
       )}
-      {poles.map((pole) =>
-        pole ? (
-          <g key={pole.common}>
-            <Conductor d={`M${at(pole.common).offset.x} ${8 - LEAD}V${PIVOT_Y}H${pole.pivotX}`} />
-            <Conductor
-              d={`M${pole.noT.offset.x} ${pole.noT.offset.y + LEAD}V${FIXED_Y}H${pole.pivotX + pole.noSide * SPREAD}`}
-            />
-            <Conductor
-              d={`M${pole.ncT.offset.x} ${pole.ncT.offset.y + LEAD}V${FIXED_Y}H${pole.pivotX - pole.noSide * SPREAD}`}
-            />
+      {commons.map((common) => {
+        const pole = art.poles[common];
+        const no = def.internals.contacts.find((c) => c.a === common && c.normal === 'NO');
+        const nc = def.internals.contacts.find((c) => c.a === common && c.normal === 'NC');
+        if (!pole || !no || !nc) return null;
+        const geometry: ChangeoverGeometry = {
+          pivot: pole.pivot,
+          toward: pole.toward,
+          length: pole.length ?? BLADE_LENGTH,
+          spread: BLADE_SPREAD,
+        };
+        const closed = closedOf(view, device.id, common, no.b, false);
+        return (
+          <g key={common}>
+            <Conductor d={leadPath(at(common), pole.pivot)} />
+            <Conductor d={leadPath(at(no.b), changeoverTip(geometry, pole.noSide))} />
+            <Conductor d={leadPath(at(nc.b), changeoverTip(geometry, -pole.noSide))} />
             <Changeover
-              pivotX={pole.pivotX}
-              pivotY={PIVOT_Y}
-              fixedY={FIXED_Y}
-              spread={SPREAD}
-              toRight={(pole.closed ? pole.noSide : -pole.noSide) > 0}
+              geometry={geometry}
+              side={closed ? pole.noSide : -pole.noSide}
               {...(timer ? { delay: timer } : {})}
             />
           </g>
-        ) : null,
-      )}
+        );
+      })}
       {/* Vínculo mecánico: cruza las cuchillas y baja a la bobina. */}
-      <MechLink
-        d={`M${Math.min(...pivots, coilCx) - 1} ${LINK_Y}H${Math.max(...pivots, coilCx) + 1}${
-          coilPins ? `M${coilCx} ${LINK_Y}V${coil.y}` : ''
-        }`}
-      />
+      <MechLink d={art.link} />
       {timer && <TimerFace view={view} preset={presetOf(device)} x={def.bounds.maxX - 3.4} />}
-      <TagBlock x={lane(0)} y={1.9} tag={tagOf(device)} {...captionOf(device)} />
+      <TagBlock x={art.coil.x} y={1.9} tag={tagOf(device)} {...captionOf(device)} />
     </g>
   );
 }

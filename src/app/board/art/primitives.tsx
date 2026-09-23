@@ -6,6 +6,7 @@
  */
 import type { ReactElement } from 'react';
 import type { Rect } from '../../../core/model/geometry';
+import type { Dir, Point } from '../../../core/model/types';
 import {
   BOARD_PALETTE,
   BOARD_STROKE,
@@ -81,23 +82,25 @@ export function Screw({
   );
 }
 
-/** Marcación impresa junto al tornillo. `side` es el borde donde está el borne. */
+/** Marcación impresa junto al tornillo, siempre hacia adentro del cuerpo. */
 export function TerminalLabel({
   x,
   y,
   text,
-  side,
+  edge,
 }: {
   x: number;
   y: number;
   text: string;
-  side: 'top' | 'bottom';
+  /** Borde del cuerpo donde está el borne. */
+  edge: Dir;
 }): ReactElement {
+  const horizontal = edge === 'E' || edge === 'W';
   return (
     <text
-      x={x}
-      y={side === 'top' ? y + 1.6 : y - 1.05}
-      textAnchor="middle"
+      x={horizontal ? x + (edge === 'W' ? 1.15 : -1.15) : x}
+      y={horizontal ? y + 0.3 : y + (edge === 'N' ? 1.6 : -1.05)}
+      textAnchor={horizontal ? (edge === 'W' ? 'start' : 'end') : 'middle'}
       fontSize={TERMINAL_FONT}
       fontFamily={FONT_FAMILY}
       fontWeight={600}
@@ -117,20 +120,22 @@ export function WireCount({
   x,
   y,
   count,
-  side = 'top',
+  edge = 'N',
 }: {
   x: number;
   y: number;
   count: number;
-  side?: 'top' | 'bottom';
+  edge?: Dir;
 }): ReactElement | null {
   if (count <= 0) return null;
-  const cy = side === 'top' ? y - 1.05 : y + 1.05;
+  const horizontal = edge === 'E' || edge === 'W';
+  const cx = horizontal ? x : x + 1.05;
+  const cy = horizontal ? y - 1.15 : y + (edge === 'N' ? -1.05 : 1.05);
   return (
     <g>
-      <circle cx={x + 1.05} cy={cy} r={0.48} fill={P.paper} stroke={P.muted} strokeWidth={0.07} />
+      <circle cx={cx} cy={cy} r={0.48} fill={P.paper} stroke={P.muted} strokeWidth={0.07} />
       <text
-        x={x + 1.05}
+        x={cx}
         y={cy + 0.25}
         textAnchor="middle"
         fontSize={SMALL_FONT * 0.9}
@@ -283,33 +288,44 @@ export function Contact({ x, yTop, yBottom, normal, closed, power, delay, color 
 }
 
 /**
- * Contacto conmutado de una base enchufable: el pivote abajo y los dos contactos fijos juntos
- * arriba, para que la cuchilla quede empinada y el símbolo, compacto.
+ * Contacto conmutado de una base enchufable: el pivote y, a `length` en la dirección `toward`, los
+ * dos contactos fijos separados `spread` del eje. Orientable, porque en un zócalo real los bornes
+ * de un mismo polo caen en costados distintos.
  */
+export interface ChangeoverGeometry {
+  readonly pivot: Point;
+  readonly toward: Dir;
+  readonly length: number;
+  readonly spread: number;
+}
+
+/** Punta del contacto fijo que está del lado `side` (−1 o +1) del eje de la cuchilla. */
+export function changeoverTip(geometry: ChangeoverGeometry, side: number): Point {
+  const { pivot, toward, length, spread } = geometry;
+  if (toward === 'N') return { x: pivot.x + side * spread, y: pivot.y - length };
+  if (toward === 'S') return { x: pivot.x + side * spread, y: pivot.y + length };
+  if (toward === 'E') return { x: pivot.x + length, y: pivot.y + side * spread };
+  return { x: pivot.x - length, y: pivot.y + side * spread };
+}
+
 export function Changeover({
-  pivotX,
-  pivotY,
-  fixedY,
-  spread,
-  toRight,
+  geometry,
+  side,
   delay,
 }: {
-  pivotX: number;
-  pivotY: number;
-  fixedY: number;
-  /** Separación de cada contacto fijo respecto del pivote. */
-  spread: number;
-  /** Hacia dónde apunta la cuchilla. */
-  toRight: boolean;
+  geometry: ChangeoverGeometry;
+  /** Lado al que apunta la cuchilla ahora mismo. */
+  side: number;
   delay?: 'TON' | 'TOF';
 }): ReactElement {
-  const tipX = pivotX + (toRight ? spread : -spread);
-  const midX = (pivotX + tipX) / 2;
-  const midY = (pivotY + fixedY) / 2;
+  const { pivot } = geometry;
+  const tip = changeoverTip(geometry, side);
+  const midX = (pivot.x + tip.x) / 2;
+  const midY = (pivot.y + tip.y) / 2;
   return (
     <g>
-      <circle cx={pivotX} cy={pivotY} r={0.15} fill={P.sym} />
-      <Conductor d={`M${pivotX} ${pivotY}L${tipX} ${fixedY}`} width={BOARD_STROKE * 1.25} />
+      <circle cx={pivot.x} cy={pivot.y} r={0.15} fill={P.sym} />
+      <Conductor d={`M${pivot.x} ${pivot.y}L${tip.x} ${tip.y}`} width={BOARD_STROKE * 1.25} />
       {delay && (
         <path
           d={
