@@ -27,7 +27,6 @@ import {
   RotationProvider,
   Screw,
   TagBlock,
-  TerminalLabel,
   useUpright,
   WireCount,
 } from './primitives';
@@ -75,14 +74,6 @@ export function DeviceArt({ device, def, view, wireCounts, layer = 'both' }: Dev
         def.terminals.map((t) => (
           <g key={t.id}>
             <title>{t.label}</title>
-            {t.label !== t.id && (
-              <TerminalLabel
-                x={t.offset.x}
-                y={t.offset.y}
-                text={t.label}
-                edge={t.dir}
-              />
-            )}
             <Screw x={t.offset.x} y={t.offset.y} size={t.screw} text={t.id} />
             <WireCount
               x={t.offset.x}

@@ -15,7 +15,6 @@ import {
   SCREW_RADIUS,
   SMALL_FONT,
   TAG_FONT,
-  TERMINAL_FONT,
 } from '../theme';
 
 const P = BOARD_PALETTE;
@@ -114,47 +113,6 @@ export function Screw({
         />
       )}
     </g>
-  );
-}
-
-/** Marcación impresa junto al tornillo, siempre hacia adentro del cuerpo. */
-export function TerminalLabel({
-  x,
-  y,
-  text,
-  edge,
-}: {
-  x: number;
-  y: number;
-  text: string;
-  /** Borde del cuerpo donde está el borne. */
-  edge: Dir;
-}): ReactElement {
-  const rotation = useRotation();
-  const shown = rotateDir(edge, rotation);
-  const at = placeByEdge(x, y, edge, rotation, {
-    N: { x: 0, y: 1.6 },
-    S: { x: 0, y: -1.05 },
-    W: { x: 1.15, y: 0.3 },
-    E: { x: -1.15, y: 0.3 },
-  });
-  return (
-    <text
-      x={at.x}
-      y={at.y}
-      {...useUpright(at.x, at.y)}
-      textAnchor={shown === 'W' ? 'start' : shown === 'E' ? 'end' : 'middle'}
-      fontSize={TERMINAL_FONT}
-      fontFamily={FONT_FAMILY}
-      fontWeight={600}
-      fill={P.muted}
-      stroke={P.body}
-      strokeWidth={0.45}
-      paintOrder="stroke"
-      strokeLinejoin="round"
-    >
-      {text}
-    </text>
   );
 }
 

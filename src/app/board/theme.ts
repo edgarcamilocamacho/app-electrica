@@ -66,7 +66,6 @@ export const WIRE_WIDTH: Record<WireGauge, number> = { 1: 0.22, 2: 0.32, 3: 0.44
 export const BOARD_STROKE = 0.16;
 export const BODY_STROKE = 0.18;
 export const SCREW_RADIUS = { control: 0.62, power: 0.9 } as const;
-export const TERMINAL_FONT = 0.85;
 export const TAG_FONT = 1.25;
 export const SMALL_FONT = 0.7;
 /**
@@ -76,5 +75,5 @@ export const SMALL_FONT = 0.7;
 export const FONT_FAMILY =
   "'Arial Narrow', 'Liberation Sans Narrow', 'DejaVu Sans Condensed', Helvetica, Arial, sans-serif";
 
-/** Del centro del tornillo al arranque del conductor interno: deja sitio para la marcación. */
+/** Del centro del tornillo al arranque del conductor interno. */
 export const LEAD = 2.1;

@@ -104,7 +104,7 @@ Los puntos de esta ronda son los que citan las etiquetas `R5 §n` de
 | R5 §15 | **Sin compatibilidad** con los archivos de la versión clásica |
 | R5 §16 | **Solo modo claro**, con el lienzo en un fondo tipo hoja, apenas amarillo; la exportación sale con fondo blanco |
 | R5 §17 | Un cable puede quedar **con una punta suelta**: se marca como error y bloquea la simulación, pero se deja armar |
-| R5 §18 | El **número del borne va dentro del tornillo**; la marcación larga (1/L1, 2/T1) se imprime dentro del cuerpo |
+| R5 §18 | El **número del borne va dentro del tornillo** y no se imprime nada más: la marcación larga (1/L1, 2/T1) queda solo como ayuda al pasar el cursor |
 | R5 §19 | Los aparatos **se giran de a 90°** con `R`. **Reemplaza** a «los aparatos no rotan» de R5 §1 |
 | R5 §20 | Los tornillos de una base enchufable van **donde están en el zócalo real**, aunque eso ponga bornes en los costados |
 | R5 §21 | Mientras se simula, lo que se puede accionar **se resalta al pasar el cursor** |
