@@ -31,7 +31,7 @@ try {
   }
   await page.waitForSelector('[data-testid="board-canvas"]');
   await page.evaluate((name) => globalThis.__e2e.loadExample(name), example);
-  await page.getByTestId('fit-view').click().catch(() => {});
+  await page.keyboard.press('a'); // Ajustar la vista.
   await page.waitForTimeout(300);
   if (focus && turns > 0) {
     const box = await page.locator(`[data-ref="${focus}"]`).boundingBox();

@@ -14,7 +14,7 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 
 | Nivel | Resultado |
 |---|---|
-| Unitarias + integración (Vitest) | **140 / 140** |
+| Unitarias + integración (Vitest) | **145 / 145** |
 | E2E (Playwright, Chromium + Firefox) | **40 / 40** (20 flujos × 2 navegadores) |
 
 | Hito | Contenido |
@@ -22,7 +22,7 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 | G0 | Ronda R5 en DECISIONES.md, PLAN.md §0.5 y §22, invariantes de CLAUDE.md, tag `classic` |
 | G1 | Núcleo: documento v2, catálogo declarativo con elementos internos, redes por borne, validador W1–W4, operaciones puras y motor de simulación por elementos |
 | G2 | Interfaz: dibujo de los aparatos, lienzo con pan y zoom, herramientas (Seleccionar, Cable, Borrar, Texto), biblioteca, propiedades y estilo del cable |
-| G3 | Catálogo completo: acometidas de 1 a 3 fases, tacos 1P/2P/3P, contactor, relés de 8 y 11 pines, TON, TOF, pulsadores, parada de emergencia, selector, piloto, foco y UPS |
+| G3 | Catálogo completo: acometidas de 1 a 3 fases, tacos 1P/2P/3P, contactor, relés de 8 y 11 pines, TON, TOFF, pulsadores, parada de emergencia, selector, monitor de energía, protector de fase, piloto, foco y UPS |
 | G4 | Diagnósticos (bloqueantes y avisos) y panel de ERROR |
 | G5 | Archivo v2 con zod, guardar/abrir, autoguardado y exportación PNG/SVG/PDF con fondo blanco |
 | G6 | El tablero es la app: se borró la vista clásica, E2E reescritos y documentación al día |

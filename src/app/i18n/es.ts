@@ -104,6 +104,8 @@ export const es = {
     'relay-11': 'Relé de 11 pines',
     'breaker-1p': 'Taco de 1 polo',
     'contactor-3p': 'Contactor 3P (1NA + 1NC)',
+    'power-monitor': 'Monitor de energía 3F+N (contactor 4P)',
+    'phase-monitor': 'Protector de fase',
     'pilot-lamp': 'Piloto',
     bulb: 'Foco',
   },

@@ -100,6 +100,8 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | **Piloto**: el círculo del símbolo es el que se enciende; no lleva un lente aparte | R5 §10 |
 | En la interfaz el temporizador a la desconexión se llama **TOFF** (con dos efes), no TOF; el tipo interno sigue siendo `timer-tof`. Cada temporizador lleva **TON** o **TOFF** escrito en su carátula: es lo único que los distingue a simple vista | R5 §22 |
 | El borne se identifica con su **número dentro del tornillo**; no se imprime la marcación larga (1/L1, 2/T1), que queda como ayuda al pasar el cursor | R5 §18 |
+| **Monitor de energía**: cuerpo tipo contactor, cuatro polos (A B C N) de arriba (entrada) hacia abajo (salida), con una flecha que marca el sentido, y **un testigo por fase de entrada contra el neutro de entrada**. Arranca cerrado; un clic abre los cuatro polos, que es como se simula que corta. No mide ni muestra valores | R5 §24 |
+| **Protector de fase**: se alimenta por A1–A2, que **solo encienden su testigo** (no conducen), y avisa por un contacto conmutado 11 común, 14 NA, 12 NC. Arranca sano (11–14); un clic simula la falla y pasa a 11–12 | R5 §24 |
 | Los tornillos de una **base enchufable** van donde están en el zócalo real. En la de 11 pines: cuatro arriba (8 7 6 5), cuatro abajo (10 11 1 2), el **9 en el costado izquierdo** y el **4 y el 3 en el derecho**, con el 9 y el 3 a la misma altura | R5 §20 |
 | Fuera del catálogo: motores, relé térmico y los componentes sueltos de la versión clásica (bobina, contactos, contactos temporizados) | R5 §12 |
 | La semántica del selector la define el equipo y puede refinarse al probar la interacción | R2 §12 |

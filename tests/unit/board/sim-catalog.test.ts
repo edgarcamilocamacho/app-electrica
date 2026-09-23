@@ -193,3 +193,66 @@ describe('UPS [R5 §11]', () => {
     if (snap.fault?.kind === 'short') expect(snap.fault.reason).toBe('phase-phase');
   });
 });
+
+describe('monitor de energía con contactor de 4 polos [R5 §24]', () => {
+  it('deja pasar las cuatro vías y un clic las abre', () => {
+    const b = new BoardBuilder();
+    const g = b.device('supply-3p', 0, 0);
+    const k = b.device('power-monitor', 0, 40);
+    const h = b.device('pilot-lamp', 60, 80);
+    b.wire(term(g, 'L1'), term(k, 'A1'));
+    b.wire(term(g, 'N'), term(k, 'N1'));
+    b.wire(term(k, 'A2'), term(h, 'X1'));
+    b.wire(term(k, 'N2'), term(h, 'X2'));
+
+    const engine = engineOf(b);
+    // Arranca cerrado: la fase llega abajo y el piloto enciende.
+    expect(on(engine.start(), h)).toBe(true);
+    engine.toggle(k);
+    expect(on(engine.snapshot(), h)).toBe(false);
+    engine.toggle(k);
+    expect(on(engine.snapshot(), h)).toBe(true);
+  });
+
+  it('cada testigo se enciende solo con su fase de entrada', () => {
+    const b = new BoardBuilder();
+    const g = b.device('supply-3p', 0, 0);
+    const k = b.device('power-monitor', 0, 40);
+    b.wire(term(g, 'L1'), term(k, 'A1'));
+    b.wire(term(g, 'L3'), term(k, 'C1'));
+    b.wire(term(g, 'N'), term(k, 'N1'));
+
+    const loads = engineOf(b).start().devices.get(k)!.loads;
+    expect(loads.get(`${k}:A1-N1`)).toBe(true);
+    // B quedó sin cablear: su testigo no enciende.
+    expect(loads.get(`${k}:B1-N1`)).toBe(false);
+    expect(loads.get(`${k}:C1-N1`)).toBe(true);
+  });
+});
+
+describe('protector de fase [R5 §24]', () => {
+  it('sano manda por 14 y al informar la falla pasa a 12', () => {
+    const b = new BoardBuilder();
+    const g = b.device('supply-1p', 0, 0);
+    const f = b.device('phase-monitor', 0, 40);
+    const sano = b.device('pilot-lamp', 60, 80);
+    const falla = b.device('pilot-lamp', 100, 80);
+    b.wire(term(g, 'L'), term(f, 'A1'));
+    b.wire(term(g, 'N'), term(f, 'A2'));
+    b.wire(term(g, 'L'), term(f, '11'));
+    b.wire(term(f, '14'), term(sano, 'X1'));
+    b.wire(term(f, '12'), term(falla, 'X1'));
+    b.wire(term(g, 'N'), term(sano, 'X2'));
+    b.wire(term(g, 'N'), term(falla, 'X2'));
+
+    const engine = engineOf(b);
+    const snap = engine.start();
+    // La alimentación solo enciende su testigo: no conduce hacia los contactos.
+    expect(snap.devices.get(f)!.loads.get(`${f}:A1-A2`)).toBe(true);
+    expect([on(snap, sano), on(snap, falla)]).toEqual([true, false]);
+
+    engine.toggle(f);
+    const after = engine.snapshot();
+    expect([on(after, sano), on(after, falla)]).toEqual([false, true]);
+  });
+});

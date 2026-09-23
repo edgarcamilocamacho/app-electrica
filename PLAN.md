@@ -110,6 +110,7 @@ Los puntos de esta ronda son los que citan las etiquetas `R5 §n` de
 | R5 §21 | Mientras se simula, lo que se puede accionar **se resalta al pasar el cursor** |
 | R5 §22 | El temporizador a la desconexión se llama **TOFF** en la interfaz, y cada temporizador lleva su clase escrita en la carátula |
 | R5 §23 | Un clic pasa el selector a la **siguiente posición** (I → 0 → II → I), y su perilla muestra en cuál está |
+| R5 §24 | Dos aparatos nuevos: **monitor de energía** (contactor de 4 polos con un testigo por fase de entrada) y **protector de fase** (alimentación que solo enciende un testigo, y aviso por contacto conmutado). Los dos arrancan sanos y se «desactivan» con un clic |
 
 Detalle del refactor y sus hitos: §22.
 

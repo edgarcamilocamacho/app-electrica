@@ -21,6 +21,7 @@ import {
   type ChangeoverGeometry,
   Coil,
   Conductor,
+  Indicator,
   Contact,
   LampSymbol,
   Lever,
@@ -92,6 +93,8 @@ export function DeviceArt({ device, def, view, wireCounts, layer = 'both' }: Dev
 
 function internals(device: DeviceInstance, def: DeviceDefinition, view: DeviceView | undefined): ReactElement {
   if (def.type === 'ups') return <UpsArt device={device} def={def} view={view} />;
+  if (def.type === 'power-monitor') return <PowerMonitorArt device={device} def={def} view={view} />;
+  if (def.type === 'phase-monitor') return <PhaseMonitorArt device={device} def={def} view={view} />;
   if (def.type === 'contactor-3p') return <ContactorArt device={device} def={def} view={view} />;
   if (def.type === 'selector-3') return <SelectorArt device={device} def={def} view={view} />;
   if (def.category === 'sources') return <SupplyArt device={device} def={def} />;
@@ -508,6 +511,99 @@ function SelectorKnob({ x, y, position }: { x: number; y: number; position: numb
       <circle cx={x} cy={y} r={r} fill={P.bodyShade} stroke={P.bodyEdge} strokeWidth={BOARD_STROKE} />
       <Conductor d={`M${x} ${y}L${tip.x} ${tip.y}`} color={P.bodyEdge} width={BOARD_STROKE * 1.6} />
       <circle cx={x} cy={y} r={0.22} fill={P.bodyEdge} />
+    </g>
+  );
+}
+
+/** ¿Está encendida esta carga del aparato? */
+const loadOn = (view: DeviceView | undefined, deviceId: string, a: string, b: string): boolean =>
+  view?.loads.get(`${deviceId}:${a}-${b}`) === true;
+
+/**
+ * Monitor de energía con contactor de cuatro polos [R5 §24]: los cuatro contactos dejan pasar de
+ * arriba hacia abajo (la flecha lo dice) y arriba hay un testigo por fase de entrada.
+ */
+function PowerMonitorArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const at = (id: string) => def.terminals.find((t) => t.id === id)!;
+  const poles: readonly [string, string][] = [
+    ['A1', 'A2'],
+    ['B1', 'B2'],
+    ['C1', 'C2'],
+    ['N1', 'N2'],
+  ];
+  const phases: readonly [string, string][] = [
+    ['A1', P.lamp.red!],
+    ['B1', P.lamp.amber!],
+    ['C1', P.lamp.blue!],
+  ];
+  return (
+    <g>
+      <Body bounds={def.bounds} />
+      {poles.map(([topId, botId]) => {
+        const t = at(topId);
+        const b = at(botId);
+        const closed = closedOf(view, device.id, topId, botId, true);
+        return (
+          <g key={topId}>
+            <Conductor d={`M${t.offset.x} ${t.offset.y + LEAD}V-2.2`} />
+            <Contact x={t.offset.x} yTop={-2.2} yBottom={2.2} normal="NO" closed={closed} power />
+            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - LEAD}`} />
+          </g>
+        );
+      })}
+      {/* Testigos: uno por fase de entrada contra el neutro de entrada. */}
+      {phases.map(([phase, color], i) => {
+        const cx = -4 + i * 4;
+        return (
+          <g key={phase}>
+            <Indicator x={cx} y={-5.6} on={loadOn(view, device.id, phase, 'N1')} color={color} />
+            <Caption x={cx} y={-3.5} text={phase.slice(0, 1)} />
+          </g>
+        );
+      })}
+      {/* Flecha: la energía va de arriba hacia abajo. */}
+      <Conductor d="M0 3.6V6.1" color={P.muted} width={BOARD_STROKE * 1.2} />
+      <path d="M-0.7 5.7L0 6.9L0.7 5.7Z" fill={P.muted} />
+      <MechLink d={`M${at('A1').offset.x - 1.2} 0H${at('N1').offset.x + 1.2}`} />
+      <TagBlock
+        x={(at('N1').offset.x + 1.2 + def.bounds.maxX) / 2}
+        y={-0.2}
+        tag={tagOf(device)}
+        {...captionOf(device)}
+      />
+    </g>
+  );
+}
+
+/**
+ * Protector de fase [R5 §24]: A1–A2 solo encienden su testigo y el aviso sale por un contacto
+ * conmutado. Sano, el común queda con el 14; en falla, con el 12.
+ */
+function PhaseMonitorArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const at = (id: string) => def.terminals.find((t) => t.id === id)!;
+  const a1 = at('A1');
+  const a2 = at('A2');
+  const healthy = closedOf(view, device.id, '11', '14', true);
+  const geometry: ChangeoverGeometry = {
+    pivot: { x: at('11').offset.x, y: 1.5 },
+    toward: 'N',
+    length: 3.2,
+    spread: 1,
+  };
+  const fixedY = geometry.pivot.y - geometry.length;
+  return (
+    <g>
+      <Body bounds={def.bounds} />
+      <Conductor d={`M${a1.offset.x} ${a1.offset.y + LEAD}V-4.2H-1.3`} />
+      <Conductor d={`M${a2.offset.x} ${a2.offset.y + LEAD}V-4.2H1.3`} />
+      <Indicator x={0} y={-4.2} r={1.1} on={loadOn(view, device.id, 'A1', 'A2')} color={P.lamp.green!} />
+      <Conductor d={`M${at('14').offset.x} ${8 - LEAD}V${fixedY}H${geometry.pivot.x - geometry.spread}`} />
+      <Conductor d={`M${at('12').offset.x} ${8 - LEAD}V${fixedY}H${geometry.pivot.x + geometry.spread}`} />
+      <Conductor d={`M${at('11').offset.x} ${8 - LEAD}V${geometry.pivot.y}`} />
+      <Changeover geometry={geometry} side={healthy ? -1 : 1} />
+      {/* La electrónica del protector mueve el contacto. */}
+      <MechLink d={`M0 -3.1V0`} />
+      <TagBlock x={def.bounds.minX + 0.8} y={4.8} tag={tagOf(device)} {...captionOf(device)} anchor="start" />
     </g>
   );
 }

@@ -230,6 +230,72 @@ const EMERGENCY_STOP: DeviceDefinition = {
 };
 
 /** Selector de 3 posiciones: un común y dos salidas [I3]. */
+/**
+ * Monitor de energía con contactor de cuatro polos [R5 §24]: deja pasar las tres fases y el neutro
+ * de arriba hacia abajo, y tiene un indicador por fase de entrada contra el neutro de entrada.
+ * Arranca cerrado; un clic lo abre, que es como se simula que el monitor corta.
+ */
+const POWER_MONITOR: DeviceDefinition = {
+  type: 'power-monitor',
+  category: 'protection',
+  refPrefix: 'K',
+  bounds: { minX: -9, minY: -11, maxX: 13, maxY: 11 },
+  terminals: [
+    top('A1', 'A1', -6, -10, 'power'),
+    top('B1', 'B1', -2, -10, 'power'),
+    top('C1', 'C1', 2, -10, 'power'),
+    top('N1', 'N1', 6, -10, 'power'),
+    bottom('A2', 'A2', -6, 10, 'power'),
+    bottom('B2', 'B2', -2, 10, 'power'),
+    bottom('C2', 'C2', 2, 10, 'power'),
+    bottom('N2', 'N2', 6, 10, 'power'),
+  ],
+  internals: {
+    ...NO_INTERNALS,
+    actuators: [{ id: 'K', kind: 'manual', action: 'maintained' }],
+    contacts: [
+      { a: 'A1', b: 'A2', normal: 'NO', actuator: 'K' },
+      { a: 'B1', b: 'B2', normal: 'NO', actuator: 'K' },
+      { a: 'C1', b: 'C2', normal: 'NO', actuator: 'K' },
+      { a: 'N1', b: 'N2', normal: 'NO', actuator: 'K' },
+    ],
+    loads: [
+      { a: 'A1', b: 'N1', look: 'indicator' },
+      { a: 'B1', b: 'N1', look: 'indicator' },
+      { a: 'C1', b: 'N1', look: 'indicator' },
+    ],
+  },
+  props: [REF, LABEL, CLOSED_INITIALLY],
+};
+
+/**
+ * Protector de fase [R5 §24]: se alimenta por A1–A2, que solo encienden su indicador, y avisa por
+ * un contacto conmutado. Arranca sano (11–14 cerrado); un clic simula la falla y pasa a 11–12.
+ */
+const PHASE_MONITOR: DeviceDefinition = {
+  type: 'phase-monitor',
+  category: 'protection',
+  refPrefix: 'F',
+  bounds: { minX: -7, minY: -9, maxX: 7, maxY: 9 },
+  terminals: [
+    top('A1', 'A1', -2, -8),
+    top('A2', 'A2', 2, -8),
+    bottom('14', '14', -4, 8),
+    bottom('11', '11', 0, 8),
+    bottom('12', '12', 4, 8),
+  ],
+  internals: {
+    ...NO_INTERNALS,
+    actuators: [{ id: 'F', kind: 'manual', action: 'maintained' }],
+    contacts: [
+      { a: '11', b: '14', normal: 'NO', actuator: 'F' },
+      { a: '11', b: '12', normal: 'NC', actuator: 'F' },
+    ],
+    loads: [{ a: 'A1', b: 'A2', look: 'indicator' }],
+  },
+  props: [REF, LABEL, CLOSED_INITIALLY],
+};
+
 const SELECTOR_3: DeviceDefinition = {
   type: 'selector-3',
   category: 'manual',
@@ -419,6 +485,8 @@ export const DEVICE_DEFINITIONS: readonly DeviceDefinition[] = [
   EMERGENCY_STOP,
   SWITCH_NO,
   SELECTOR_3,
+  POWER_MONITOR,
+  PHASE_MONITOR,
   PILOT_LAMP,
   BULB,
 ];

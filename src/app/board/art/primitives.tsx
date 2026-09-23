@@ -413,6 +413,35 @@ export function LampSymbol({ x, y, r, on, color }: { x: number; y: number; r: nu
   );
 }
 
+/** Testigo chico de panel: no es una carga que se cablee, sino lo que el aparato informa. */
+export function Indicator({
+  x,
+  y,
+  r = 0.9,
+  on,
+  color,
+}: {
+  x: number;
+  y: number;
+  r?: number;
+  on: boolean;
+  color: string;
+}): ReactElement {
+  return (
+    <g>
+      {on && <circle cx={x} cy={y} r={r * 1.9} fill={color} opacity={0.25} />}
+      <circle
+        cx={x}
+        cy={y}
+        r={r}
+        fill={on ? color : P.bodyShade}
+        stroke={P.bodyEdge}
+        strokeWidth={BOARD_STROKE * 0.9}
+      />
+    </g>
+  );
+}
+
 /** Foco: carga con forma de bombillo [R5 §10]. */
 export function BulbSymbol({ x, y, r, on, color }: { x: number; y: number; r: number; on: boolean; color: string }): ReactElement {
   return (
