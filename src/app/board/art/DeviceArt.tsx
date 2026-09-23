@@ -7,7 +7,9 @@ import type { ReactElement } from 'react';
 import type { DeviceInstance } from '../../../core/board/model';
 import { terminalKey } from '../../../core/board/model';
 import type { DeviceDefinition, TerminalDef } from '../../../core/board/registry';
+import type { TimerType } from '../../../core/board/registry';
 import type { DeviceView } from '../../../core/board/sim/engine';
+import { t } from '../../i18n/t';
 import type { Dir, Point } from '../../../core/model/types';
 import { BOARD_PALETTE, BOARD_STROKE, BODY_STROKE, FONT_FAMILY, LEAD, SMALL_FONT } from '../theme';
 import {
@@ -26,6 +28,7 @@ import {
   MechLink,
   RotationProvider,
   Screw,
+  Tag,
   TagBlock,
   useUpright,
   WireCount,
@@ -391,14 +394,24 @@ function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDe
       })}
       {/* Vínculo mecánico: cruza las cuchillas y baja a la bobina. */}
       <MechLink d={art.link} />
-      {timer && <TimerFace view={view} preset={presetOf(device)} x={def.bounds.maxX - 3.4} />}
+      {timer && <TimerFace view={view} preset={presetOf(device)} type={timer} x={def.bounds.maxX - 3.4} />}
       <TagBlock x={art.coil.x} y={1.9} tag={tagOf(device)} {...captionOf(device)} />
     </g>
   );
 }
 
-/** Carátula del temporizador: el tiempo que falta y el anillo de avance del preset. */
-function TimerFace({ view, preset, x }: { view?: DeviceView; preset: number; x: number }): ReactElement {
+/** Carátula del temporizador: qué clase es, el tiempo que falta y el anillo de avance del preset. */
+function TimerFace({
+  view,
+  preset,
+  type,
+  x,
+}: {
+  view?: DeviceView;
+  preset: number;
+  type: TimerType;
+  x: number;
+}): ReactElement {
   const timer = view?.timer;
   const fraction = timer && timer.presetMs > 0 ? Math.min(1, timer.elapsedMs / timer.presetMs) : 0;
   const seconds = timer ? Math.max(0, timer.presetMs - timer.elapsedMs) / 1000 : preset / 1000;
@@ -432,7 +445,9 @@ function TimerFace({ view, preset, x }: { view?: DeviceView; preset: number; x: 
       >
         {seconds.toFixed(1)}
       </text>
-      <Caption x={x} y={2.6} text="s" />
+      <Caption x={x} y={2.6} text={t('board.seconds')} />
+      {/* Qué temporizador es: es lo único que distingue a un TON de un TOFF a simple vista. */}
+      <Tag x={x} y={4.6} text={t(`board.timerType.${type}`)} />
       <circle
         cx={x}
         cy={-4.4}
