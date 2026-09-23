@@ -25,6 +25,23 @@ test.describe('edición del tablero', () => {
     expect((await state(page)).devices).toBe(2);
   });
 
+  test('girar con R rueda el aparato y el cable lo sigue [R5 §19]', async ({ page }) => {
+    await openApp(page);
+    await newBoard(page);
+    await place(page, 'supply-1p', 10, 10);
+    await place(page, 'pilot-lamp', 10, 46);
+    await wire(page, [8, 17], [10, 39]); // L de la acometida → X1 del piloto
+
+    await page.getByTestId('tool-select').click();
+    await clickAt(page, 10, 46);
+    await page.keyboard.press('r');
+
+    const lamp = page.locator('[data-device][data-ref=""]').last();
+    await expect(page.locator('[data-rotation="90"]')).toHaveCount(1);
+    expect((await state(page)).wires).toBe(1);
+    await expect(lamp).toBeVisible();
+  });
+
   test('borrar un aparato borra sus cables', async ({ page }) => {
     await openApp(page);
     await newBoard(page);

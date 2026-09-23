@@ -192,6 +192,35 @@ describe('tienda del tablero — edición', () => {
     expect(Object.keys(doc.wires)).toHaveLength(0);
   });
 
+  it('girar lo seleccionado es una entrada de historial y deshacer lo devuelve [R5 §19]', () => {
+    const store = makeStore();
+    const lamp = place(store, 'pilot-lamp', 20, 20);
+    store.getState().setSelection({ devices: [lamp], wires: [], annotations: [] });
+    const before = terminalPosition(docOf(store.getState()), boardRegistry, {
+      deviceId: lamp,
+      terminalId: 'X1',
+    });
+
+    store.getState().rotate();
+    expect(docOf(store.getState()).devices[lamp]!.rotation).toBe(90);
+    store.getState().undo();
+    expect(docOf(store.getState()).devices[lamp]!.rotation).toBe(0);
+    expect(terminalPosition(docOf(store.getState()), boardRegistry, { deviceId: lamp, terminalId: 'X1' })).toEqual(
+      before,
+    );
+  });
+
+  it('girar mientras se coloca deja el aparato ya girado [R5 §19]', () => {
+    const store = makeStore();
+    store.getState().startPlacing('pilot-lamp', { x: 20, y: 20 });
+    store.getState().rotate();
+    expect(store.getState().placing?.rotation).toBe(90);
+    store.getState().place({ x: 20, y: 20 });
+    const doc = docOf(store.getState());
+    const placed = Object.values(doc.devices)[0]!;
+    expect(placed.rotation).toBe(90);
+  });
+
   it('cada borrado es una entrada de historial', () => {
     const store = makeStore();
     const g = place(store, 'supply-1p', 0, 0);

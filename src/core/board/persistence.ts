@@ -20,6 +20,8 @@ const FileDevice = z
   .object({
     type: z.string().min(1),
     position: IntPoint,
+    // Los archivos anteriores al giro no la traen: sin girar.
+    rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).default(0),
     props: z.record(z.string(), z.unknown()).default({}),
   })
   .strict();
@@ -136,7 +138,7 @@ export function parseBoard(text: string, registry: DeviceRegistry): BoardLoadRes
     if (!registry.get(device.type)) {
       return { ok: false, error: { code: 'UNKNOWN_TYPE', detail: device.type } };
     }
-    devices[id] = { id, type: device.type, position: device.position, props: device.props };
+    devices[id] = { id, type: device.type, position: device.position, rotation: device.rotation, props: device.props };
   }
 
   const doc: BoardDocument = {

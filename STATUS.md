@@ -14,8 +14,8 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 
 | Nivel | Resultado |
 |---|---|
-| Unitarias + integración (Vitest) | **130 / 130** |
-| E2E (Playwright, Chromium + Firefox) | **36 / 36** (18 flujos × 2 navegadores) |
+| Unitarias + integración (Vitest) | **138 / 138** |
+| E2E (Playwright, Chromium + Firefox) | **38 / 38** (19 flujos × 2 navegadores) |
 
 | Hito | Contenido |
 |---|---|
@@ -26,6 +26,7 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 | G4 | Diagnósticos (bloqueantes y avisos) y panel de ERROR |
 | G5 | Archivo v2 con zod, guardar/abrir, autoguardado y exportación PNG/SVG/PDF con fondo blanco |
 | G6 | El tablero es la app: se borró la vista clásica, E2E reescritos y documentación al día |
+| R5.2 | Giro de aparatos de a 90° (`R`), con los cables reacomodándose y las marcaciones siempre derechas; zócalo de 11 pines con la disposición real de sus tornillos (bornes también en los costados) |
 | R5.1 | Pasada de interfaz y dibujo: cableado ortogonal con motivo de rechazo, propiedades del cable seleccionado, selección por rectángulo, zócalo de relé real, marcaciones de borne, rótulos con halo, carátula del temporizador, funda del cable en los cruces y «Involucrados» en el cartel de ERROR |
 
 ## En curso

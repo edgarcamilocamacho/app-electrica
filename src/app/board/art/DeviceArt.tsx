@@ -24,9 +24,11 @@ import {
   Lever,
   ManualActuator,
   MechLink,
+  RotationProvider,
   Screw,
   TagBlock,
   TerminalLabel,
+  useUpright,
   WireCount,
 } from './primitives';
 
@@ -67,7 +69,7 @@ const topRow = (def: DeviceDefinition): readonly TerminalDef[] =>
 
 export function DeviceArt({ device, def, view, wireCounts, layer = 'both' }: DeviceArtProps): ReactElement {
   return (
-    <g>
+    <RotationProvider value={device.rotation}>
       {layer !== 'screws' && internals(device, def, view)}
       {layer !== 'body' &&
         def.terminals.map((t) => (
@@ -90,7 +92,7 @@ export function DeviceArt({ device, def, view, wireCounts, layer = 'both' }: Dev
             />
           </g>
         ))}
-    </g>
+    </RotationProvider>
   );
 }
 
@@ -410,6 +412,7 @@ function TimerFace({ view, preset, x }: { view?: DeviceView; preset: number; x: 
   const seconds = timer ? Math.max(0, timer.presetMs - timer.elapsedMs) / 1000 : preset / 1000;
   const r = 1.5;
   const circumference = 2 * Math.PI * r;
+  const upright = useUpright(x, -0.2);
   return (
     <g>
       <circle cx={x} cy={-0.6} r={r + 0.7} fill={P.bodyShade} stroke={P.bodyEdge} strokeWidth={BOARD_STROKE} />
@@ -428,6 +431,7 @@ function TimerFace({ view, preset, x }: { view?: DeviceView; preset: number; x: 
       <text
         x={x}
         y={-0.2}
+        {...upright}
         textAnchor="middle"
         fontSize={SMALL_FONT * 1.15}
         fontFamily={FONT_FAMILY}

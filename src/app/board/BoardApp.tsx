@@ -27,6 +27,7 @@ import {
   IconFile,
   IconFit,
   IconPlay,
+  IconRotate,
   IconRedo,
   IconSelect,
   IconStop,
@@ -118,6 +119,10 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
           break;
         case 'a':
           fitView(s);
+          break;
+        case 'r':
+          // Gira lo seleccionado, o el aparato que se está colocando [R5 §19].
+          if (s.mode === 'edit') s.rotate();
           break;
         case 'escape':
           // Escape siempre deja la herramienta Seleccionar.
@@ -548,6 +553,16 @@ function DeviceProps({
           <span className="tb-hint">{t('board.terminalCount', { count: def.terminals.length })}</span>
         </div>
       </div>
+      <button
+        type="button"
+        className="tb-btn"
+        disabled={!editing}
+        title={t('board.rotateHint')}
+        onClick={() => store.getState().rotate()}
+      >
+        <IconRotate />
+        {t('board.rotate')}
+      </button>
       {def.props.map((spec) => {
         const value = props[spec.key];
         if (spec.kind === 'ref' || spec.kind === 'text') {

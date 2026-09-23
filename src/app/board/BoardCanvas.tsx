@@ -11,7 +11,9 @@ import {
   type ReactElement,
 } from 'react';
 import { useStore } from 'zustand';
+import { deviceTerminals } from '../../core/board/model';
 import type { Id, Point } from '../../core/model/types';
+import { DeviceArt } from './art/DeviceArt';
 import { BoardDiagram } from './BoardDiagram';
 import { wireDebug } from './debugLog';
 import { hitTest, objectsInRect } from './hitTest';
@@ -28,6 +30,9 @@ import {
 import { BOARD_PALETTE, WIRE_TONES, WIRE_WIDTH } from './theme';
 
 const P = BOARD_PALETTE;
+
+/** El aparato en la mano se dibuja en el origen; el grupo lo lleva a su sitio. */
+const PLACING_ORIGIN = { x: 0, y: 0 } as const;
 
 interface SegmentDrag {
   readonly wireId: Id;
@@ -316,16 +321,29 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
           {state.tool === 'wire' && <TerminalDots store={store} />}
           {state.wiring && <WiringPreview store={store} />}
           {state.placing && placingDef && (
-            <g transform={`translate(${state.placing.at.x} ${state.placing.at.y})`} opacity={0.65}>
+            <g
+              transform={`translate(${state.placing.at.x} ${state.placing.at.y}) rotate(${state.placing.rotation})`}
+              opacity={0.7}
+            >
               <rect
-                x={placingDef.bounds.minX}
-                y={placingDef.bounds.minY}
-                width={placingDef.bounds.maxX - placingDef.bounds.minX}
-                height={placingDef.bounds.maxY - placingDef.bounds.minY}
-                rx={0.6}
-                fill={P.bodyShade}
+                x={placingDef.bounds.minX - 0.4}
+                y={placingDef.bounds.minY - 0.4}
+                width={placingDef.bounds.maxX - placingDef.bounds.minX + 0.8}
+                height={placingDef.bounds.maxY - placingDef.bounds.minY + 0.8}
+                rx={1.1}
+                fill={P.selectionHalo}
                 stroke={P.selection}
                 strokeWidth={0.2}
+              />
+              <DeviceArt
+                device={{
+                  id: 'placing',
+                  type: state.placing.type,
+                  position: PLACING_ORIGIN,
+                  rotation: state.placing.rotation,
+                  props: {},
+                }}
+                def={placingDef}
               />
             </g>
           )}
@@ -359,12 +377,12 @@ function TerminalDots({ store }: { store: BoardStore }): ReactElement {
   for (const device of Object.values(doc.devices)) {
     const def = state.registry.get(device.type);
     if (!def) continue;
-    for (const terminal of def.terminals) {
+    for (const { ref, position } of deviceTerminals(device, def)) {
       dots.push(
         <circle
-          key={`${device.id}.${terminal.id}`}
-          cx={device.position.x + terminal.offset.x}
-          cy={device.position.y + terminal.offset.y}
+          key={`${device.id}.${ref.terminalId}`}
+          cx={position.x}
+          cy={position.y}
           r={1}
           fill={P.selectionHalo}
           stroke={P.selection}

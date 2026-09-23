@@ -4,9 +4,9 @@
  *
  * Todo en coordenadas locales del aparato, en unidades de grid. El padre aplica la posición.
  */
-import type { ReactElement } from 'react';
-import type { Rect } from '../../../core/model/geometry';
-import type { Dir, Point } from '../../../core/model/types';
+import { createContext, useContext, type ReactElement } from 'react';
+import { rotateDir, rotateOffset, type Rect } from '../../../core/model/geometry';
+import type { Dir, Point, Rotation } from '../../../core/model/types';
 import {
   BOARD_PALETTE,
   BOARD_STROKE,
@@ -19,6 +19,39 @@ import {
 } from '../theme';
 
 const P = BOARD_PALETTE;
+
+/**
+ * Giro del aparato que se está dibujando. Los textos lo compensan: el aparato gira, pero sus
+ * marcaciones se leen siempre derechas [R5 §19].
+ */
+const RotationContext = createContext<Rotation>(0);
+
+export const RotationProvider = RotationContext.Provider;
+
+export const useRotation = (): Rotation => useContext(RotationContext);
+
+/**
+ * Coloca algo junto a un borne: el desplazamiento se piensa en pantalla (el aparato ya girado) y
+ * se devuelve en coordenadas locales, que es donde se dibuja.
+ */
+function placeByEdge(
+  x: number,
+  y: number,
+  edge: Dir,
+  rotation: Rotation,
+  offsets: Readonly<Record<Dir, Point>>,
+): Point {
+  const shown = rotateDir(edge, rotation);
+  const back = ((360 - rotation) % 360) as Rotation;
+  const local = rotateOffset(offsets[shown], back);
+  return { x: x + local.x, y: y + local.y };
+}
+
+/** Contragiro para que un texto quede derecho, alrededor de su propio punto de anclaje. */
+export function useUpright(x: number, y: number): { transform?: string } {
+  const rotation = useContext(RotationContext);
+  return rotation === 0 ? {} : { transform: `rotate(${-rotation} ${x} ${y})` };
+}
 
 export function Body({ bounds, shaded }: { bounds: Rect; shaded?: boolean }): ReactElement {
   return (
@@ -53,6 +86,7 @@ export function Screw({
   const r = SCREW_RADIUS[size];
   const label = text ?? '';
   const font = label.length <= 1 ? r * 1.15 : label.length === 2 ? r * 0.95 : r * 0.72;
+  const upright = useUpright(x, y);
   return (
     <g>
       <circle cx={x} cy={y} r={r * 1.18} fill={P.screwEdge} opacity={0.16} />
@@ -61,6 +95,7 @@ export function Screw({
         <text
           x={x}
           y={y + font * 0.35}
+          {...upright}
           textAnchor="middle"
           fontSize={font}
           fontFamily={FONT_FAMILY}
@@ -95,12 +130,20 @@ export function TerminalLabel({
   /** Borde del cuerpo donde está el borne. */
   edge: Dir;
 }): ReactElement {
-  const horizontal = edge === 'E' || edge === 'W';
+  const rotation = useRotation();
+  const shown = rotateDir(edge, rotation);
+  const at = placeByEdge(x, y, edge, rotation, {
+    N: { x: 0, y: 1.6 },
+    S: { x: 0, y: -1.05 },
+    W: { x: 1.15, y: 0.3 },
+    E: { x: -1.15, y: 0.3 },
+  });
   return (
     <text
-      x={horizontal ? x + (edge === 'W' ? 1.15 : -1.15) : x}
-      y={horizontal ? y + 0.3 : y + (edge === 'N' ? 1.6 : -1.05)}
-      textAnchor={horizontal ? (edge === 'W' ? 'start' : 'end') : 'middle'}
+      x={at.x}
+      y={at.y}
+      {...useUpright(at.x, at.y)}
+      textAnchor={shown === 'W' ? 'start' : shown === 'E' ? 'end' : 'middle'}
       fontSize={TERMINAL_FONT}
       fontFamily={FONT_FAMILY}
       fontWeight={600}
@@ -127,16 +170,21 @@ export function WireCount({
   count: number;
   edge?: Dir;
 }): ReactElement | null {
+  const { x: cx, y: cy } = placeByEdge(x, y, edge, useRotation(), {
+    N: { x: 1.05, y: -1.05 },
+    S: { x: 1.05, y: 1.05 },
+    W: { x: 0, y: -1.15 },
+    E: { x: 0, y: -1.15 },
+  });
+  const upright = useUpright(cx, cy);
   if (count <= 0) return null;
-  const horizontal = edge === 'E' || edge === 'W';
-  const cx = horizontal ? x : x + 1.05;
-  const cy = horizontal ? y - 1.15 : y + (edge === 'N' ? -1.05 : 1.05);
   return (
     <g>
       <circle cx={cx} cy={cy} r={0.48} fill={P.paper} stroke={P.muted} strokeWidth={0.07} />
       <text
         x={cx}
         y={cy + 0.25}
+        {...upright}
         textAnchor="middle"
         fontSize={SMALL_FONT * 0.9}
         fontFamily={FONT_FAMILY}
@@ -150,11 +198,13 @@ export function WireCount({
 }
 
 export function Tag({ x, y, text, anchor = 'middle' }: { x: number; y: number; text: string; anchor?: 'start' | 'middle' | 'end' }): ReactElement | null {
+  const upright = useUpright(x, y);
   if (!text) return null;
   return (
     <text
       x={x}
       y={y}
+      {...upright}
       textAnchor={anchor}
       fontSize={TAG_FONT}
       fontFamily={FONT_FAMILY}
@@ -171,11 +221,13 @@ export function Tag({ x, y, text, anchor = 'middle' }: { x: number; y: number; t
 }
 
 export function Caption({ x, y, text, anchor = 'middle' }: { x: number; y: number; text: string; anchor?: 'start' | 'middle' | 'end' }): ReactElement | null {
+  const upright = useUpright(x, y);
   if (!text) return null;
   return (
     <text
       x={x}
       y={y}
+      {...upright}
       textAnchor={anchor}
       fontSize={SMALL_FONT}
       fontFamily={FONT_FAMILY}

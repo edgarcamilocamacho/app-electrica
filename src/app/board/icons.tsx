@@ -18,4 +18,11 @@ export const IconFile = (): ReactElement => wrap(<><path d="M5 2.5h6l4 4v11H5z" 
 export const IconPlay = (): ReactElement => wrap(<path d="M6 3.5l10 6.5-10 6.5z" />);
 export const IconStop = (): ReactElement => wrap(<rect x="5" y="5" width="10" height="10" rx="1.5" />);
 export const IconChevron = (): ReactElement => wrap(<path d="M6 8l4 4 4-4" />);
+export const IconRotate = (): ReactElement =>
+  wrap(
+    <>
+      <path d="M16 6.5A7 7 0 1 0 17 10" />
+      <path d="M16 2.5v4h-4" />
+    </>,
+  );
 export const IconWarning = (): ReactElement => wrap(<><path d="M10 3.5l7 12.5H3z" /><path d="M10 8v4" /><path d="M10 14.2v.1" /></>);

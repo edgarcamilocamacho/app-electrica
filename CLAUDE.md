@@ -50,7 +50,9 @@ Navegadores de E2E: `pnpm exec playwright install chromium firefox`.
 2. **Conectividad explícita, nunca geométrica.** Dos bornes quedan en la misma red solo si un cable
    los une. Un cable va **de borne a borne**: sin empalmes en el aire, sin derivaciones a mitad de
    cable y sin extremos libres. Cruzarse, solaparse o pasar por encima de un aparato no conecta.
-3. **La geometría es dato** (posición del aparato + codos del cable). Tras **toda** mutación corre la
+3. **La geometría es dato** (posición y giro del aparato + codos del cable). El giro va en pasos de
+   90°: los bornes y el contorno se rotan con `rotateOffset`/`rotateDir`, y los textos se contragiran
+   para leerse derechos. Tras **toda** mutación corre la
    normalización de codos dentro de la operación; nunca cambia la partición en redes.
 4. **Operaciones puras** `(doc, args, ctx) → EditResult`. `ctx.ids` inyectado (contador en tests).
    El resultado trae el documento aunque sea inválido (vista previa); solo se confirma si `ok`.

@@ -114,7 +114,10 @@ function BoardDiagramInner({
       {/* Cuerpos y esquema interno: debajo de los cables. */}
       {devices.map(({ device, def }) =>
         def ? (
-          <g key={device.id} transform={`translate(${device.position.x} ${device.position.y})`}>
+          <g
+            key={device.id}
+            transform={`translate(${device.position.x} ${device.position.y}) rotate(${device.rotation})`}
+          >
             {(selected?.has(device.id) ?? false) && (
               <rect
                 x={def.bounds.minX - 0.5}
@@ -149,8 +152,9 @@ function BoardDiagramInner({
         def ? (
           <g
             key={device.id}
-            transform={`translate(${device.position.x} ${device.position.y})`}
+            transform={`translate(${device.position.x} ${device.position.y}) rotate(${device.rotation})`}
             data-device={device.id}
+            data-rotation={device.rotation}
             data-ref={typeof device.props.ref === 'string' ? device.props.ref : ''}
             data-energized={sim?.devices.get(device.id)?.energized === true ? 'true' : 'false'}
             data-actuated={sim?.devices.get(device.id)?.actuated === true ? 'true' : 'false'}

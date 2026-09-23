@@ -16,6 +16,7 @@ import {
   deviceOuterRect,
   terminalKey,
   emptyBoard,
+  endDir,
   endPosition,
   sameEnd,
   terminalOf,
@@ -30,6 +31,7 @@ import {
   pasteClip,
   type BoardClip,
   moveSelection,
+  rotateSelection,
   moveWireSegment,
   placeDevice,
   remove,
@@ -39,7 +41,7 @@ import {
   type BoardEditResult,
   type OpContext,
 } from '../../core/board/ops';
-import { findTerminal, type DeviceRegistry } from '../../core/board/registry';
+import type { DeviceRegistry } from '../../core/board/registry';
 import { BoardSimEngine, type SimSnapshot } from '../../core/board/sim/engine';
 import {
   approachTerminal,
@@ -58,9 +60,9 @@ import {
   undo,
   type History,
 } from '../../core/history/history';
-import { DIR_VECTOR, rectFromPoints, rectUnion, type Rect } from '../../core/model/geometry';
+import { DIR_VECTOR, nextRotation, rectFromPoints, rectUnion, type Rect } from '../../core/model/geometry';
 import { createRandomIdGen, type IdGen } from '../../core/model/ids';
-import type { Dir, Id, Point } from '../../core/model/types';
+import type { Id, Point, Rotation } from '../../core/model/types';
 
 export const GRID_PX = 10;
 export const MIN_ZOOM = 0.25;
@@ -96,6 +98,8 @@ export interface Viewport {
 export interface Placing {
   readonly type: string;
   readonly at: Point;
+  /** Giro con el que se va a colocar; se cambia con la misma tecla que gira lo seleccionado. */
+  readonly rotation: Rotation;
 }
 
 /** Cable en curso: arranca en un borne y termina en otro [I8]. */
@@ -114,7 +118,7 @@ export interface WiringDraft {
 /** Punto justo afuera del tornillo, en la dirección por la que sale su cable. */
 export function stubOf(doc: BoardDocument, registry: DeviceRegistry, end: WireEnd): Point {
   const at = endPosition(doc, registry, end);
-  const dir = dirOf(doc, registry, end);
+  const dir = endDir(doc, registry, end);
   return { x: at.x + DIR_VECTOR[dir].x * STUB, y: at.y + DIR_VECTOR[dir].y * STUB };
 }
 
@@ -127,24 +131,17 @@ function routeTo(doc: BoardDocument, registry: DeviceRegistry, wiring: WiringDra
   const from = endPosition(doc, registry, wiring.from);
   const end = endPosition(doc, registry, to);
   if (wiring.points.length <= 2 && wiring.from.kind === 'terminal') {
-    return autoRoute(from, dirOf(doc, registry, wiring.from), end, dirOf(doc, registry, to));
+    return autoRoute(from, endDir(doc, registry, wiring.from), end, endDir(doc, registry, to));
   }
   const last = wiring.points[wiring.points.length - 1]!;
   const previous = wiring.points[wiring.points.length - 2];
-  const dir = dirOf(doc, registry, to);
+  const dir = endDir(doc, registry, to);
   const ref = terminalOf(to);
   const tail = ref
     ? approachTerminal(last, end, dir)
     : normalizeRoute([...wirePathFrom(previous, last, end)]);
   return normalizeRoute([...wiring.points, ...tail]);
 }
-
-const dirOf = (doc: BoardDocument, registry: DeviceRegistry, end: WireEnd): Dir => {
-  const ref = terminalOf(end);
-  if (!ref) return 'N';
-  const def = registry.get(doc.devices[ref.deviceId]!.type);
-  return def ? (findTerminal(def, ref.terminalId)?.dir ?? 'N') : 'N';
-};
 
 export interface DragState {
   readonly devices: readonly Id[];
@@ -212,6 +209,8 @@ export interface BoardState {
   updateDrag(at: Point): void;
   endDrag(): void;
   nudge(dx: number, dy: number): void;
+  /** Gira un cuarto de vuelta lo seleccionado; si hay un aparato en la mano, lo gira a él [R5 §19]. */
+  rotate(): void;
   eraseAt(target: { kind: 'device' | 'wire' | 'annotation'; id: Id }): void;
   deleteSelection(): void;
   setProps(deviceId: Id, props: Record<string, unknown>): void;
@@ -376,7 +375,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       startPlacing(type, at) {
-        set({ tool: 'select', placing: { type, at: snap(at) }, wiring: undefined, drag: undefined });
+        set({ tool: 'select', placing: { type, at: snap(at), rotation: 0 }, wiring: undefined, drag: undefined });
       },
 
       movePlacing(at) {
@@ -388,7 +387,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
         const placing = get().placing;
         if (!placing) return;
         const position = snap(at);
-        const result = placeDevice(docOf(get()), { type: placing.type, position }, ctx);
+        const result = placeDevice(docOf(get()), { type: placing.type, position, rotation: placing.rotation }, ctx);
         const placedId = Object.keys(result.doc.devices).find((id) => !docOf(get()).devices[id]);
         if (apply(result, { selection: placedId ? { ...EMPTY_SELECTION, devices: [placedId] } : EMPTY_SELECTION })) {
           set({ placing: undefined });
@@ -589,6 +588,17 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
           set({ preview: undefined, status: { text: reasonText(result), tone: 'warning' } });
         }
         set({ drag: undefined });
+      },
+
+      rotate() {
+        const state = get();
+        if (state.placing) {
+          set({ placing: { ...state.placing, rotation: nextRotation(state.placing.rotation) } });
+          return;
+        }
+        const devices = selectionOf(state).devices;
+        if (devices.length === 0) return;
+        apply(rotateSelection(docOf(state), { devices }, ctx));
       },
 
       nudge(dx, dy) {

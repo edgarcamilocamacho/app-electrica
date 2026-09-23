@@ -9,6 +9,8 @@ const example = process.argv[2] ?? 'catalogo';
 const out = process.argv[3] ?? '/tmp/claude-1000/shot.png';
 /** Referencia a la que acercarse (opcional): recorta ese aparato con margen. */
 const focus = process.argv[4];
+/** Cuartos de vuelta a aplicarle antes de capturar (opcional). */
+const turns = Number(process.argv[5] ?? 0);
 const port = 5199;
 const server = spawn('pnpm', ['exec', 'vite', 'preview', '--port', String(port), '--strictPort'], {
   stdio: 'ignore',
@@ -29,6 +31,12 @@ try {
   await page.evaluate((name) => globalThis.__e2e.loadExample(name), example);
   await page.getByTestId('fit-view').click().catch(() => {});
   await page.waitForTimeout(300);
+  if (focus && turns > 0) {
+    const box = await page.locator(`[data-ref="${focus}"]`).boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    for (let i = 0; i < turns; i += 1) await page.keyboard.press('r');
+    await page.waitForTimeout(150);
+  }
   const canvas = page.locator('[data-testid="board-canvas"]');
   if (focus) {
     const box = await page.locator(`[data-ref="${focus}"]`).boundingBox();

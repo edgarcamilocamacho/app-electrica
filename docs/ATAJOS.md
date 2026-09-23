@@ -23,6 +23,7 @@ no actúan mientras el foco está en un campo de texto.
 | Arrastrar un aparato | Lo mueve con sus cables; soltarlo en una posición inválida lo devuelve |
 | Arrastrar un tramo de cable | Lo desplaza en perpendicular; los vecinos se estiran |
 | Flechas | Desplazan la selección una casilla |
+| `R` | Gira 90° lo seleccionado; con un aparato en la mano, lo gira antes de colocarlo |
 | `Supr` · `Retroceso` | Borra la selección (una sola acción de deshacer) |
 | `Ctrl+Z` | Deshacer |
 | `Ctrl+Y` | Rehacer |

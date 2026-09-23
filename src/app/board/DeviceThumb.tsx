@@ -19,7 +19,8 @@ function DeviceThumbInner({
   width?: number;
   height?: number;
 }): ReactElement {
-  const device: DeviceInstance = { id: `thumb-${def.type}`, type: def.type, position: { x: 0, y: 0 }, props: {} };
+  const device: DeviceInstance = { id: `thumb-${def.type}`, type: def.type, position: { x: 0, y: 0 },
+    rotation: 0, props: {} };
   const minX = def.bounds.minX - MARGIN;
   const minY = def.bounds.minY - MARGIN;
   const w = def.bounds.maxX - def.bounds.minX + MARGIN * 2;

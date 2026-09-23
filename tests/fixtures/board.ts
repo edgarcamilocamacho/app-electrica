@@ -12,7 +12,7 @@ import {
 import { defaultDeviceProps, findTerminal } from '../../src/core/board/registry';
 import { autoRoute, bendsOf } from '../../src/core/board/wireGeometry';
 import { createCounterIdGen, type IdGen } from '../../src/core/model/ids';
-import type { Point } from '../../src/core/model/types';
+import type { Point, Rotation } from '../../src/core/model/types';
 
 const META = {
   name: 'Prueba',
@@ -33,14 +33,14 @@ export class BoardBuilder {
   /** Mismo generador que usan las operaciones en los tests, para que no colisionen los ids. */
   readonly ids: IdGen = createCounterIdGen();
 
-  device(type: string, x: number, y: number, props: Record<string, unknown> = {}): string {
+  device(type: string, x: number, y: number, props: Record<string, unknown> = {}, rotation: Rotation = 0): string {
     const id = this.ids.next('d');
     const def = registry.require(type);
     this.doc = {
       ...this.doc,
       devices: {
         ...this.doc.devices,
-        [id]: { id, type, position: { x, y }, props: { ...defaultDeviceProps(def), ...props } },
+        [id]: { id, type, position: { x, y }, rotation, props: { ...defaultDeviceProps(def), ...props } },
       },
     };
     return id;

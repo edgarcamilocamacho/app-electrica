@@ -326,7 +326,7 @@ const RELAY_8 = socketBase({ type: 'relay-8', category: 'relays', ...SOCKET_8 })
 
 /**
  * Zócalo de 11 pines (tres contactos conmutados). La posición de los tornillos es la del zócalo
- * real: cuatro arriba (8 7 6 5), cuatro abajo (10 11 1 2), el 9 en el costado izquierdo y el 4 y
+ * real [R5 §20]: cuatro arriba (8 7 6 5), cuatro abajo (10 11 1 2), el 9 en el costado izquierdo y el 4 y
  * el 3 en el derecho. La numeración va dando la vuelta al anillo.
  */
 const RELAY_11: DeviceDefinition = {

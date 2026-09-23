@@ -6,17 +6,19 @@
  * Una operación es válida cuando **no agrega** violaciones.
  */
 import type { IdGen } from '../model/ids';
-import type { Id, Point, TextAnnotation } from '../model/types';
+import type { Id, Point, Rotation, TextAnnotation } from '../model/types';
+import { nextRotation } from '../model/geometry';
 import type { BoardDocument, DeviceInstance, Wire, WireColor, WireEnd, WireGauge } from './model';
 import {
   DEFAULT_WIRE_COLOR,
   DEFAULT_WIRE_GAUGE,
+  endDir,
   endPosition,
   sameEnd,
   terminalExists,
   terminalOf,
 } from './model';
-import { defaultDeviceProps, findTerminal, type DeviceRegistry } from './registry';
+import { defaultDeviceProps, type DeviceRegistry } from './registry';
 import { addedViolations, type Violation } from './validity';
 import { autoRoute, bendsOf, normalizeRoute, repairRoute, translateBends, wireRoute } from './wireGeometry';
 
@@ -48,11 +50,48 @@ const rejected = (doc: BoardDocument, reason: BoardEditFailure): BoardEditResult
   reason,
 });
 
+export interface RotateArgs {
+  readonly devices: readonly Id[];
+}
+
+/**
+ * Gira cada aparato seleccionado un cuarto de vuelta sobre su propia posición [R5 §19]. Los cables
+ * que llegan a él se reacomodan como al moverlo.
+ */
+export function rotateSelection(doc: BoardDocument, args: RotateArgs, ctx: OpContext): BoardEditResult {
+  const turned = new Set(args.devices);
+  if (turned.size === 0) return rejected(doc, 'INVALID_INPUT');
+  for (const id of turned) if (!doc.devices[id]) return rejected(doc, 'NOT_FOUND');
+
+  const devices: Record<Id, DeviceInstance> = { ...doc.devices };
+  for (const id of turned) {
+    const device = doc.devices[id]!;
+    devices[id] = { ...device, rotation: nextRotation(device.rotation) };
+  }
+
+  const turnedDoc: BoardDocument = { ...doc, devices };
+  const wires: Record<Id, Wire> = { ...doc.wires };
+  for (const wire of Object.values(doc.wires)) {
+    if (!isMoved(wire.a, turned) && !isMoved(wire.b, turned)) continue;
+    const route = wireRoute(doc, ctx.registry, wire);
+    const a = endPosition(turnedDoc, ctx.registry, wire.a);
+    const b = endPosition(turnedDoc, ctx.registry, wire.b);
+    wires[wire.id] = {
+      ...wire,
+      bends: repairRoute(route, a, b, endDir(turnedDoc, ctx.registry, wire.a), endDir(turnedDoc, ctx.registry, wire.b)).slice(1, -1),
+    };
+  }
+
+  return finalize(doc, { ...turnedDoc, wires }, ctx);
+}
+
 // ── Aparatos ─────────────────────────────────────────────────────────────────────────────────
 
 export interface PlaceDeviceArgs {
   readonly type: string;
   readonly position: Point;
+  /** Giro con el que se coloca [R5 §19]; sin girar por defecto. */
+  readonly rotation?: Rotation;
   readonly props?: Readonly<Record<string, unknown>>;
 }
 
@@ -64,6 +103,7 @@ export function placeDevice(doc: BoardDocument, args: PlaceDeviceArgs, ctx: OpCo
     id,
     type: args.type,
     position: args.position,
+    rotation: args.rotation ?? 0,
     props: { ...defaultDeviceProps(def), ...(args.props ?? {}) },
   };
   return finalize(doc, { ...doc, devices: { ...doc.devices, [id]: device } }, ctx);
@@ -112,7 +152,7 @@ export function moveSelection(doc: BoardDocument, args: MoveArgs, ctx: OpContext
     const b = endPosition(withDevices, ctx.registry, wire.b);
     wires[wire.id] = {
       ...wire,
-      bends: repairRoute(route, a, b, dirOf(withDevices, ctx, wire.a), dirOf(withDevices, ctx, wire.b)).slice(1, -1),
+      bends: repairRoute(route, a, b, endDir(withDevices, ctx.registry, wire.a), endDir(withDevices, ctx.registry, wire.b)).slice(1, -1),
     };
   }
 
@@ -123,15 +163,6 @@ const isMoved = (end: WireEnd, moved: ReadonlySet<Id>): boolean => {
   const ref = terminalOf(end);
   return ref ? moved.has(ref.deviceId) : false;
 };
-
-/** Dirección por la que sale el cable de una punta; una punta suelta no impone dirección. */
-function dirOf(doc: BoardDocument, ctx: OpContext, end: WireEnd): 'N' | 'E' | 'S' | 'W' {
-  const ref = terminalOf(end);
-  if (!ref) return 'N';
-  const device = doc.devices[ref.deviceId]!;
-  const def = ctx.registry.require(device.type);
-  return findTerminal(def, ref.terminalId)?.dir ?? 'N';
-}
 
 export interface SetPropsArgs {
   readonly deviceId: Id;
@@ -178,7 +209,7 @@ export function connect(doc: BoardDocument, args: ConnectArgs, ctx: OpContext): 
   const to = endPosition(doc, ctx.registry, args.b);
   const route = args.bends
     ? normalizeRoute([from, ...args.bends, to])
-    : autoRoute(from, dirOf(doc, ctx, args.a), to, dirOf(doc, ctx, args.b));
+    : autoRoute(from, endDir(doc, ctx.registry, args.a), to, endDir(doc, ctx.registry, args.b));
   const id = ctx.ids.next('w');
   const wire: Wire = {
     id,
@@ -376,6 +407,7 @@ export function pasteClip(doc: BoardDocument, clip: BoardClip, delta: Point, ctx
       id,
       type: device.type,
       position: { x: device.position.x + delta.x, y: device.position.y + delta.y },
+      rotation: device.rotation,
       props: { ...device.props, ...(ref ? { ref } : {}) },
     };
     devices[id] = placed;

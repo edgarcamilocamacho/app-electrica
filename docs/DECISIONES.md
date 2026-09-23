@@ -80,7 +80,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | Mover un aparato **no rompe** sus conexiones: sus cables se reacomodan ortogonalmente hasta la nueva posición de cada borne | R1 §6, R2 §2 |
 | Mover un **tramo** de un cable: perpendicular a sí mismo; los tramos vecinos del mismo cable se estiran, se acortan o generan codos; siempre ortogonal; la conectividad no cambia | R2 §3 |
 | No hay tramos "fijados": un ajuste manual puede repararse después al mover un aparato conectado | R2 §3 |
-| **Los aparatos no rotan**: van montados como en un tablero | R5 §1 |
+| Los aparatos **se giran de a 90°** con `R`: gira lo seleccionado o, si hay uno en la mano, el que se está colocando. Cada giro es una entrada de historial y los cables se reacomodan como al mover. Las marcaciones y la etiqueta se siguen leyendo derechas | R5 §19 |
 | Dos maneras de borrar: seleccionar + `Supr`, o la herramienta Borrar | R1 §11 |
 | Herramienta **Borrar (B)**: sigue activa tras cada clic; borra solo con clic explícito (nunca al pasar el mouse ni manteniendo el botón); sin diálogos de confirmación. La recuperación es deshacer | R1 §11, R2 §5 |
 | Prioridad de la goma: **cable → texto → aparato** | R2 §5, R3 Q3.6, R5 §4 |
@@ -96,6 +96,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | **Contactor**: los tornillos de potencia se dibujan más grandes que los de mando; **A1 y A2 van arriba**, entre 1/L1, 3/L2 y 5/L3, y un poco más altos | R5 §9 |
 | **Pulsadores**: un solo contacto, con un borne arriba y otro abajo, como el piloto. Adentro va solo el símbolo, sin tapa redonda, y se accionan con clic sobre el cuerpo | R5 §7 |
 | **Piloto**: el círculo del símbolo es el que se enciende; no lleva un lente aparte | R5 §10 |
+| Los tornillos de una **base enchufable** van donde están en el zócalo real. En la de 11 pines: cuatro arriba (8 7 6 5), cuatro abajo (10 11 1 2), el **9 en el costado izquierdo** y el **4 y el 3 en el derecho**, con el 9 y el 3 a la misma altura | R5 §20 |
 | Fuera del catálogo: motores, relé térmico y los componentes sueltos de la versión clásica (bobina, contactos, contactos temporizados) | R5 §12 |
 | La semántica del selector la define el equipo y puede refinarse al probar la interacción | R2 §12 |
 | Marco de título: para una versión posterior | R2 §14 |

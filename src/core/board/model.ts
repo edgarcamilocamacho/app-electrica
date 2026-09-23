@@ -2,16 +2,17 @@
  * Modelo del documento de tablero (PLAN §22.2).
  *
  * Dos diferencias de fondo con el modelo clásico:
- * - Un **aparato** se coloca sin rotación y trae sus bornes y su esquema adentro [R5 §1].
+ * - Un **aparato** trae sus bornes y su esquema adentro [R5 §1]; se coloca en una posición y, si
+ *   hace falta, girado en pasos de 90° [R5 §19].
  * - Un **cable** une exactamente dos bornes, con codos propios: no hay vértices compartidos,
  *   empalmes ni extremos libres [R5 §4].
  *
  * Serializable, plano, sin estado de runtime. Coordenadas en unidades de grid enteras;
  * y crece hacia abajo.
  */
-import type { DocumentMetadata, Id, Point, TextAnnotation, ViewState } from '../model/types';
-import { add, rectFromPoints, type Rect } from '../model/geometry';
-import type { DeviceDefinition, DeviceRegistry } from './registry';
+import type { Dir, DocumentMetadata, Id, Point, Rotation, TextAnnotation, ViewState } from '../model/types';
+import { add, rectFromPoints, rotateDir, rotateOffset, type Rect } from '../model/geometry';
+import type { DeviceDefinition, DeviceRegistry, TerminalDef } from './registry';
 
 /** Un borne concreto de un aparato colocado. */
 export interface TerminalRef {
@@ -23,6 +24,8 @@ export interface DeviceInstance {
   readonly id: Id;
   readonly type: string;
   readonly position: Point;
+  /** Giro del aparato, en pasos de 90° [R5 §19]. */
+  readonly rotation: Rotation;
   readonly props: Readonly<Record<string, unknown>>;
 }
 
@@ -103,14 +106,32 @@ export const sameEnd = (a: WireEnd, b: WireEnd): boolean =>
     ? a.kind === 'free' && b.kind === 'free' && a.at.x === b.at.x && a.at.y === b.at.y
     : sameTerminal(a.ref, b.ref);
 
-/** Posición absoluta de un borne. Los aparatos no rotan, así que es posición + desplazamiento. */
+/** Desplazamiento de un borne ya girado según el aparato. */
+export const terminalOffset = (device: DeviceInstance, terminal: TerminalDef): Point =>
+  rotateOffset(terminal.offset, device.rotation);
+
+/** Hacia dónde sale el cable de un borne, ya girado. */
+export const terminalDir = (device: DeviceInstance, terminal: TerminalDef): Dir =>
+  rotateDir(terminal.dir, device.rotation);
+
+/** Posición absoluta de un borne. */
 export function terminalPosition(doc: BoardDocument, registry: DeviceRegistry, ref: TerminalRef): Point {
   const device = doc.devices[ref.deviceId];
   if (!device) throw new Error(`Aparato inexistente: ${ref.deviceId}`);
   const def = registry.require(device.type);
   const terminal = def.terminals.find((t) => t.id === ref.terminalId);
   if (!terminal) throw new Error(`Borne inexistente: ${ref.deviceId}.${ref.terminalId}`);
-  return add(device.position, terminal.offset);
+  return add(device.position, terminalOffset(device, terminal));
+}
+
+/** Dirección por la que sale el cable de una punta; una punta suelta no impone dirección. */
+export function endDir(doc: BoardDocument, registry: DeviceRegistry, end: WireEnd): Dir {
+  const ref = terminalOf(end);
+  if (!ref) return 'N';
+  const device = doc.devices[ref.deviceId];
+  const def = device ? registry.get(device.type) : undefined;
+  const terminal = def?.terminals.find((t) => t.id === ref.terminalId);
+  return device && terminal ? terminalDir(device, terminal) : 'N';
 }
 
 /** ¿Existe el aparato y el borne? Útil para validar documentos importados. */
@@ -121,21 +142,22 @@ export function terminalExists(doc: BoardDocument, registry: DeviceRegistry, ref
   return def ? def.terminals.some((t) => t.id === ref.terminalId) : false;
 }
 
-/** Caja del cuerpo del aparato en coordenadas absolutas. */
+/** Caja del cuerpo del aparato en coordenadas absolutas, ya girada. */
 export function deviceRect(device: DeviceInstance, def: DeviceDefinition): Rect {
   const { bounds } = def;
-  return {
-    minX: device.position.x + bounds.minX,
-    minY: device.position.y + bounds.minY,
-    maxX: device.position.x + bounds.maxX,
-    maxY: device.position.y + bounds.maxY,
-  };
+  const corners = [
+    { x: bounds.minX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.maxY },
+    { x: bounds.minX, y: bounds.maxY },
+  ].map((corner) => add(device.position, rotateOffset(corner, device.rotation)));
+  return rectFromPoints(corners)!;
 }
 
 /** Caja que abarca el cuerpo y todos los bornes (para selección y exportación). */
 export function deviceOuterRect(device: DeviceInstance, def: DeviceDefinition): Rect {
   const body = deviceRect(device, def);
-  const terminals = def.terminals.map((t) => add(device.position, t.offset));
+  const terminals = def.terminals.map((t) => add(device.position, terminalOffset(device, t)));
   const withTerminals = rectFromPoints([
     { x: body.minX, y: body.minY },
     { x: body.maxX, y: body.maxY },
@@ -151,7 +173,7 @@ export function deviceTerminals(
 ): readonly { readonly ref: TerminalRef; readonly position: Point }[] {
   return def.terminals.map((t) => ({
     ref: { deviceId: device.id, terminalId: t.id },
-    position: add(device.position, t.offset),
+    position: add(device.position, terminalOffset(device, t)),
   }));
 }
 
