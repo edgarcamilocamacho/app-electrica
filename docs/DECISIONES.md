@@ -10,9 +10,10 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 - La columna **Origen** conserva de dónde salió cada regla: `R1 §n`, `R2 §n` y `R3 Qn` son las secciones
   de las tres rondas de respuestas de producto; `R4 §n`, los pedidos posteriores a V1 (2026-09-22);
   `R5 §n`, la ronda de la **vista gráfica de tablero** (2026-09-22), que reemplazó la representación
-  dispersa y dejó la versión anterior en el tag `classic`; `I1`–`I18`, las interpretaciones aceptadas
+  dispersa y dejó la versión anterior en el tag `classic`; `R6 §n`, la ronda de los **documentos en
+  el servidor** (2026-09-23); `I1`–`I18`, las interpretaciones aceptadas
   (§11). Las etiquetas que aparecen en [PLAN.md](../PLAN.md) y en los comentarios del código remiten
-  a esta columna. Los puntos de R5 están listados en [PLAN.md](../PLAN.md) §0.5.
+  a esta columna. Los puntos de R5 están listados en [PLAN.md](../PLAN.md) §0.5 y los de R6, en §0.6.
 - Los documentos originales de las rondas (`RESPONSE_ROUND_1–3.md`) y sus cuestionarios se retiraron
   del repo; su última versión está en el commit `58324d6` del historial de git.
 - Una decisión nueva se agrega acá, con su origen, y se refleja en el registro de [PLAN.md](../PLAN.md) §2.
@@ -120,9 +121,19 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 
 | Decisión | Origen |
 |---|---|
-| Guardar y abrir en JSON legible y versionado. Base universal con descarga e input de archivo; File System Access API como mejora cuando existe | Spec §14, R2 §27, R3 Q3.2 |
+| Los tableros **viven en el servidor**. Cualquiera que tenga acceso a la app puede ver y editar cualquiera de ellos. Todos van en **una sola lista**, sin carpetas | R6 §1 |
+| El guardado es **automático**: no hay botón Guardar | R6 §2 |
+| La lista va en una **barra a la izquierda que se puede ocultar**, con buscador, Nuevo, Renombrar, **Clonar** y Borrar | R6 §3, R6 §7 |
+| Guardar y abrir pasan a ser **Exportar** (descarga el JSON) e **Importar** (sube un JSON y lo agrega a la lista como tablero nuevo). El JSON sigue legible y versionado | Spec §14, R2 §27, R6 §4 |
 | Los archivos de la versión clásica **no se abren**: al detectarlos se avisa con un mensaje claro. Sin migración | R5 §15 |
-| **Autoguardado** local con recuperación tras una recarga o un cierre accidental. No reemplaza el archivo JSON | R2 §28 |
+| **Un editor por tablero a la vez.** Al abrir un tablero que nadie está editando se entra editando; si alguien lo edita, se entra en **solo lectura** y los cambios del otro se ven en vivo. «Editar» toma el turno **al instante** y quien editaba pasa a solo lectura | R6 §5 |
+| En solo lectura **se puede simular**: la simulación no modifica el documento | R6 §5 |
+| Se muestra **quién está editando**. El nombre sale de la cuenta con la que se entra a la red (Tailscale); sin esa cuenta, de un apodo opcional que se guarda en el navegador | R6 §6 |
+| Los nombres de la lista **no se repiten**: si uno ya existe, se le agrega un número al final, «Nombre (2)». Lo mismo al crear, renombrar, clonar, importar o restaurar | R6 §10 |
+| Si a quien editaba le toman el turno con cambios todavía sin guardar, esos cambios **no se pierden**: quedan en una copia numerada y se le avisa | R6 §10 |
+| Borrar manda el tablero a la **papelera**, desde donde se restaura durante **30 días**; después se elimina solo | R6 §8 |
+| Los **ejemplos** no son tableros compartidos: «Nuevo desde ejemplo» crea una copia en la lista | R6 §9 |
+| Las copias de seguridad quedan **solo en el servidor**; quien quiera una copia propia exporta el JSON | R6 §12 |
 | **Exportar a PDF e imagen**: el diagrama tal como se ve, sin autor, fecha, versión ni metadatos | R2 §14 |
 | Exporta el **diagrama completo** con margen, aunque no entre en pantalla; con los colores del estado eléctrico si se exporta en simulación o en ERROR; nunca la grilla ni la selección; formatos **PNG, PDF y SVG** | R3 Q3.7 |
 | La exportación sale con **fondo blanco**, no con el color de hoja del lienzo | R5 §16 |
@@ -132,7 +143,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 
 | Decisión | Origen |
 |---|---|
-| App client-side: un servidor entrega los assets y la simulación corre en el navegador | R2 §23 |
+| La simulación y la edición corren en el navegador. El servidor entrega los assets y **guarda los tableros** | R2 §23, R6 §1 |
 | El cliente detecta cuándo hay una versión nueva y no queda atado a una versión vieja en caché | R2 §23 |
 | La app **corre dentro de un contenedor**, para desplegarla fácil. El proveedor concreto queda abierto: no afecta el código | R3 §11 |
 | Sin requisito de funcionamiento offline; no usar Service Worker es compatible | R2 §24 |
@@ -145,7 +156,10 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | La **etiqueta del aparato** (`K1`) y su descripción van **dentro del cuerpo** del aparato | R4 §7, R5 §1 |
 | **Solo modo claro**: no hay modo oscuro ni botón de tema. El lienzo usa un fondo tipo **hoja, apenas amarillo**, nunca blanco puro | R5 §16 |
 | Sin telemetría ni analítica; sin requisitos regulatorios identificados | R2 §30.6 |
-| Monousuario y local; sin colaboración en tiempo real | R2 §30.7 |
+| **Sin edición simultánea**: un editor a la vez por tablero, los demás miran en vivo (§8) | R6 §5 |
+| **Acceso solo por Tailscale**: la app no queda publicada en internet y las reglas de la red dejan llegar únicamente al puerto de la app. Sin contraseña propia | R6 §11 |
+| **Actualizar** es traer el repo al servidor y relanzar: los tableros y la configuración sobreviven | R6 §13 |
+| Se puede levantar entera **en modo desarrollo**, sin Tailscale | R6 §14 |
 | La accesibilidad avanzada puede evolucionar después, pero sin diseñar en su contra | R2 §30.8 |
 | Documentación interna en el repo: cómo levantar el entorno, ejecutar, probar, la estructura y las convenciones; glosario opcional | R2 §30.5 |
 | Stack aprobado: SVG · React + TypeScript + Vite · Zustand · deshacer con copias inmutables · Vitest + Playwright (Chromium y Firefox) · pnpm · git local sin remoto. (Se aprobó Node 20; se usa Node 24 porque el 20 perdió soporte: ver [STATUS.md](../STATUS.md)) | R3 Q3.2 |
@@ -179,7 +193,8 @@ Casos obligatorios (R1 §14), además de los de la spec §18:
 
 Reglas que el equipo propuso por delegación o por inferencia y que producto aceptó. En el plan se
 citan con la etiqueta **[Interpretación]**. Las que R5 dejó sin efecto (I10, I11 y I14, sobre
-vértices y extremos libres) ya no aparecen; la numeración de las demás se conserva.
+vértices y extremos libres) y la que R6 dejó sin efecto (I16, autoguardado local) ya no aparecen; la
+numeración de las demás se conserva.
 
 | # | Tema | Regla aceptada | Plan |
 |---|---|---|---|
@@ -195,6 +210,5 @@ vértices y extremos libres) ya no aparecen; la numeración de las demás se con
 | I12 | `Ctrl+Z` con algo tomado | Equivale a `Esc`: suelta sin cambios, no toca el historial | §6.2 |
 | I13 | Seleccionar y arrastre | Arrastrar desde un espacio vacío dibuja el rectángulo; arrastrar desde un objeto lo mueve | §6.1 |
 | I15 | Preset de temporizadores | En segundos con coma decimal, mínimo 0,1 s, máximo 3600 s, resolución 0,01 s | §10.4 |
-| I16 | Autoguardado | Al abrir, se restaura solo, con un aviso y la opción "Empezar uno nuevo" | §14.3 |
 | I17 | Grid y zoom | 10 px al 100 %, zoom de 25 % a 400 %, como valores ajustables | T-11 |
 | I18 | Avisos no bloqueantes | Etiqueta repetida (dos `H1`) y aparato puenteado (incluye L y N unidos por un cable: la simulación arranca y entra en ERROR para mostrar el corto). En el código: `REF_REPEATED`, `BYPASSED` | §8 |

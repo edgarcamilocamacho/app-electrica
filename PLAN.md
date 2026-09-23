@@ -114,6 +114,30 @@ Los puntos de esta ronda son los que citan las etiquetas `R5 §n` de
 
 Detalle del refactor y sus hitos: §22.
 
+### 0.6 Ronda 6 (2026-09-23, documentos en el servidor)
+
+Respondida en la conversación. Las etiquetas `R6 §n` de [docs/DECISIONES.md](docs/DECISIONES.md)
+remiten a esta tabla.
+
+| # | Decisión |
+|---|---|
+| R6 §1 | Los tableros se guardan **en el servidor**. Cualquiera con acceso ve y edita cualquiera; una sola lista |
+| R6 §2 | Guardado **automático** |
+| R6 §3 | Lista en una **barra a la izquierda, ocultable** |
+| R6 §4 | Guardar y abrir se convierten en **Exportar e Importar** |
+| R6 §5 | **Un editor a la vez**; los demás en solo lectura, viendo los cambios. «Editar» toma el turno **al instante** |
+| R6 §6 | Se muestra el **nombre** de quien edita |
+| R6 §7 | Los tableros se pueden **clonar** desde la lista |
+| R6 §8 | Borrar manda a la **papelera** (30 días) |
+| R6 §9 | Los ejemplos se ofrecen como **«Nuevo desde ejemplo»** |
+| R6 §10 | Nombres únicos con **número al final**; los cambios que no se pudieron guardar quedan en una copia numerada |
+| R6 §11 | Acceso por **Tailscale**, con reglas que solo dejan llegar al puerto de la app |
+| R6 §12 | Respaldo **solo en el servidor** |
+| R6 §13 | Actualizar = traer el repo y relanzar; datos y configuración se conservan |
+| R6 §14 | Se puede lanzar **en modo desarrollo** |
+
+Diseño e hitos: §24.
+
 ---
 
 ## 1. Interpretación del producto
@@ -1534,6 +1558,108 @@ tienda y máquina de herramientas, cola de eventos y `settle`, y la disciplina d
 reescriben: `registry/`, `topology/` (ops, validez, reparación, canonicalize reducida),
 `connectivity/`, el armado del modelo de simulación, los símbolos y los ejemplos.
 
+## 24. Documentos en el servidor [R6]
+
+### 24.1 Piezas
+
+```
+navegador ── src/app/cloud/   barra de archivos, turno de edición, guardado automático
+   │          src/platform/cloudApi.ts   cliente HTTP (y uno en memoria para pruebas y E2E)
+   │  JSON sobre /api
+   ▼
+nginx ─────── estáticos + proxy de /api
+   ▼
+server/ ───── Node sin dependencias en ejecución: node:http + node:sqlite
+   │          CloudService de src/core/cloud (las mismas reglas que usa el backend en memoria)
+   ▼
+/data/tableros.sqlite  (volumen)
+```
+
+- **Las reglas viven en `src/core/cloud`** [Técnica]: nombres únicos, turno de edición, versiones,
+  papelera y límites, en un `CloudService` puro y síncrono sobre una interfaz `DocStore`. El servidor
+  le da un `DocStore` sobre SQLite; las pruebas y el modo E2E, uno en memoria. Así el backend de
+  prueba no es una imitación: es el mismo código.
+- **El servidor valida el documento con `parseBoard`** del núcleo y guarda su forma canónica
+  (`serializeBoard`). Un JSON que la app no puede abrir nunca llega a la base.
+- **Sin dependencias de npm en ejecución** [Técnica]: `node:http` y `node:sqlite`. El servidor se
+  empaqueta con Vite en un solo archivo (`dist-server/server.js`) que incluye zod y el núcleo.
+- **Modo desarrollo** [R6 §14]: `pnpm dev` monta la misma API como middleware del servidor de Vite,
+  con la base en `.data/`. `pnpm preview` también, con la base en memoria, para los E2E.
+
+### 24.2 Modelo
+
+| Campo | Qué es |
+|---|---|
+| `id` | Aleatorio, lo genera el servidor. Nunca es una ruta de archivo |
+| `name` | Único entre los tableros activos, sin distinguir mayúsculas [R6 §10] |
+| `content` | El JSON canónico del tablero (esquema v2). Su `metadata.name` no manda: manda `name` |
+| `version` | Entero que sube en cada guardado |
+| `updatedAt` · `updatedBy` | Última modificación y el nombre de quien la hizo |
+| `deletedAt` | En la papelera desde ese momento; se purga a los 30 días [R6 §8] |
+| `lease` | Turno de edición: `{ session, name, seenAt }` |
+
+### 24.3 Turno de edición [R6 §5]
+
+- **Sesión = pestaña**: un id al azar por carga de la página. Dos pestañas de la misma persona son dos
+  sesiones. Al cerrar la pestaña se libera el turno (`fetch` con `keepalive`).
+- El turno **vence a los 20 s** sin latido; quien edita late cada 5 s. Una pestaña en segundo plano
+  guarda lo pendiente al ocultarse, así que si pierde el turno no pierde nada.
+- **Pedir** (`take: false`): se concede si está libre, vencido o ya es propio. **Tomar**
+  (`take: true`): se concede siempre. Al abrir un tablero se pide; «Editar» toma.
+- **Guardar** exige el turno (o que esté libre y la versión coincida). Si otro lo tomó, responde
+  `NOT_EDITOR`; el cliente guarda lo pendiente como copia numerada y lo avisa [R6 §10].
+- Quien mira consulta el estado cada 2 s y, si subió la versión, recarga el documento **sin tocar la
+  vista**. Si está simulando, la recarga espera a que detenga.
+- Al tomar el turno el historial de deshacer empieza vacío: no se deshace lo que hizo otro.
+
+### 24.4 API
+
+Todo bajo `/api`, en JSON. Toda petición exige la cabecera `X-Simulador: 1`; las escrituras, además,
+`Content-Type: application/json` y, si viene, un `Origin` del mismo host. Una página de otro sitio no
+puede cumplir eso sin CORS, que no se habilita.
+
+| Método y ruta | Qué hace |
+|---|---|
+| `GET /api/me` | Nombre que da la red (cabecera `Tailscale-User-Name`) o `null` |
+| `GET /api/docs` · `GET /api/trash` | Lista (sin contenido), con quién edita cada uno |
+| `POST /api/docs` | Crea: `{ name, content }` o `{ name, cloneOf }` |
+| `GET /api/docs/:id` | Tablero completo |
+| `PUT /api/docs/:id` | Guarda: `{ content, baseVersion, session }` |
+| `PATCH /api/docs/:id` | Renombra: `{ name }` |
+| `DELETE /api/docs/:id` | A la papelera |
+| `POST /api/docs/:id/restore` | Sale de la papelera |
+| `POST /api/docs/:id/lease` · `DELETE …/lease` | Pedir o tomar el turno · soltarlo |
+| `GET /api/docs/:id/state` | Versión, nombre, papelera y editor: lo que consulta quien mira |
+
+Límites [Técnica]: documento ≤ 2 MB, nombre ≤ 120 caracteres, 5000 tableros y 1 GB en total.
+Errores con código (`NOT_FOUND`, `NOT_EDITOR`, `STALE`, `INVALID_DOCUMENT`, `QUOTA`…), sin detalles
+internos.
+
+### 24.5 Interfaz
+
+- **Barra de archivos** a la izquierda de la biblioteca [R6 §3]: buscador, Nuevo, Nuevo desde
+  ejemplo, lista por última modificación («hace 2 min · Ana», y ✎ con el nombre de quien edita),
+  acciones por fila (Renombrar, Clonar, Exportar, A la papelera) y la papelera plegada al pie. Se
+  oculta con un botón; el estado se recuerda en el navegador.
+- **Barra del documento** sobre el lienzo: nombre, estado del guardado («Guardado», «Guardando…»,
+  «Sin conexión») y, en solo lectura, «Ana está editando · Editar».
+- En solo lectura se puede seleccionar, desplazar, hacer zoom, exportar y simular; no se puede
+  modificar nada. La tienda lo garantiza aunque la interfaz fallara.
+- Menú Archivo: Nuevo · Importar… · Exportar JSON · PNG · SVG · PDF.
+- Sin conexión, lo pendiente se guarda también en el navegador y se reintenta; al volver a abrir la
+  app, si quedó algo sin subir, se sube o, si el tablero cambió mientras tanto, queda como copia.
+
+### 24.6 Hitos
+
+| Hito | Contenido |
+|---|---|
+| **C1** | `src/core/cloud`: tipos, nombres, turno y `CloudService` con su `DocStore` en memoria. Pruebas unitarias |
+| **C2** | `server/`: `DocStore` sobre SQLite, manejador HTTP con las verificaciones de §24.4, arranque, purga y copias periódicas. Middleware de Vite para `dev` y `preview`. Pruebas contra un servidor real en un puerto libre |
+| **C3** | Cliente: `cloudApi`, controlador de sincronización (turno, latido, guardado, consulta), solo lectura en la tienda. Pruebas de integración con dos «pestañas» sobre el mismo backend |
+| **C4** | Interfaz: barra de archivos, barra del documento, importar y exportar. Se retiran File System Access y el autoguardado local. E2E, incluido el de dos navegadores |
+| **C5** | Contenedores: imagen de la API, nginx como proxy, compose endurecido y datos en volúmenes con nombre fijo |
+| **C6** | Despliegue con Tailscale: `tailscale serve`, reglas de acceso, script de administración, guía y pruebas de humo de seguridad |
+
 ---
 
 ## 23. Bitácora
@@ -1546,3 +1672,4 @@ reescriben: `registry/`, `topology/` (ops, validez, reparación, canonicalize re
 | 2026-09-21 | v0.4 | Ronda 3 (respondida en la conversación): contactos ambiguos inválidos y bloqueantes; stack aprobado, git solo local; inserción en serie; contactos temporizados genéricos; rotación inválida rechazada; prioridad de la goma; exportación PNG/PDF/SVG del diagrama completo; `estadoInicial` en el documento; interpretaciones I1–I18 aceptadas. **Plan listo para implementar.** Ver §0.2 |
 | 2026-09-21 | v0.5 | Agregado de producto: la app corre dentro de un contenedor. Imagen multi-etapa con nginx sin privilegios, política de caché dentro de la imagen, `compose.yaml`, contenedor desde M0, pruebas de humo y de versión contra la imagen real. Q3.9 deja de afectar el diseño. Ver §16 |
 | 2026-09-22 | v0.6 | Ronda 5: refactor a **vista gráfica de tablero**. Aparatos con sus bornes y su esquema adentro, cable de dos extremos con color y calibre, acometidas de una a tres fases, UPS, solo modo claro. La versión anterior queda en el tag `classic`. Ver §0.5 y §22 |
+| 2026-09-23 | v0.7 | Ronda 6: **documentos en el servidor**. Lista compartida con guardado automático, un editor a la vez, papelera, clonar, importar y exportar; acceso por Tailscale. Ver §0.6 y §24 |

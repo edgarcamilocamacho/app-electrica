@@ -6,7 +6,7 @@ import { defineConfig } from 'eslint/config';
 import noLiteralUiText from './scripts/eslint-rules/no-literal-ui-text.js';
 
 export default defineConfig(
-  { ignores: ['dist/**', 'coverage/**', 'playwright-report/**', 'test-results/**', 'node_modules/**'] },
+  { ignores: ['dist/**', 'dist-server/**', '.data/**', 'coverage/**', 'playwright-report/**', 'test-results/**', 'node_modules/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -41,6 +41,22 @@ export default defineConfig(
         },
       ],
       'no-restricted-globals': ['error', 'window', 'document', 'localStorage', 'sessionStorage', 'navigator', 'fetch', 'performance'],
+    },
+  },
+  {
+    // La API (PLAN §24.1): Node puro, sin UI ni código del navegador.
+    files: ['server/**/*.ts'],
+    languageOptions: { globals: globals.node },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['react', 'react-dom', 'react/*', 'react-dom/*', 'zustand', 'zustand/*'], message: 'server/ no puede depender de React.' },
+            { group: ['**/app/**', '**/platform/**'], message: 'server/ solo puede usar src/core.' },
+          ],
+        },
+      ],
     },
   },
   {

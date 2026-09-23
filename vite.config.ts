@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { cloudApiPlugin } from './server/devPlugin.ts';
 
 /**
  * Identificador único de build. En el contenedor llega como argumento `BUILD_ID`
@@ -29,7 +30,7 @@ function versionManifest(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), versionManifest()],
+  plugins: [react(), versionManifest(), cloudApiPlugin()],
   define: {
     __BUILD_ID__: JSON.stringify(buildId),
   },

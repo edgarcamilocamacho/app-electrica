@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:server": "vite build --config vite.server.config.ts",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc -b",
     "lint": "eslint .",
