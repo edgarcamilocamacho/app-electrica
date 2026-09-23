@@ -28,6 +28,14 @@ no actúan mientras el foco está en un campo de texto.
 | `Ctrl+Z` | Deshacer |
 | `Ctrl+Y` | Rehacer |
 
+## Simulación
+
+| Gesto | Acción |
+|---|---|
+| Clic en un pulsador | Lo mantiene apretado mientras el botón esté abajo |
+| Clic en un interruptor o en la parada de emergencia | Alterna su estado |
+| Clic en el selector de 3 posiciones | Lo pasa a la siguiente posición (I → 0 → II → I) |
+
 ## Herramienta Cable
 
 | Gesto | Acción |

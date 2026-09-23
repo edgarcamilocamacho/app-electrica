@@ -56,6 +56,28 @@ test.describe('simulación del tablero', () => {
     await expect(device(page, 'H1')).toHaveAttribute('data-energized', 'true');
   });
 
+  test('cada clic pasa el selector a la siguiente posición [R5 §23]', async ({ page }) => {
+    await openApp(page);
+    await page.evaluate(() => window.__e2e!.loadExample('selector'));
+    await page.getByTestId('simulate').click();
+    await expect(device(page, 'H1')).toHaveAttribute('data-energized', 'false');
+    await expect(device(page, 'H2')).toHaveAttribute('data-energized', 'false');
+
+    const click = async (): Promise<void> => {
+      const box = await device(page, 'S1').boundingBox();
+      await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    };
+
+    // Arranca en 0: I y II se alcanzan con uno y dos clics; el tercero vuelve a apagar todo.
+    await click();
+    await expect(device(page, 'H2')).toHaveAttribute('data-energized', 'true');
+    await click();
+    await expect(device(page, 'H1')).toHaveAttribute('data-energized', 'true');
+    await expect(device(page, 'H2')).toHaveAttribute('data-energized', 'false');
+    await click();
+    await expect(device(page, 'H1')).toHaveAttribute('data-energized', 'false');
+  });
+
   test('un corto congela todo en ERROR y solo se sale volviendo a editar', async ({ page }) => {
     await openApp(page);
     const json = JSON.stringify({

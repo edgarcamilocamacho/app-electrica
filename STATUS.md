@@ -14,8 +14,8 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 
 | Nivel | Resultado |
 |---|---|
-| Unitarias + integración (Vitest) | **138 / 138** |
-| E2E (Playwright, Chromium + Firefox) | **38 / 38** (19 flujos × 2 navegadores) |
+| Unitarias + integración (Vitest) | **140 / 140** |
+| E2E (Playwright, Chromium + Firefox) | **40 / 40** (20 flujos × 2 navegadores) |
 
 | Hito | Contenido |
 |---|---|

@@ -109,6 +109,7 @@ Los puntos de esta ronda son los que citan las etiquetas `R5 §n` de
 | R5 §20 | Los tornillos de una base enchufable van **donde están en el zócalo real**, aunque eso ponga bornes en los costados |
 | R5 §21 | Mientras se simula, lo que se puede accionar **se resalta al pasar el cursor** |
 | R5 §22 | El temporizador a la desconexión se llama **TOFF** en la interfaz, y cada temporizador lleva su clase escrita en la carátula |
+| R5 §23 | Un clic pasa el selector a la **siguiente posición** (I → 0 → II → I), y su perilla muestra en cuál está |
 
 Detalle del refactor y sus hitos: §22.
 

@@ -42,7 +42,10 @@ try {
   if (mode === 'hover' && focus) {
     await page.getByTestId('simulate').click();
     const box = await page.locator(`[data-ref="${focus}"]`).boundingBox();
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    // En modo simulación, `turns` pasa a ser la cantidad de clics sobre el aparato.
+    for (let i = 0; i < turns; i += 1) await page.mouse.click(at.x, at.y);
+    await page.mouse.move(at.x, at.y);
     await page.waitForTimeout(400);
   }
   const canvas = page.locator('[data-testid="board-canvas"]');

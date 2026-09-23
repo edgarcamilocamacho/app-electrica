@@ -460,25 +460,54 @@ function TimerFace({
   );
 }
 
-/** Selector de 3 posiciones: un común y dos salidas [I3]. */
+/** Selector de 3 posiciones: un común, dos salidas y el centro en vacío [I3]. */
 function SelectorArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
   const at = (id: string) => def.terminals.find((t) => t.id === id)!;
   const common = at('1');
   const out1 = at('2');
   const out2 = at('4');
   const position = view?.position ?? 0;
-  const tip = position === 1 ? out1.offset.x : position === 2 ? out2.offset.x : common.offset.x;
+  // La cuchilla gira sobre un pivote y se para en una de tres puntas; la del medio no conduce.
+  const pivot = { x: common.offset.x, y: -1 };
+  const fixedY = 2;
+  const spread = 1.6;
+  const tipX = pivot.x + (position === 1 ? -spread : position === 2 ? spread : 0);
+  const knob = { x: def.bounds.maxX - 1.8, y: -4.4 };
   return (
     <g>
       <Body bounds={def.bounds} />
-      <Conductor d={`M${common.offset.x} ${common.offset.y + LEAD}V-1.6`} />
-      <Conductor d={`M${out1.offset.x} ${out1.offset.y - LEAD}V2`} />
-      <Conductor d={`M${out2.offset.x} ${out2.offset.y - LEAD}V2`} />
-      <circle cx={common.offset.x} cy={-1.6} r={0.14} fill={P.sym} />
-      <Conductor d={`M${common.offset.x} -1.6L${tip} 2`} width={BOARD_STROKE * 1.25} />
-      <MechLink d={`M${common.offset.x} -1.6V-3.4`} />
-      <Conductor d={`M${common.offset.x - 1.2} -3.4H${common.offset.x + 1.2}`} />
+      <Conductor d={`M${common.offset.x} ${common.offset.y + LEAD}V${pivot.y}`} />
+      <Conductor d={`M${out1.offset.x} ${out1.offset.y - LEAD}V${fixedY}H${pivot.x - spread}`} />
+      <Conductor d={`M${out2.offset.x} ${out2.offset.y - LEAD}V${fixedY}H${pivot.x + spread}`} />
+      <circle cx={pivot.x} cy={pivot.y} r={0.15} fill={P.sym} />
+      <Conductor d={`M${pivot.x} ${pivot.y}L${tipX} ${fixedY}`} width={BOARD_STROKE * 1.25} />
+      {/* Perilla: apunta a la posición elegida, que es lo que dice en qué estado está. */}
+      <MechLink d={`M${pivot.x} ${pivot.y}H${knob.x}V${knob.y + 1.1}`} />
+      <SelectorKnob x={knob.x} y={knob.y} position={position} />
       <TagBlock x={def.bounds.minX + 0.8} y={4.6} tag={tagOf(device)} {...captionOf(device)} anchor="start" />
+    </g>
+  );
+}
+
+/** Perilla del selector: tres marcas y un puntero que se para en la posición actual. */
+function SelectorKnob({ x, y, position }: { x: number; y: number; position: number }): ReactElement {
+  const r = 1.1;
+  const angle = position === 1 ? -0.7 : position === 2 ? 0.7 : 0;
+  const tip = { x: x + Math.sin(angle) * r, y: y - Math.cos(angle) * r };
+  return (
+    <g>
+      {[-0.7, 0, 0.7].map((mark) => (
+        <circle
+          key={mark}
+          cx={x + Math.sin(mark) * (r + 0.5)}
+          cy={y - Math.cos(mark) * (r + 0.5)}
+          r={0.12}
+          fill={P.muted}
+        />
+      ))}
+      <circle cx={x} cy={y} r={r} fill={P.bodyShade} stroke={P.bodyEdge} strokeWidth={BOARD_STROKE} />
+      <Conductor d={`M${x} ${y}L${tip.x} ${tip.y}`} color={P.bodyEdge} width={BOARD_STROKE * 1.6} />
+      <circle cx={x} cy={y} r={0.22} fill={P.bodyEdge} />
     </g>
   );
 }

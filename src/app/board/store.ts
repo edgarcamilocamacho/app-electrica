@@ -64,6 +64,12 @@ import { DIR_VECTOR, nextRotation, rectFromPoints, rectUnion, type Rect } from '
 import { createRandomIdGen, type IdGen } from '../../core/model/ids';
 import type { Id, Point, Rotation } from '../../core/model/types';
 
+/**
+ * Un clic hace girar el selector a la siguiente posición, en el orden en que están dibujadas:
+ * izquierda (I) → centro (0) → derecha (II) → izquierda [R5 §23].
+ */
+export const nextSelectorPosition = (position: number): number => (position === 1 ? 0 : position === 0 ? 2 : 1);
+
 export const GRID_PX = 10;
 export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 4;
@@ -245,6 +251,8 @@ export interface BoardState {
   pressDevice(id: Id): void;
   releaseDevice(id: Id): void;
   toggleDevice(id: Id): void;
+  /** Pasa un selector a su siguiente posición [R5 §23]. */
+  turnSelector(id: Id): void;
 }
 
 export type BoardStore = StoreApi<BoardState>;
@@ -789,6 +797,14 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
         if (!engine) return;
         engine.release(id);
         set({ sim: engine.snapshot() });
+      },
+
+      turnSelector(id) {
+        if (!engine) return;
+        const current = get().sim?.devices.get(id)?.position ?? 0;
+        engine.setSelector(id, nextSelectorPosition(current));
+        const snapshot = engine.snapshot();
+        set({ sim: snapshot, ...(snapshot.mode === 'error' ? { mode: 'error' as Mode } : {}) });
       },
 
       toggleDevice(id) {

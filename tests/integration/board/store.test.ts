@@ -5,6 +5,7 @@ import { createBoardStore, docOf, selectionOf, type BoardStore } from '../../../
 import { terminalPosition } from '../../../src/core/board/model';
 import { isOrthogonalRoute, wireRoute } from '../../../src/core/board/wireGeometry';
 import { createCounterIdGen } from '../../../src/core/model/ids';
+import { selectorBoard } from '../../../src/examples/board';
 
 const makeStore = (): BoardStore =>
   createBoardStore({ ids: createCounterIdGen(), registry: boardRegistry, now: () => 0 });
@@ -257,6 +258,25 @@ describe('tienda del tablero — simulación', () => {
     store.getState().stopSim();
     expect(store.getState().mode).toBe('edit');
     expect(store.getState().sim).toBeNull();
+  });
+
+  it('un clic pasa el selector a la siguiente posición y cambia el circuito [R5 §23]', () => {
+    const store = makeStore();
+    store.getState().loadDocument(selectorBoard({ ids: createCounterIdGen(), registry: boardRegistry }));
+    const idOf = (ref: string) => Object.values(docOf(store.getState()).devices).find((d) => d.props.ref === ref)!.id;
+    const selector = idOf('S1');
+    const lit = (ref: string) => store.getState().sim?.devices.get(idOf(ref))?.energized === true;
+
+    store.getState().startSim();
+    expect([lit('H1'), lit('H2')]).toEqual([false, false]);
+
+    // Arranca en 0: el primer clic lo lleva a II, el segundo a I y el tercero vuelve a 0.
+    store.getState().turnSelector(selector);
+    expect([lit('H1'), lit('H2')]).toEqual([false, true]);
+    store.getState().turnSelector(selector);
+    expect([lit('H1'), lit('H2')]).toEqual([true, false]);
+    store.getState().turnSelector(selector);
+    expect([lit('H1'), lit('H2')]).toEqual([false, false]);
   });
 
   it('un corto deja la simulación en ERROR y solo se sale volviendo a editar [R5 §14]', () => {

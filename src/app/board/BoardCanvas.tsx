@@ -107,11 +107,10 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
         const id = hit.kind === 'device' ? hit.id : hit.ref.deviceId;
         const def = state.registry.get(doc.devices[id]!.type);
         const manual = def?.internals.actuators.find((a) => a.kind === 'manual');
-        if (manual?.kind === 'manual' && (manual.action === 'maintained' || manual.action === 'latching')) {
-          store.getState().toggleDevice(id);
-        } else if (manual) {
-          store.getState().pressDevice(id);
-        }
+        if (manual?.kind !== 'manual') return;
+        if (manual.action === 'selector') store.getState().turnSelector(id);
+        else if (manual.action === 'maintained' || manual.action === 'latching') store.getState().toggleDevice(id);
+        else store.getState().pressDevice(id);
       }
       return;
     }

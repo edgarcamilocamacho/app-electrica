@@ -3,7 +3,7 @@ import { boardRegistry } from '../../../src/core/board/catalog';
 import { blockingDiagnostics, computeDiagnostics } from '../../../src/core/board/diagnostics';
 import { BoardSimEngine } from '../../../src/core/board/sim/engine';
 import { createCounterIdGen } from '../../../src/core/model/ids';
-import { catalogBoard, starterBoard, timerBoard } from '../../../src/examples/board';
+import { catalogBoard, selectorBoard, starterBoard, timerBoard } from '../../../src/examples/board';
 
 const ctx = () => ({ ids: createCounterIdGen(), registry: boardRegistry });
 
@@ -44,6 +44,24 @@ describe('circuitos de ejemplo', () => {
     expect(engine.snapshot().devices.get(idOf('H1'))?.energized).toBe(false);
     engine.advanceTo(5000);
     expect(engine.snapshot().devices.get(idOf('H1'))?.energized).toBe(true);
+  });
+
+  it('el selector de 3 posiciones manda cada piloto por su posición [I3]', () => {
+    const doc = selectorBoard(ctx());
+    const blocking = blockingDiagnostics(computeDiagnostics(doc, boardRegistry));
+    expect(blocking.map((d) => `${d.code} ${d.at ? `${d.at.x},${d.at.y}` : ''}`)).toEqual([]);
+
+    const engine = new BoardSimEngine(doc, boardRegistry);
+    const idOf = (ref: string) => Object.values(doc.devices).find((d) => d.props.ref === ref)!.id;
+    const lit = (ref: string) => engine.snapshot().devices.get(idOf(ref))?.energized === true;
+    engine.start();
+    expect([lit('H1'), lit('H2')]).toEqual([false, false]);
+    engine.setSelector(idOf('S1'), 1);
+    expect([lit('H1'), lit('H2')]).toEqual([true, false]);
+    engine.setSelector(idOf('S1'), 2);
+    expect([lit('H1'), lit('H2')]).toEqual([false, true]);
+    engine.setSelector(idOf('S1'), 0);
+    expect([lit('H1'), lit('H2')]).toEqual([false, false]);
   });
 
   it('el catálogo de muestra no superpone aparatos', () => {

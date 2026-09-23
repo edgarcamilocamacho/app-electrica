@@ -5,7 +5,7 @@
  */
 import { serializeBoard, parseBoard } from '../../core/board/persistence';
 import { createCounterIdGen } from '../../core/model/ids';
-import { catalogBoard, starterBoard, timerBoard } from '../../examples/board';
+import { catalogBoard, selectorBoard, starterBoard, timerBoard } from '../../examples/board';
 import { docOf, worldToScreen, type BoardStore } from './store';
 
 export interface BoardE2EHooks {
@@ -16,7 +16,7 @@ export interface BoardE2EHooks {
   state(): { mode: string; tool: string; zoom: number; devices: number; wires: number };
   deviceIdByRef(ref: string): string | undefined;
   /** Carga un circuito de ejemplo por nombre, para no repetir coordenadas en las pruebas. */
-  loadExample(name: 'arranque' | 'temporizador' | 'catalogo'): void;
+  loadExample(name: 'arranque' | 'temporizador' | 'selector' | 'catalogo'): void;
   /** Zoom 100 % con el origen del mundo cerca del borde superior izquierdo del lienzo. */
   resetView(): void;
 }
@@ -61,7 +61,13 @@ export function installBoardE2EHooks(store: BoardStore): void {
       const ids = createCounterIdGen();
       const ctx = { ids, registry: store.getState().registry };
       const doc =
-        name === 'temporizador' ? timerBoard(ctx) : name === 'catalogo' ? catalogBoard(ctx) : starterBoard(ctx);
+        name === 'temporizador'
+          ? timerBoard(ctx)
+          : name === 'selector'
+            ? selectorBoard(ctx)
+            : name === 'catalogo'
+              ? catalogBoard(ctx)
+              : starterBoard(ctx);
       store.getState().loadDocument(doc);
     },
     deviceIdByRef(ref) {

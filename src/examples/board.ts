@@ -162,6 +162,49 @@ export function timerBoard(ctx: OpContext): BoardDocument {
   return doc;
 }
 
+/** Selector de 3 posiciones: I enciende H1, II enciende H2, 0 deja todo apagado [I3]. */
+export function selectorBoard(ctx: OpContext): BoardDocument {
+  let doc = emptyBoard({ ...META, name: 'Selector de 3 posiciones' });
+
+  const supply = place(doc, ctx, 'supply-1p', { x: 0, y: -30 }, 'G1');
+  doc = supply.doc;
+  const selector = place(doc, ctx, 'selector-3', { x: 40, y: 0 }, 'S1');
+  doc = selector.doc;
+  const left = place(doc, ctx, 'pilot-lamp', { x: 75, y: 30 }, 'H1');
+  doc = left.doc;
+  const right = place(doc, ctx, 'pilot-lamp', { x: 110, y: 30 }, 'H2');
+  doc = right.doc;
+
+  const G = supply.id;
+  const S = selector.id;
+  const H1 = left.id;
+  const H2 = right.id;
+
+  // La fase entra al común del selector; cada posición alimenta su piloto.
+  doc = wire(doc, ctx, t(G, 'L'), t(S, '1'), 'red', [
+    { x: 2, y: -16 },
+    { x: 40, y: -16 },
+  ]);
+  doc = wire(doc, ctx, t(S, '2'), t(H1, 'X1'), 'red', [
+    { x: 36, y: 16 },
+    { x: 75, y: 16 },
+  ]);
+  doc = wire(doc, ctx, t(S, '4'), t(H2, 'X1'), 'red', [
+    { x: 44, y: 12 },
+    { x: 110, y: 12 },
+  ]);
+  doc = wire(doc, ctx, t(G, 'N'), t(H1, 'X2'), 'blue', [
+    { x: -2, y: 44 },
+    { x: 75, y: 44 },
+  ]);
+  doc = wire(doc, ctx, t(G, 'N'), t(H2, 'X2'), 'blue', [
+    { x: -2, y: 48 },
+    { x: 110, y: 48 },
+  ]);
+
+  return doc;
+}
+
 /** Un aparato de cada tipo, en grilla: sirve para revisar el dibujo del catálogo. */
 export function catalogBoard(ctx: OpContext): BoardDocument {
   let doc = emptyBoard({ ...META, name: 'Catálogo' });
