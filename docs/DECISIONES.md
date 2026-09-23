@@ -51,6 +51,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | Durante la simulación se puede: desplazar, hacer zoom, seleccionar para inspeccionar, ver propiedades en solo lectura, ver estados eléctricos y el valor de los temporizadores | R2 §16 |
 | Durante la simulación **no** se puede: mover, borrar, cablear ni cambiar propiedades estructurales | R2 §16 |
 | `estadoInicial` de interruptores (y posición inicial del selector) es una **propiedad del documento**, editable en edición y guardada en el archivo. Lo que se haga durante la simulación no la modifica: al detener, todo vuelve al estado inicial | R3 Q3.8 |
+| Mientras se simula, al pasar el cursor sobre un aparato de accionamiento manual **se resalta** (halo y cursor de mano) para que se vea qué se puede tocar. En ERROR no se resalta nada: está todo congelado | R5 §21 |
 | Modo ERROR: toda la simulación se detiene, el tiempo y los temporizadores quedan congelados, se resaltan los aparatos o nodos implicados y volver a edición exige una acción explícita | R2 §18, R5 §14 |
 
 ## 4. Cableado y topología

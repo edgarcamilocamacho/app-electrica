@@ -26,6 +26,8 @@ export const BOARD_PALETTE = {
   metal: '#b8c0cb',
   selection: '#0284c7',
   selectionHalo: 'rgba(2, 132, 199, 0.22)',
+  /** Realce de lo accionable mientras se simula. */
+  liveHalo: 'rgba(2, 132, 199, 0.08)',
   invalid: '#dc2626',
   invalidHalo: 'rgba(220, 38, 38, 0.18)',
   short: '#dc2626',

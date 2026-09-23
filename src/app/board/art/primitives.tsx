@@ -299,13 +299,21 @@ export interface ContactProps {
   readonly color?: string;
 }
 
+/** Largo del gancho del contacto fijo NC, contra el que cierra la cuchilla. */
+const HOOK = 0.9;
+
 /**
  * Contacto vertical: el fijo arriba, la cuchilla pivotando abajo. La cuchilla se dibuja inclinada
  * cuando está abierta, como en un esquema IEC.
+ *
+ * El largo y la inclinación salen de dónde tiene que cerrar: el NA contra el punto fijo, justo
+ * arriba; el NC contra la punta de su gancho. Así, cerrado, la cuchilla **toca** el contacto.
  */
 export function Contact({ x, yTop, yBottom, normal, closed, power, delay, color = P.sym }: ContactProps): ReactElement {
-  const length = yBottom - yTop;
-  const tilt = normal === 'NO' ? (closed ? 0 : -0.38) : closed ? 0.32 : 0.68;
+  const vertical = yBottom - yTop;
+  const length = normal === 'NC' ? Math.hypot(HOOK, vertical) : vertical;
+  const closedTilt = normal === 'NC' ? Math.atan2(HOOK, vertical) : 0;
+  const tilt = closed ? closedTilt : closedTilt + (normal === 'NC' ? 0.3 : -0.38);
   const tipX = x + Math.sin(tilt) * length;
   const tipY = yBottom - Math.cos(tilt) * length;
   const midX = (x + tipX) / 2;
@@ -320,7 +328,7 @@ export function Contact({ x, yTop, yBottom, normal, closed, power, delay, color 
           strokeWidth={BOARD_STROKE}
         />
       )}
-      {normal === 'NC' && <Conductor d={`M${x} ${yTop}H${x + 0.9}`} color={color} />}
+      {normal === 'NC' && <Conductor d={`M${x} ${yTop}H${x + HOOK}`} color={color} />}
       <circle cx={x} cy={yBottom} r={0.13} fill={color} />
       <Conductor d={`M${x} ${yBottom}L${tipX} ${tipY}`} color={color} width={BOARD_STROKE * 1.2} />
       {delay && (

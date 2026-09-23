@@ -6,7 +6,7 @@ import { memo, useMemo, type ReactElement } from 'react';
 import type { BoardDocument, Wire } from '../../core/board/model';
 import { terminalOf, wireCountByTerminal } from '../../core/board/model';
 import { computeNets } from '../../core/board/nets';
-import type { DeviceRegistry } from '../../core/board/registry';
+import type { DeviceDefinition, DeviceRegistry } from '../../core/board/registry';
 import type { NetPotential, SimSnapshot } from '../../core/board/sim/engine';
 import { wireRoute } from '../../core/board/wireGeometry';
 import type { Id } from '../../core/model/types';
@@ -109,6 +109,10 @@ function BoardDiagramInner({
 
   const devices = Object.values(doc.devices).map((device) => ({ device, def: registry.get(device.type) }));
 
+  /** Durante la simulación, los aparatos de accionamiento manual se pueden tocar. */
+  const isLive = (def: DeviceDefinition): boolean =>
+    sim != null && sim.mode !== 'error' && def.internals.actuators.some((a) => a.kind === 'manual');
+
   return (
     <g>
       {/* Cuerpos y esquema interno: debajo de los cables. */}
@@ -153,12 +157,37 @@ function BoardDiagramInner({
           <g
             key={device.id}
             transform={`translate(${device.position.x} ${device.position.y}) rotate(${device.rotation})`}
+            className={isLive(def) ? 'tb-live' : undefined}
             data-device={device.id}
             data-rotation={device.rotation}
             data-ref={typeof device.props.ref === 'string' ? device.props.ref : ''}
             data-energized={sim?.devices.get(device.id)?.energized === true ? 'true' : 'false'}
             data-actuated={sim?.devices.get(device.id)?.actuated === true ? 'true' : 'false'}
           >
+            {isLive(def) && (
+              <g>
+                {/* Realce al pasar el cursor: dice qué se puede accionar [R5 §21]. */}
+                <rect
+                  className="tb-live__ring"
+                  x={def.bounds.minX - 0.5}
+                  y={def.bounds.minY - 0.5}
+                  width={def.bounds.maxX - def.bounds.minX + 1}
+                  height={def.bounds.maxY - def.bounds.minY + 1}
+                  rx={1.2}
+                  fill={P.liveHalo}
+                  stroke={P.selection}
+                  strokeWidth={0.22}
+                />
+                {/* Zona sensible: transparente, pero recibe el cursor. */}
+                <rect
+                  x={def.bounds.minX}
+                  y={def.bounds.minY}
+                  width={def.bounds.maxX - def.bounds.minX}
+                  height={def.bounds.maxY - def.bounds.minY}
+                  fill="transparent"
+                />
+              </g>
+            )}
             <DeviceArt
               device={device}
               def={def}

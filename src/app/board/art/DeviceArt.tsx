@@ -218,8 +218,8 @@ function ContactorArt({ device, def, view }: { device: DeviceInstance; def: Devi
   const a1 = at('A1');
   const a2 = at('A2');
   const on = view?.energized === true;
-  // Bobina chica, entre A1 y A2 y bien arriba, para no taparle la columna a ningún borne.
-  const coil = { x: (a1.offset.x + a2.offset.x) / 2 - 0.9, y: a1.offset.y + 1.1, w: 1.8, h: 1.3 };
+  // Bobina chica, en la misma línea que A1 y A2: no le tapa la columna a ningún borne.
+  const coil = { x: (a1.offset.x + a2.offset.x) / 2 - 0.85, y: a1.offset.y - 0.6, w: 1.7, h: 1.2 };
   const lastX = at('21').offset.x;
   return (
     <g>
@@ -236,8 +236,9 @@ function ContactorArt({ device, def, view }: { device: DeviceInstance; def: Devi
           </g>
         );
       })}
-      <Conductor d={`M${a1.offset.x} ${a1.offset.y + 1}V${coil.y + coil.h / 2}H${coil.x}`} />
-      <Conductor d={`M${a2.offset.x} ${a2.offset.y + 1}V${coil.y + coil.h / 2}H${coil.x + coil.w}`} />
+      {/* Los arranques quedan bajo el tornillo, que se dibuja encima. */}
+      <Conductor d={`M${a1.offset.x} ${a1.offset.y}H${coil.x}`} />
+      <Conductor d={`M${a2.offset.x} ${a2.offset.y}H${coil.x + coil.w}`} />
       <Coil x={coil.x} y={coil.y} w={coil.w} h={coil.h} on={on} />
       {/* El vínculo mecánico cruza las cuchillas; no baja desde la bobina para no tapar bornes. */}
       <MechLink d={`M${at('1').offset.x - 1} 0H${lastX + 1}`} />

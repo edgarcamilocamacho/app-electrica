@@ -516,3 +516,37 @@ button:focus-visible,
   font-size: 12px;
   opacity: 0.9;
 }
+
+/* ── Aparatos accionables durante la simulación ────────────────────────── */
+.tb-live {
+  cursor: pointer;
+}
+
+.tb-live__ring {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    opacity 130ms ease-out,
+    transform 130ms ease-out;
+}
+
+.tb-live:hover .tb-live__ring {
+  opacity: 1;
+  transform: scale(1.04);
+}
+
+.tb-live:active .tb-live__ring {
+  transform: scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tb-live__ring {
+    transition: none;
+  }
+
+  .tb-live:hover .tb-live__ring,
+  .tb-live:active .tb-live__ring {
+    transform: none;
+  }
+}

@@ -11,6 +11,8 @@ const out = process.argv[3] ?? '/tmp/claude-1000/shot.png';
 const focus = process.argv[4];
 /** Cuartos de vuelta a aplicarle antes de capturar (opcional). */
 const turns = Number(process.argv[5] ?? 0);
+/** `hover`: arranca la simulación y deja el cursor sobre el aparato enfocado. */
+const mode = process.argv[6];
 const port = 5199;
 const server = spawn('pnpm', ['exec', 'vite', 'preview', '--port', String(port), '--strictPort'], {
   stdio: 'ignore',
@@ -36,6 +38,12 @@ try {
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     for (let i = 0; i < turns; i += 1) await page.keyboard.press('r');
     await page.waitForTimeout(150);
+  }
+  if (mode === 'hover' && focus) {
+    await page.getByTestId('simulate').click();
+    const box = await page.locator(`[data-ref="${focus}"]`).boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(400);
   }
   const canvas = page.locator('[data-testid="board-canvas"]');
   if (focus) {
