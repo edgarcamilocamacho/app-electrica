@@ -2,7 +2,9 @@
 
 Editor y simulador de circuitos de control eléctrico: **vista gráfica de tablero** (cada aparato con
 sus bornes de tornillo y su esquema IEC adentro), cableado ortogonal de borne a borne y simulación
-lógica por eventos discretos. 100 % client-side; se distribuye como imagen de contenedor (nginx).
+lógica por eventos discretos. La edición y la simulación corren en el navegador; los tableros se
+guardan en el servidor (`server/`, Node + SQLite) con guardado automático y un editor a la vez
+(ronda R6, [PLAN.md](PLAN.md) §24). Se distribuye como contenedores (nginx + API).
 
 **En refactor (ronda R5).** La versión anterior —esquema IEC con bobinas y contactos sueltos— está
 congelada en el tag `classic`; no se mantiene. Plan del refactor: [PLAN.md](PLAN.md) §0.5 y §22.
@@ -31,7 +33,7 @@ decisión abierta: proveedor de despliegue (no afecta el código).
 
 ```bash
 pnpm install          # pnpm 12 (npm i -g pnpm@12.5.1), Node ≥ 22
-pnpm dev              # http://localhost:5173
+pnpm dev              # http://localhost:5173 — con la API de tableros; base en .data/
 pnpm check            # typecheck + lint + unit/integración — obligatorio antes de commitear
 pnpm e2e              # Playwright, Chromium + Firefox (build + preview automáticos)
 pnpm e2e:chromium     # más rápido mientras se itera
@@ -72,12 +74,15 @@ Navegadores de E2E: `pnpm exec playwright install chromium firefox`.
 
 - Cada cambio lleva pruebas en el nivel que corresponda: `tests/unit/board` (núcleo, sin DOM),
   `tests/integration/board` (tienda en jsdom), `tests/e2e`.
+- API de tableros: `tests/unit/cloud` (reglas), `tests/unit/server` (HTTP real en un puerto libre),
+  `tests/integration/cloud` (controlador con dos pestañas y reloj falso).
 - Helper principal: `tests/fixtures/board.ts` (`BoardBuilder`, `term`). Comparte su generador de ids
   con las operaciones para que no colisionen.
 - E2E sin `sleep`. La app con `?e2e=1` expone `window.__e2e` (`advance(ms)`, `resetView()`,
-  `worldToScreen`, `documentJson`, `loadJson`, `state()`, `deviceIdByRef`) y no avanza el tiempo
-  sola. `openApp()` deja zoom 100 % con el origen cerca de la esquina: usar coordenadas de mundo
-  positivas y menores a ~100.
+  `worldToScreen`, `documentJson`, `loadJson`, `state()`, `deviceIdByRef`, `cloud()`, `syncNow()`)
+  y no avanza el tiempo sola. `openApp()` deja zoom 100 % con el origen cerca de la esquina: usar
+  coordenadas de mundo positivas y menores a ~55 en x. `syncNow()` sube, late o consulta ya, sin
+  esperar a los relojes del controlador.
 - El estado de la simulación se lee en el DOM: cada aparato lleva `data-ref`, `data-energized` y
   `data-actuated`; cada cable, `data-live`.
 - Commitear **solo si `pnpm check` pasa**: encadenar con `&&`, nunca con `;`.
@@ -91,8 +96,12 @@ Navegadores de E2E: `pnpm exec playwright install chromium firefox`.
   contenedor raíz y los componentes.
 - **Playwright**: una `<line>` SVG vertical u horizontal tiene caja de ancho cero y `toBeVisible()`
   falla; contar elementos o verificar atributos.
-- **File System Access**: los selectores nativos no son automatizables; `main.tsx` los tapa en modo
-  E2E (están en el prototipo de `Window`: `defineProperty`, no `delete`).
+- **Backend en E2E**: con `?e2e=1` cada página usa un backend de tableros **en memoria** propio (mismo
+  `CloudService` que el servidor), así las pruebas no se pisan. `&backend=server` usa la API real de
+  `pnpm preview`, que es **compartida** entre todas las pruebas: crear un tablero con nombre único y
+  dejarlo como último abierto (`tests/e2e/shared.spec.ts`). Antes de tocar el lienzo, `waitIdle()`.
+- **Ancho del lienzo en E2E**: la barra de tableros le quita ~250 px; con `resetView()` lo visible va
+  de x ≈ −10 a 55 y de y ≈ −10 a 70.
 - **Circuitos de ejemplo**: `connect()` devuelve el documento aunque la operación sea inválida. Al
   construir un ejemplo hay que revisar `ok` o, como hace `tests/unit/board/examples.test.ts`, exigir
   cero diagnósticos bloqueantes; si no, el ejemplo no se puede simular.

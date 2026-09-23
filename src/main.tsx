@@ -3,34 +3,42 @@ import { createRoot } from 'react-dom/client';
 import { BoardApp } from './app/board/BoardApp';
 import { createBoardStore } from './app/board/store';
 import { installBoardE2EHooks } from './app/board/testHooks';
+import { CloudController, type ExampleKey } from './app/cloud/controller';
 import { boardRegistry } from './core/board/catalog';
+import { createMemoryCloud } from './core/cloud/memoryApi';
 import { createRandomIdGen } from './core/model/ids';
-import { catalogBoard, starterBoard } from './examples/board';
+import { catalogBoard, selectorBoard, starterBoard, timerBoard } from './examples/board';
 import { t } from './app/i18n/t';
+import { createHttpCloudApi } from './platform/cloudApi';
+import { downloadText } from './platform/files';
+import { browserStorage, memoryStorage } from './platform/storage';
 import { VersionChecker } from './platform/version';
 import './app/styles.css';
 
 const params = new URLSearchParams(window.location.search);
 const e2e = params.has('e2e');
 
-if (e2e) {
-  // Los selectores nativos de File System Access no son automatizables: en E2E se prueba la ruta
-  // universal (descarga + <input type=file>).
-  // Viven en el prototipo de Window: se tapan con una propiedad propia indefinida.
-  for (const name of ['showSaveFilePicker', 'showOpenFilePicker']) {
-    Object.defineProperty(window, name, { value: undefined, configurable: true });
-  }
-}
-
 const ids = createRandomIdGen();
-const store = createBoardStore(
-  { ids, registry: boardRegistry },
-  params.has('catalogo')
-    ? catalogBoard({ ids, registry: boardRegistry })
-    : starterBoard({ ids, registry: boardRegistry }),
-);
+const store = createBoardStore({ ids, registry: boardRegistry });
 
-if (e2e) installBoardE2EHooks(store);
+const EXAMPLES = { arranque: starterBoard, temporizador: timerBoard, selector: selectorBoard, catalogo: catalogBoard } as const;
+
+// En E2E, salvo `?backend=server`, cada página tiene su propio backend en memoria con las mismas
+// reglas que el servidor (PLAN §24.1): las pruebas no se pisan entre sí.
+const realBackend = !e2e || params.get('backend') === 'server';
+const cloud = new CloudController({
+  api: realBackend ? createHttpCloudApi() : createMemoryCloud().api,
+  board: store,
+  storage: realBackend ? browserStorage : memoryStorage(),
+  example: (key) => EXAMPLES[key]({ ids: createRandomIdGen(), registry: boardRegistry }),
+  names: { untitled: t('cloud.untitled'), copyOf: (name) => t('cloud.copyOf', { name }) },
+  initialExample: (params.has('catalogo') ? 'catalogo' : 'arranque') satisfies ExampleKey,
+  download: downloadText,
+});
+cloud.attachToWindow(window);
+void cloud.start();
+
+if (e2e) installBoardE2EHooks(store, cloud);
 
 // Versión nueva disponible: se avisa una vez y el usuario decide recargar (PLAN §16.2).
 if (!params.has('noversion')) {
@@ -48,6 +56,6 @@ if (!root) throw new Error('No se encontró el elemento #root');
 
 createRoot(root).render(
   <StrictMode>
-    <BoardApp store={store} autoAdvance={!e2e} />
+    <BoardApp store={store} cloud={cloud} autoAdvance={!e2e} />
   </StrictMode>,
 );

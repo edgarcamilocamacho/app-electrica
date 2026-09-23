@@ -1,27 +1,17 @@
 /**
- * Archivos del tablero: guardar, abrir, autoguardado y exportación.
+ * Exportación del tablero a imagen y PDF. Guardar y abrir ya no existen: los tableros viven en el
+ * servidor y el JSON se exporta e importa desde la lista [R6 §4].
  *
  * La exportación sale con **fondo blanco**, no con el color de hoja del lienzo [R5 §16].
  */
 import { createElement } from 'react';
-import { boardRegistry } from '../../core/board/catalog';
-import type { BoardDocument } from '../../core/board/model';
-import { parseBoard, serializeBoard, type BoardLoadErrorCode } from '../../core/board/persistence';
-import { downloadBlob, openText, saveText, toFileName, type FileHandle } from '../../platform/files';
-import type { KeyValueStorage } from '../../platform/storage';
+import { downloadBlob, toFileName } from '../../platform/files';
 import { BoardDiagram } from './BoardDiagram';
 import { contentBounds, docOf, type BoardStore } from './store';
 import { BOARD_PALETTE } from './theme';
 
 const PX_PER_UNIT = 10;
 const MARGIN = 3;
-
-export const BOARD_AUTOSAVE_KEY = 'simulador-tablero:autosave:v1';
-
-export interface BoardFileState {
-  name: string;
-  handle?: FileHandle;
-}
 
 export interface ExportedSvg {
   readonly markup: string;
@@ -128,52 +118,4 @@ export async function exportBoard(store: BoardStore, format: ExportFormat, rawNa
   const fileName = toFileName(name, 'pdf');
   downloadBlob(await svgToPdf(svg), fileName);
   return fileName;
-}
-
-export interface SaveResult {
-  readonly name: string;
-  readonly handle?: FileHandle;
-}
-
-export async function saveBoard(store: BoardStore, file: BoardFileState): Promise<SaveResult | undefined> {
-  const doc = docOf(store.getState());
-  const text = serializeBoard(doc);
-  const suggested = toFileName(file.name || doc.metadata.name || 'tablero', 'json');
-  const outcome = await saveText(text, suggested, file.handle);
-  if (!outcome) return undefined;
-  return { name: outcome.fileName, ...(outcome.handle ? { handle: outcome.handle } : {}) };
-}
-
-export type OpenBoardResult =
-  | { readonly ok: true; readonly doc: BoardDocument; readonly name: string; readonly handle?: FileHandle }
-  | { readonly ok: false; readonly code: BoardLoadErrorCode }
-  | undefined;
-
-export async function openBoard(): Promise<OpenBoardResult> {
-  const outcome = await openText();
-  if (!outcome) return undefined;
-  const result = parseBoard(outcome.text, boardRegistry);
-  if (!result.ok) return { ok: false, code: result.error.code };
-  return { ok: true, doc: result.doc, name: outcome.fileName, ...(outcome.handle ? { handle: outcome.handle } : {}) };
-}
-
-/** Autoguardado local: el documento vuelve después de una recarga [R2 §28]. */
-export function writeBoardAutosave(storage: KeyValueStorage, doc: BoardDocument, name: string): void {
-  try {
-    storage.set(BOARD_AUTOSAVE_KEY, JSON.stringify({ savedAt: new Date().toISOString(), name, document: JSON.parse(serializeBoard(doc)) }));
-  } catch {
-    // Sin espacio o sin permiso: el autoguardado es best-effort.
-  }
-}
-
-export function readBoardAutosave(storage: KeyValueStorage): { doc: BoardDocument; name: string } | null {
-  const raw = storage.get(BOARD_AUTOSAVE_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as { name?: string; document?: unknown };
-    const result = parseBoard(JSON.stringify(parsed.document), boardRegistry);
-    return result.ok ? { doc: result.doc, name: typeof parsed.name === 'string' ? parsed.name : '' } : null;
-  } catch {
-    return null;
-  }
 }

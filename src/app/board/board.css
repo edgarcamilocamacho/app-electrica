@@ -550,3 +550,309 @@ button:focus-visible,
     transform: none;
   }
 }
+
+/* ── Tableros en el servidor [R6] ──────────────────────────────────────── */
+.tb-app.has-files {
+  grid-template-columns: 248px 224px minmax(0, 1fr) 272px;
+  grid-template-areas:
+    'bar bar bar bar'
+    'files left canvas right'
+    'status status status status';
+}
+
+.tb-files {
+  grid-area: files;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 12px 10px;
+  background: #faf8f3;
+  border-right: 1px solid var(--tb-line);
+}
+
+.tb-files__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tb-files__head .tb-title {
+  margin: 0;
+}
+
+.tb-files__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.tb-files__actions .tb-btn {
+  height: 30px;
+  padding: 0 9px;
+}
+
+.tb-files__search {
+  width: 100%;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--tb-line);
+  border-radius: 7px;
+  background: var(--tb-panel);
+}
+
+.tb-files__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.tb-files__list > .tb-hint {
+  padding: 6px 4px;
+}
+
+.tb-file {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  margin-bottom: 2px;
+  border-radius: 8px;
+}
+
+.tb-file:hover {
+  background: var(--tb-line-soft);
+}
+
+.tb-file.is-active {
+  background: var(--tb-accent-soft);
+}
+
+.tb-file.is-active .tb-file__name {
+  color: var(--tb-accent);
+}
+
+.tb-file__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tb-file__name {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tb-file__meta,
+.tb-file__editor {
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--tb-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tb-file__editor {
+  color: var(--tb-warn);
+}
+
+.tb-file__editor::before {
+  content: '✎ ';
+}
+
+.tb-file__more {
+  align-self: center;
+  width: 26px;
+  height: 26px;
+  opacity: 0;
+}
+
+.tb-file:hover .tb-file__more,
+.tb-file.is-active .tb-file__more,
+.tb-file__more[aria-expanded='true'],
+.tb-file__more:focus-visible {
+  opacity: 1;
+}
+
+.tb-file__rename {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  margin: 4px;
+  padding: 0 7px;
+  border: 1px solid var(--tb-accent);
+  border-radius: 6px;
+}
+
+.tb-file.is-trashed {
+  align-items: center;
+  padding-right: 4px;
+}
+
+.tb-file.is-trashed .tb-file__main {
+  cursor: default;
+}
+
+.tb-menu__list--right {
+  left: auto;
+  right: 0;
+  min-width: 160px;
+}
+
+.tb-menu__list button.is-danger {
+  color: var(--tb-danger);
+}
+
+.tb-menu__list button.is-danger:hover {
+  background: var(--tb-danger-soft);
+  color: var(--tb-danger);
+}
+
+.tb-menu__list button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tb-files__trash summary {
+  padding: 5px 4px;
+  font-size: 12px;
+  color: var(--tb-muted);
+  cursor: pointer;
+}
+
+.tb-files__trash .tb-files__list {
+  max-height: 180px;
+}
+
+.tb-files__me {
+  padding-top: 8px;
+  border-top: 1px solid var(--tb-line);
+}
+
+.tb-files__me .tb-field {
+  margin: 0;
+}
+
+.tb-files__me .tb-field > .tb-hint {
+  margin: 4px 0 0;
+}
+
+.tb-btn--small {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+/* Nombre del tablero abierto y estado del guardado, en la barra. */
+.tb-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 340px;
+}
+
+.tb-doc__name {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tb-doc__save {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  white-space: nowrap;
+  color: var(--tb-muted);
+  background: var(--tb-line-soft);
+}
+
+.tb-doc__save svg {
+  width: 13px;
+  height: 13px;
+}
+
+.tb-doc__save.is-saved {
+  color: var(--tb-ok);
+}
+
+.tb-doc__save.is-offline,
+.tb-doc__save.is-readonly {
+  color: var(--tb-warn);
+}
+
+.tb-doc__save.is-error {
+  color: var(--tb-danger);
+  background: var(--tb-danger-soft);
+}
+
+/* Franja de solo lectura sobre el lienzo, y avisos al pie. */
+.tb-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 40px);
+  padding: 7px 8px 7px 14px;
+  transform: translateX(-50%);
+  border: 1px solid var(--tb-line);
+  border-radius: 11px;
+  background: var(--tb-panel);
+  box-shadow: 0 8px 22px rgba(31, 36, 43, 0.12);
+  white-space: nowrap;
+}
+
+.tb-banner.is-warning {
+  border-color: var(--tb-warn);
+  color: var(--tb-warn);
+}
+
+.tb-banner__extra {
+  color: var(--tb-muted);
+}
+
+.tb-toast {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 40px);
+  padding: 9px 9px 9px 14px;
+  transform: translateX(-50%);
+  border-radius: 11px;
+  background: var(--tb-ink);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(31, 36, 43, 0.25);
+}
+
+.tb-toast.is-error {
+  background: var(--tb-danger);
+}
+
+.tb-toast .tb-btn {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}

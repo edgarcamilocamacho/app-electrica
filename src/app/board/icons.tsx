@@ -26,3 +26,7 @@ export const IconRotate = (): ReactElement =>
     </>,
   );
 export const IconWarning = (): ReactElement => wrap(<><path d="M10 3.5l7 12.5H3z" /><path d="M10 8v4" /><path d="M10 14.2v.1" /></>);
+export const IconPlus = (): ReactElement => wrap(<><path d="M10 4v12" /><path d="M4 10h12" /></>);
+export const IconMore = (): ReactElement => wrap(<><circle cx="5" cy="10" r="0.9" /><circle cx="10" cy="10" r="0.9" /><circle cx="15" cy="10" r="0.9" /></>);
+export const IconSidebar = (): ReactElement => wrap(<><rect x="3" y="4" width="14" height="12" rx="1.5" /><path d="M8 4v12" /></>);
+export const IconLock = (): ReactElement => wrap(<><rect x="4.5" y="9" width="11" height="8" rx="1.5" /><path d="M7 9V6.5a3 3 0 0 1 6 0V9" /></>);

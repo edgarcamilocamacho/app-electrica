@@ -6,6 +6,8 @@ export interface KeyValueStorage {
   get(key: string): string | null;
   set(key: string, value: string): void;
   remove(key: string): void;
+  /** Claves guardadas que empiezan con `prefix`. */
+  keys(prefix: string): string[];
 }
 
 export const browserStorage: KeyValueStorage = {
@@ -30,6 +32,18 @@ export const browserStorage: KeyValueStorage = {
       /* sin almacenamiento disponible */
     }
   },
+  keys(prefix) {
+    try {
+      const found: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i);
+        if (key?.startsWith(prefix)) found.push(key);
+      }
+      return found;
+    } catch {
+      return [];
+    }
+  },
 };
 
 export function memoryStorage(): KeyValueStorage {
@@ -38,29 +52,6 @@ export function memoryStorage(): KeyValueStorage {
     get: (key) => data.get(key) ?? null,
     set: (key, value) => void data.set(key, value),
     remove: (key) => void data.delete(key),
+    keys: (prefix) => [...data.keys()].filter((key) => key.startsWith(prefix)),
   };
-}
-
-export const AUTOSAVE_KEY = 'simulador-control:autosave:v1';
-
-export interface AutosaveEntry {
-  readonly savedAt: string;
-  readonly fileName: string;
-  readonly text: string;
-}
-
-export function readAutosave(storage: KeyValueStorage): AutosaveEntry | null {
-  const raw = storage.get(AUTOSAVE_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as Partial<AutosaveEntry>;
-    if (typeof parsed.text !== 'string' || typeof parsed.savedAt !== 'string') return null;
-    return { savedAt: parsed.savedAt, fileName: parsed.fileName ?? '', text: parsed.text };
-  } catch {
-    return null;
-  }
-}
-
-export function writeAutosave(storage: KeyValueStorage, entry: AutosaveEntry): void {
-  storage.set(AUTOSAVE_KEY, JSON.stringify(entry));
 }

@@ -182,6 +182,13 @@ export interface BoardState {
   readonly sim: SimSnapshot | null;
   readonly speed: Speed;
   readonly status?: BoardStatus;
+  /**
+   * Solo lectura: otra persona tiene el turno de edición [R6 §5]. Se puede seleccionar, mirar y
+   * simular, pero ninguna acción modifica el documento, aunque la interfaz la dispare.
+   */
+  readonly readOnly: boolean;
+  /** Tamaño del lienzo en pantalla, para ajustar la vista sin esperar a un render. */
+  readonly canvasSize?: { readonly width: number; readonly height: number };
 
   // Herramientas y selección
   setTool(tool: BoardToolKind): void;
@@ -237,7 +244,14 @@ export interface BoardState {
   canRedo(): boolean;
   setViewport(viewport: Partial<Viewport>): void;
   fitView(size: { width: number; height: number }): void;
+  /** Lo informa el lienzo al medirse; si había un ajuste pendiente, lo hace. */
+  setCanvasSize(size: { width: number; height: number }): void;
+  /** Ajusta la vista al contenido ya mismo (o apenas se conozca el tamaño del lienzo). */
+  fitToContent(): void;
   loadDocument(doc: BoardDocument): void;
+  /** Vacía el deshacer sin tocar el documento ni la simulación. */
+  clearHistory(): void;
+  setReadOnly(readOnly: boolean): void;
 
   /** Diagnósticos del documento actual; simular exige cero bloqueantes. */
   diagnostics(): readonly BoardDiagnostic[];
@@ -324,6 +338,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
     /** Confirma una operación: si es válida entra al historial; si no, queda como vista previa. */
     const apply = (result: BoardEditResult, options: { selection?: BoardSelection; coalesceKey?: string } = {}): boolean => {
       const state = get();
+      if (state.readOnly) return false;
       if (!result.ok) {
         set({
           preview: {
@@ -363,6 +378,9 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
     };
 
     const clearTransient = (): void => set({ placing: undefined, wiring: undefined, drag: undefined, marquee: undefined, preview: undefined });
+    /** Nada que empiece a modificar el documento arranca en solo lectura. */
+    const locked = (): boolean => get().readOnly;
+    let fitPending = false;
 
     return {
       registry,
@@ -376,6 +394,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       mode: 'edit',
       sim: null,
       speed: 1,
+      readOnly: false,
 
       setTool(tool) {
         clearTransient();
@@ -383,6 +402,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       startPlacing(type, at) {
+        if (locked()) return;
         set({ tool: 'select', placing: { type, at: snap(at), rotation: 0 }, wiring: undefined, drag: undefined });
       },
 
@@ -441,6 +461,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       beginWire(from) {
+        if (locked()) return;
         lastCursorSignature = '';
         // El cable sale perpendicular al tornillo antes de doblar, como en un tablero real.
         const end = toTerminal(from);
@@ -450,6 +471,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       beginWireAt(at) {
+        if (locked()) return;
         const start = snap(at);
         set({ tool: 'wire', wiring: { from: toFree(start), points: [start], cursor: start } });
       },
@@ -550,6 +572,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       beginDrag(origin) {
+        if (locked()) return;
         const selection = selectionOf(get());
         if (selection.devices.length === 0 && selection.annotations.length === 0) return;
         set({
@@ -599,6 +622,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       rotate() {
+        if (locked()) return;
         const state = get();
         if (state.placing) {
           set({ placing: { ...state.placing, rotation: nextRotation(state.placing.rotation) } });
@@ -610,6 +634,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       nudge(dx, dy) {
+        if (locked()) return;
         const selection = selectionOf(get());
         if (selection.devices.length === 0 && selection.annotations.length === 0) return;
         apply(
@@ -681,6 +706,7 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       previewWireSegment(wireId, segmentIndex, delta) {
+        if (locked()) return;
         if (delta.x === 0 && delta.y === 0) {
           set({ preview: undefined });
           return;
@@ -704,17 +730,19 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
       },
 
       undo() {
+        if (locked()) return;
         clearTransient();
         set({ history: undo(get().history) });
       },
 
       redo() {
+        if (locked()) return;
         clearTransient();
         set({ history: redo(get().history) });
       },
 
-      canUndo: () => canUndo(get().history),
-      canRedo: () => canRedo(get().history),
+      canUndo: () => !get().readOnly && canUndo(get().history),
+      canRedo: () => !get().readOnly && canRedo(get().history),
 
       setViewport(viewport) {
         set({ viewport: { ...get().viewport, ...viewport } });
@@ -741,6 +769,20 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
         });
       },
 
+      setCanvasSize(size) {
+        set({ canvasSize: size });
+        if (fitPending && size.width > 0 && size.height > 0) {
+          fitPending = false;
+          get().fitView(size);
+        }
+      },
+
+      fitToContent() {
+        const size = get().canvasSize;
+        if (size && size.width > 0 && size.height > 0) get().fitView(size);
+        else fitPending = true;
+      },
+
       loadDocument(doc) {
         clearTransient();
         engine = null;
@@ -748,7 +790,18 @@ export function createBoardStore(deps: BoardDeps = {}, initial?: BoardDocument):
           history: createHistory<BoardSnapshotState>({ doc, selection: EMPTY_SELECTION }),
           mode: 'edit',
           sim: null,
+          status: undefined,
         });
+      },
+
+      clearHistory() {
+        set({ history: createHistory<BoardSnapshotState>(get().history.present) });
+      },
+
+      setReadOnly(readOnly) {
+        if (readOnly === get().readOnly) return;
+        clearTransient();
+        set({ readOnly });
       },
 
       diagnostics: () => computeDiagnostics(docOf(get()), registry),

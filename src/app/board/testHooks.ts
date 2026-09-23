@@ -6,6 +6,7 @@
 import { serializeBoard, parseBoard } from '../../core/board/persistence';
 import { createCounterIdGen } from '../../core/model/ids';
 import { catalogBoard, selectorBoard, starterBoard, timerBoard } from '../../examples/board';
+import type { CloudController } from '../cloud/controller';
 import { docOf, worldToScreen, type BoardStore } from './store';
 
 export interface BoardE2EHooks {
@@ -19,6 +20,10 @@ export interface BoardE2EHooks {
   loadExample(name: 'arranque' | 'temporizador' | 'selector' | 'catalogo'): void;
   /** Zoom 100 % con el origen del mundo cerca del borde superior izquierdo del lienzo. */
   resetView(): void;
+  /** Estado del tablero abierto en el servidor [R6]. */
+  cloud(): { ready: boolean; busy: number; id: string | null; name: string | null; role: string | null; save: string };
+  /** Hace ya lo que el controlador haría con sus relojes: subir, latir o consultar. */
+  syncNow(): Promise<void>;
 }
 
 declare global {
@@ -27,7 +32,7 @@ declare global {
   }
 }
 
-export function installBoardE2EHooks(store: BoardStore): void {
+export function installBoardE2EHooks(store: BoardStore, cloud: CloudController): void {
   let simMs = 0;
   window.__e2e = {
     advance(ms) {
@@ -76,5 +81,17 @@ export function installBoardE2EHooks(store: BoardStore): void {
     resetView() {
       store.getState().setViewport({ zoom: 1, pan: { x: 120, y: 120 } });
     },
+    cloud() {
+      const s = cloud.ui.getState();
+      return {
+        ready: s.ready,
+        busy: s.busy,
+        id: s.current?.id ?? null,
+        name: s.current?.name ?? null,
+        role: s.current?.role ?? null,
+        save: s.save,
+      };
+    },
+    syncNow: () => cloud.syncNow(),
   };
 }

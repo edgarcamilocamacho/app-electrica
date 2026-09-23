@@ -6,12 +6,13 @@ tablero está en su §22. Este documento describe **lo que existe en el código*
 ## Capas
 
 ```
-src/app/        React: lienzo SVG, paneles, herramientas, i18n, tienda (zustand)
+src/app/        React: lienzo SVG, paneles, herramientas, i18n, tienda (zustand), barra de tableros
    │  despacha operaciones puras, lee estado derivado
    ▼
 src/core/       TypeScript puro, sin DOM ni React ni textos de UI
-src/platform/   archivos, almacenamiento, reloj y verificación de versión (inyectables)
+src/platform/   cliente de la API, descargas, almacenamiento, reloj y versión (inyectables)
 src/examples/   tableros de ejemplo construidos con las operaciones del núcleo
+server/         API de tableros sobre node:http + node:sqlite; usa src/core, nada más
 ```
 
 Garantías automáticas:
@@ -36,12 +37,15 @@ Garantías automáticas:
 | `board/persistence.ts` | Esquema v2 con zod; un archivo de la versión clásica se rechaza con su propio código |
 | `board/sim/model.ts` | Traducción del documento a **elementos**: fuentes (una fase por borne), actuadores, contactos y cargas |
 | `board/sim/engine.ts` | `solve` (identidades de fuente y cortos), `settle` (punto fijo y oscilación), cola de eventos de TON/TOF y modo ERROR congelado |
+| `cloud/types.ts` · `cloud/protocol.ts` | Contrato de la API de tableros: tipos, códigos de error, límites, rutas y cabeceras |
+| `cloud/service.ts` | `CloudService`: nombres únicos, turno de edición con vencimiento, versiones, papelera y límites, sobre un `DocStore` síncrono |
+| `cloud/store.ts` · `cloud/memoryApi.ts` | `DocStore` en memoria y `CloudApi` sobre el servicio, para pruebas y E2E |
 
 ### Flujo de una edición
 
 ```
 gesto del usuario → tienda (app/board/store) → operación pura del núcleo → BoardEditResult
-   ├─ ok        → historial.commit → autoguardado
+   ├─ ok        → historial.commit → el controlador de tableros lo sube (antirrebote)
    └─ inválido  → se muestra como vista previa en rojo; nada se confirma
 ```
 
@@ -63,11 +67,25 @@ Simular → cero diagnósticos bloqueantes → new BoardSimEngine(doc) → start
 | `board/BoardDiagram.tsx` | Dibujo puro del documento (se reutiliza para exportar) |
 | `board/art/` | Piezas de dibujo (cuerpo, tornillo, contacto, bobina, piloto, foco) y una función por familia de aparato |
 | `board/BoardApp.tsx` · `board/board.css` | Barra, biblioteca, propiedades, diagnósticos, panel de ERROR y barra de estado |
-| `board/files.ts` | Guardar, abrir, autoguardado y exportación a PNG, SVG y PDF con fondo blanco |
+| `board/files.ts` | Exportación a PNG, SVG y PDF con fondo blanco |
+| `cloud/controller.ts` | Sincronización con el servidor [R6]: guardado automático, turno de edición (pedir, latir, tomar), consulta de quien mira, copia de lo no guardado, pendientes sin conexión |
+| `cloud/FilesSidebar.tsx` · `cloud/DocBar.tsx` | Barra de tableros (lista, buscador, ejemplos, renombrar, clonar, exportar, papelera, apodo) · nombre y estado del guardado, franja de solo lectura con «Editar», avisos |
 | `board/hitTest.ts` | Qué hay bajo el cursor: borne → cable → texto → aparato |
 | `board/theme.ts` | Paleta de **solo modo claro**: lienzo color hoja, colores de cable y su versión iluminada |
 | `board/testHooks.ts` | Ganchos E2E (solo con `?e2e=1`): tiempo manual, coordenadas y documento |
 | `i18n/` | Diccionario `es.ts`, `t()` tipada, formato numérico en español |
+
+## Servidor (`server/`)
+
+| Módulo | Qué hace |
+|---|---|
+| `sqliteStore.ts` | `DocStore` sobre `node:sqlite`: migraciones por `user_version`, índice único parcial de nombres activos, copias con `VACUUM INTO` |
+| `http.ts` | API HTTP sin framework: cabecera `X-Simulador`, `Sec-Fetch-Site`, `Origin` y `Content-Type` en escrituras, cuerpo acotado, validación con zod, errores como código |
+| `backend.ts` | Arma SQLite + servicio + manejador + mantenimiento (purga de la papelera, copias) |
+| `main.ts` | Servidor de producción; `node server.js backup` deja una copia y sale |
+| `devPlugin.ts` | Monta la misma API en `pnpm dev` (base en `.data/`) y `pnpm preview` (en memoria) |
+
+`pnpm build:server` empaqueta todo en `dist-server/server.js`, con zod y el núcleo adentro.
 
 ## Build, versión y contenedor
 
@@ -84,6 +102,6 @@ Simular → cero diagnósticos bloqueantes → new BoardSimEngine(doc) → start
 
 | Nivel | Dónde | Qué |
 |---|---|---|
-| Unit | `tests/unit` | Núcleo completo sin DOM: catálogo, geometría del cable, redes, validador, operaciones, diagnósticos, archivo y simulación |
-| Integración | `tests/integration/board` | La tienda del editor: colocar, cablear, mover, borrar, historial y simulación |
+| Unit | `tests/unit` | Núcleo completo sin DOM: catálogo, geometría del cable, redes, validador, operaciones, diagnósticos, archivo, simulación y reglas de los tableros; la API HTTP real en un puerto libre |
+| Integración | `tests/integration` | La tienda del editor (colocar, cablear, mover, borrar, historial, simulación) y el controlador de tableros con dos pestañas |
 | E2E | `tests/e2e` | Flujos por la interfaz real en Chromium y Firefox, también contra el contenedor |

@@ -1,11 +1,27 @@
 import { expect, type Page } from '@playwright/test';
 
-/** Abre la app en modo E2E: tiempo de simulación manual, sin selectores nativos de archivos. */
+/**
+ * Abre la app en modo E2E: tiempo de simulación manual y, salvo `backend=server` en la consulta,
+ * un backend de tableros en memoria propio de la página (PLAN §24.1).
+ */
 export async function openApp(page: Page, query = ''): Promise<void> {
   await page.goto(`/?e2e=1&noversion${query}`);
   await expect(page.getByTestId('board-canvas')).toBeVisible();
   await page.waitForFunction(() => !!window.__e2e);
+  await waitIdle(page);
   await page.evaluate(() => window.__e2e!.resetView());
+}
+
+/** Espera a que el controlador de tableros no tenga nada en curso (abrir, crear, importar…). */
+export async function waitIdle(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const cloud = window.__e2e?.cloud();
+    return !!cloud && cloud.ready && cloud.busy === 0;
+  });
+}
+
+export async function cloudState(page: Page): Promise<ReturnType<NonNullable<typeof window.__e2e>['cloud']>> {
+  return page.evaluate(() => window.__e2e!.cloud());
 }
 
 /** Abre una entrada del menú Archivo. */
@@ -16,7 +32,10 @@ export async function fileMenu(page: Page, item: string | RegExp): Promise<void>
 
 /** Tablero vacío, para las pruebas que construyen su propio circuito. */
 export async function newBoard(page: Page): Promise<void> {
+  const before = (await cloudState(page)).id;
   await fileMenu(page, 'Nuevo');
+  await page.waitForFunction((id) => window.__e2e!.cloud().id !== id, before);
+  await waitIdle(page);
   await page.evaluate(() => window.__e2e!.resetView());
 }
 

@@ -2,25 +2,20 @@
  * Interfaz del tablero: barra agrupada, biblioteca con miniaturas, lienzo, propiedades,
  * diagnósticos y barra de estado.
  */
-import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { useStore } from 'zustand';
-import { emptyBoard, WIRE_COLORS, WIRE_GAUGES, type WireColor, type WireGauge } from '../../core/board/model';
+import { WIRE_COLORS, WIRE_GAUGES, type WireColor, type WireGauge } from '../../core/board/model';
 import type { DeviceDefinition } from '../../core/board/registry';
 import type { SimSnapshot } from '../../core/board/sim/engine';
-import { starterBoard } from '../../examples/board';
-import { browserStorage } from '../../platform/storage';
+import { pickTextFile } from '../../platform/files';
+import type { CloudController } from '../cloud/controller';
+import { CloudBanner, CloudNoticeToast, DocTitle } from '../cloud/DocBar';
+import { FilesSidebar } from '../cloud/FilesSidebar';
 import { t } from '../i18n/t';
 import { BoardCanvas } from './BoardCanvas';
 import { wireDebug } from './debugLog';
 import { DeviceThumb } from './DeviceThumb';
-import {
-  exportBoard,
-  openBoard,
-  readBoardAutosave,
-  saveBoard,
-  writeBoardAutosave,
-  type BoardFileState,
-} from './files';
+import { exportBoard } from './files';
 import {
   IconChevron,
   IconErase,
@@ -30,6 +25,7 @@ import {
   IconRotate,
   IconRedo,
   IconSelect,
+  IconSidebar,
   IconStop,
   IconText,
   IconUndo,
@@ -47,26 +43,24 @@ const TOOLS: readonly { kind: BoardToolKind; key: string; icon: () => ReactEleme
   { kind: 'text', key: 'T', icon: IconText, label: t('tools.text') },
 ];
 
-export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; autoAdvance?: boolean }): ReactElement {
+export function BoardApp({
+  store,
+  cloud,
+  autoAdvance = true,
+}: {
+  store: BoardStore;
+  cloud: CloudController;
+  autoAdvance?: boolean;
+}): ReactElement {
   const state = useStore(store);
   const doc = docOf(state);
   const selection = selectionOf(state);
-  const editing = state.mode === 'edit';
-  const file = useRef<BoardFileState>({ name: '' });
+  // En solo lectura se mira y se simula, pero no se edita [R6 §5].
+  const editing = state.mode === 'edit' && !state.readOnly;
+  const sidebarOpen = useStore(cloud.ui, (s) => s.sidebarOpen);
+  const hasDoc = useStore(cloud.ui, (s) => s.current !== null);
+  const docName = useStore(cloud.ui, (s) => s.current?.name ?? '');
   const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const saved = readBoardAutosave(browserStorage);
-    if (saved) {
-      file.current = { name: saved.name };
-      store.getState().loadDocument(saved.doc);
-    }
-  }, [store]);
-
-  useEffect(() => {
-    const id = window.setTimeout(() => writeBoardAutosave(browserStorage, doc, file.current.name), 600);
-    return () => window.clearTimeout(id);
-  }, [doc]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -199,50 +193,33 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
   const shownGauge = selectedWires[0]?.gauge ?? state.wireStyle.gauge;
   const mixed = selectedWires.length > 1 && selectedWires.some((w) => w!.color !== shownColor || w!.gauge !== shownGauge);
 
-  const newBoard = (): void => {
-    file.current = { name: '' };
-    store
-      .getState()
-      .loadDocument(emptyBoard({ name: '', createdAt: new Date().toISOString(), modifiedAt: new Date().toISOString() }));
-  };
-
-  const open = (): void => {
+  const importJson = (): void => {
     void (async () => {
-      const result = await openBoard();
-      if (!result) return;
-      if (!result.ok) {
-        window.alert(result.code === 'CLASSIC_FILE' ? t('board.classicFile') : t('board.badFile'));
-        return;
-      }
-      file.current = { name: result.name, ...(result.handle ? { handle: result.handle } : {}) };
-      store.getState().loadDocument(result.doc);
-    })();
-  };
-
-  const save = (): void => {
-    void (async () => {
-      const saved = await saveBoard(store, file.current);
-      if (saved) file.current = { name: saved.name, ...(saved.handle ? { handle: saved.handle } : {}) };
+      const picked = await pickTextFile();
+      if (picked) await cloud.importJson(picked.text, picked.fileName);
     })();
   };
 
   const exportAs = (format: 'png' | 'svg' | 'pdf'): void => {
-    void exportBoard(store, format, file.current.name || t('app.untitled'));
-  };
-
-  const loadExample = (): void => {
-    file.current = { name: '' };
-    store
-      .getState()
-      .loadDocument(
-        starterBoard({ ids: { next: (p) => `${p}${Math.random().toString(36).slice(2, 8)}` }, registry: state.registry }),
-      );
+    void exportBoard(store, format, docName || t('app.untitled'));
   };
 
   return (
-    <div className="tb-app" onPointerDown={() => setMenuOpen(false)}>
+    <div className={`tb-app${sidebarOpen ? ' has-files' : ''}`} onPointerDown={() => setMenuOpen(false)}>
       <header className="tb-bar">
+        <button
+          type="button"
+          className={`tb-icon${sidebarOpen ? ' is-on' : ''}`}
+          data-testid="files-toggle"
+          aria-pressed={sidebarOpen}
+          title={sidebarOpen ? t('cloud.hide') : t('cloud.show')}
+          aria-label={sidebarOpen ? t('cloud.hide') : t('cloud.show')}
+          onClick={() => cloud.toggleSidebar()}
+        >
+          <IconSidebar />
+        </button>
         <span className="tb-brand">{t('app.title')}</span>
+        <DocTitle cloud={cloud} />
 
         <div className="tb-seg" role="group">
           {TOOLS.map(({ kind, key, icon: Icon, label }) => (
@@ -276,14 +253,14 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
           </button>
           {menuOpen && (
             <div className="tb-menu__list" role="menu">
-              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); newBoard(); }}>
+              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); void cloud.createNew(); }}>
                 {t('menu.new')}
               </button>
-              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); open(); }}>
-                {t('menu.open')}
+              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); importJson(); }}>
+                {t('menu.import')}
               </button>
-              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); save(); }}>
-                {t('menu.save')}
+              <button type="button" role="menuitem" disabled={!hasDoc} onClick={() => { setMenuOpen(false); cloud.exportJson(); }}>
+                {t('menu.exportJson')}
               </button>
               <hr />
               <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); exportAs('png'); }}>
@@ -294,10 +271,6 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
               </button>
               <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); exportAs('pdf'); }}>
                 {t('menu.exportPdf')}
-              </button>
-              <hr />
-              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); loadExample(); }}>
-                {t('toolbar.examples')}
               </button>
             </div>
           )}
@@ -364,6 +337,8 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
         )}
       </header>
 
+      {sidebarOpen && <FilesSidebar cloud={cloud} />}
+
       <aside className="tb-side tb-side--left">
         <h2 className="tb-title">{t('library.title')}</h2>
         {byCategory.map(([category, defs]) => (
@@ -391,6 +366,8 @@ export function BoardApp({ store, autoAdvance = true }: { store: BoardStore; aut
 
       <main className="tb-canvas">
         <BoardCanvas store={store} />
+        <CloudBanner cloud={cloud} board={store} />
+        <CloudNoticeToast cloud={cloud} />
         {state.mode === 'error' && (
           <div className="tb-error" role="alert" data-testid="error-panel">
             <IconWarning />

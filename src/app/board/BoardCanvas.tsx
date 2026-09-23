@@ -61,8 +61,10 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
   const fitted = useRef(false);
 
   useEffect(() => {
+    if (size.width === 0 || size.height === 0) return;
+    store.getState().setCanvasSize(size);
     // Al abrir, la vista se ajusta una vez al contenido.
-    if (fitted.current || size.width === 0 || size.height === 0) return;
+    if (fitted.current) return;
     fitted.current = true;
     store.getState().fitView(size);
   }, [size, store]);
@@ -111,6 +113,18 @@ export function BoardCanvas({ store }: { store: BoardStore }): ReactElement {
         if (manual.action === 'selector') store.getState().turnSelector(id);
         else if (manual.action === 'maintained' || manual.action === 'latching') store.getState().toggleDevice(id);
         else store.getState().pressDevice(id);
+      }
+      return;
+    }
+
+    if (state.readOnly) {
+      // Solo lectura [R6 §5]: se puede seleccionar para mirar propiedades, nada más.
+      if (hit.kind === 'device') store.getState().selectDevice(hit.id, e.ctrlKey || e.metaKey);
+      else if (hit.kind === 'wire') store.getState().selectWire(hit.id, e.ctrlKey || e.metaKey);
+      else if (hit.kind === 'annotation') store.getState().setSelection({ devices: [], wires: [], annotations: [hit.id] });
+      else if (hit.kind !== 'terminal') {
+        store.getState().setSelection({ devices: [], wires: [], annotations: [] });
+        store.getState().beginMarquee(at);
       }
       return;
     }

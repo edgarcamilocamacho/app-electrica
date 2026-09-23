@@ -56,7 +56,9 @@ aplica a ellos.
 | Rueda | Zoom hacia el cursor |
 | `Mayús` + arrastrar · botón central | Desplazar la vista |
 
-Nuevo, Abrir, Guardar y las exportaciones a PNG y PDF están en la barra superior.
+El guardado es automático [R6 §2]. El menú Archivo tiene Nuevo, Importar JSON, Exportar JSON y las
+exportaciones a PNG, SVG y PDF; la lista de tableros, a la izquierda, se oculta con el botón de la
+esquina.
 
 ## Simulación
 

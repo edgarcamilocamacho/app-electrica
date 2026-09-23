@@ -86,8 +86,9 @@ y no queden atrapados en una vieja. Los archivos de `/assets/` sí se pueden cac
 ```
 src/core/       núcleo puro: modelo, topología, conectividad, diagnósticos, simulación
 src/app/        interfaz React: lienzo SVG, paneles, herramientas, i18n
-src/platform/   reloj, archivos, autoguardado, verificación de versión
+src/platform/   reloj, cliente de la API, descargas, almacenamiento local, verificación de versión
 src/examples/   circuitos de ejemplo (también usados en E2E)
 tests/          unit/ · integration/ · e2e/
+server/         API de tableros: Node sin dependencias en ejecución, node:sqlite
 deploy/         configuración de nginx para la imagen
 ```
