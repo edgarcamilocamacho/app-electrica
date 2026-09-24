@@ -118,4 +118,6 @@ Navegadores de E2E: `pnpm exec playwright install chromium firefox`.
 ## Commits
 
 Un commit por tanda coherente, prefijo del hito o del tema (`R5/G3: …`), en español, con la línea
-`Co-Authored-By` que indique el entorno. Repo git local, sin remoto.
+`Co-Authored-By` que indique el entorno. Remoto `origin` en GitHub
+(`git@github.com:edgarcamilocamacho/app-electrica.git`); el push (ramas y tags) se hace cuando el
+usuario lo pide.

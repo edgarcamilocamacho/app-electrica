@@ -163,7 +163,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | Se puede levantar entera **en modo desarrollo**, sin Tailscale | R6 §14 |
 | La accesibilidad avanzada puede evolucionar después, pero sin diseñar en su contra | R2 §30.8 |
 | Documentación interna en el repo: cómo levantar el entorno, ejecutar, probar, la estructura y las convenciones; glosario opcional | R2 §30.5 |
-| Stack aprobado: SVG · React + TypeScript + Vite · Zustand · deshacer con copias inmutables · Vitest + Playwright (Chromium y Firefox) · pnpm · git local sin remoto. (Se aprobó Node 20; se usa Node 24 porque el 20 perdió soporte: ver [STATUS.md](../STATUS.md)) | R3 Q3.2 |
+| Stack aprobado: SVG · React + TypeScript + Vite · Zustand · deshacer con copias inmutables · Vitest + Playwright (Chromium y Firefox) · pnpm · git con remoto `origin` en GitHub (hasta R6 fue solo local). (Se aprobó Node 20; se usa Node 24 porque el 20 perdió soporte: ver [STATUS.md](../STATUS.md)) | R3 Q3.2, R6 |
 
 Mapa de teclas: [ATAJOS.md](ATAJOS.md). Confirmadas por producto: `B`, `M`, `Esc`, `Ctrl+Z`,
 `Ctrl+Y`, `Ctrl+C`, `Ctrl+V` (R2 §31); el resto es la propuesta aceptada en I7.
