@@ -118,6 +118,9 @@ Navegadores de E2E: `pnpm exec playwright install chromium firefox`.
 
 ## Commits
 
+Versión semántica en `package.json` (la única fuente: la barra de estado, `version.json` y la API la
+toman de ahí). Una versión nueva = subir `package.json` + tag anotado `vX.Y.Z` en ese commit.
+
 Un commit por tanda coherente, prefijo del hito o del tema (`R5/G3: …`), en español, con la línea
 `Co-Authored-By` que indique el entorno. Remoto `origin` en GitHub
 (`git@github.com:edgarcamilocamacho/app-electrica.git`); el push (ramas y tags) se hace cuando el

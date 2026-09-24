@@ -328,6 +328,8 @@ export const es = {
     selection: 'Selección: {count}',
     cursor: '({x}, {y})',
     lagging: 'Simulación retrasada',
+    version: 'v{version}',
+    build: 'Versión {version} · build {build}',
   },
   messages: {
     invalidPlacement: 'Posición inválida: quedaría una ambigüedad entre redes. Probá en otro lugar.',

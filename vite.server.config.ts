@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
+
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 /**
  * Empaqueta la API (`server/main.ts`) en un solo archivo, con zod y el núcleo adentro: la imagen
@@ -6,6 +9,7 @@ import { defineConfig } from 'vite';
  */
 export default defineConfig({
   publicDir: false,
+  define: { __APP_VERSION__: JSON.stringify(version) },
   build: {
     ssr: 'server/main.ts',
     outDir: 'dist-server',

@@ -13,6 +13,10 @@ import { accessSync, constants } from 'node:fs';
 import { createServer } from 'node:http';
 import { createBackend } from './backend';
 
+/** Versión de la app, inyectada al empaquetar (vite.server.config.ts). */
+declare const __APP_VERSION__: string;
+const VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
+
 const env = process.env;
 const dataDir = env.DATA_DIR ?? '/data';
 
@@ -63,7 +67,7 @@ server.headersTimeout = 10_000;
 server.keepAliveTimeout = 5_000;
 
 const port = Number(env.PORT ?? 3000);
-server.listen(port, env.HOST ?? '0.0.0.0', () => console.log(`[api] escuchando en el puerto ${port}`));
+server.listen(port, env.HOST ?? '0.0.0.0', () => console.log(`[api] versión ${VERSION}, escuchando en el puerto ${port}`));
 
 backend.maintenance();
 const maintenance = setInterval(() => backend.maintenance(), Number(env.MAINTENANCE_HOURS ?? 24) * 3_600_000);

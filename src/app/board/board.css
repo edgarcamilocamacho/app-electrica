@@ -856,3 +856,10 @@ button:focus-visible,
   background: rgba(255, 255, 255, 0.16);
   color: #fff;
 }
+
+/* Versión de la app, al final de la barra de estado. */
+.tb-version {
+  padding-left: 12px;
+  border-left: 1px solid var(--tb-line);
+  cursor: default;
+}

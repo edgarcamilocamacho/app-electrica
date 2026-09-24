@@ -161,6 +161,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | **Actualizar** es traer el repo al servidor (`git pull`) y relanzar: los tableros y la configuración sobreviven | R6 §13 |
 | Todos los datos del servidor (la base y sus copias) viven en la carpeta **`datos/` del proyecto**, montada en el contenedor y fuera de git. Bajar o reconstruir los contenedores no la toca; borrar esa carpeta sí borra los tableros | R6 §15 |
 | Se puede levantar entera **en modo desarrollo**, sin Tailscale | R6 §14 |
+| La app lleva **versión semántica**; la primera es la **1.0.0**. La versión se ve al final de la barra de estado (`v1.0.0`) y, al pasar el cursor, también el build | R6 §16 |
 | La accesibilidad avanzada puede evolucionar después, pero sin diseñar en su contra | R2 §30.8 |
 | Documentación interna en el repo: cómo levantar el entorno, ejecutar, probar, la estructura y las convenciones; glosario opcional | R2 §30.5 |
 | Stack aprobado: SVG · React + TypeScript + Vite · Zustand · deshacer con copias inmutables · Vitest + Playwright (Chromium y Firefox) · pnpm · git con remoto `origin` en GitHub (hasta R6 fue solo local). (Se aprobó Node 20; se usa Node 24 porque el 20 perdió soporte: ver [STATUS.md](../STATUS.md)) | R3 Q3.2, R6 |

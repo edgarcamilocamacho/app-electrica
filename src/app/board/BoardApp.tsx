@@ -482,6 +482,9 @@ export function BoardApp({
           </button>
         )}
         <span>{t('status.zoom', { value: Math.round(state.viewport.zoom * 100) })}</span>
+        <span className="tb-version" data-testid="app-version" title={t('status.build', { version: __APP_VERSION__, build: __BUILD_ID__ })}>
+          {t('status.version', { version: __APP_VERSION__ })}
+        </span>
       </footer>
     </div>
   );

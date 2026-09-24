@@ -136,6 +136,7 @@ remiten a esta tabla.
 | R6 §13 | Actualizar = traer el repo y relanzar; datos y configuración se conservan |
 | R6 §14 | Se puede lanzar **en modo desarrollo** |
 | R6 §15 | Los datos van en una **carpeta montada, relativa al proyecto y fuera de git** (`datos/`), no en un volumen de Docker |
+| R6 §16 | Primera versión **1.0.0**, visible en la interfaz |
 
 Diseño e hitos: §24.
 

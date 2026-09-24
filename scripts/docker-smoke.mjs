@@ -16,7 +16,7 @@
  * Uso: node scripts/docker-smoke.mjs [--e2e] [--upgrade] [--keep]
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -117,6 +117,9 @@ try {
   const versionBody = await version.json();
   check(version.headers.get('cache-control') === 'no-store', '/version.json con Cache-Control: no-store');
   check(versionBody.buildId === buildId, `version.json trae el BUILD_ID (${buildId})`);
+  const { version: appVersion } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  check(versionBody.version === appVersion, `version.json trae la versión de la app (${appVersion})`);
+  check(compose(['logs', 'api'], { quiet: true, allowFail: true }).out.includes(`versión ${appVersion}`), 'la API anuncia su versión al arrancar');
 
   const index = await fetch(`${base}/`);
   const html = await index.text();

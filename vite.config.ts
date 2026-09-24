@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { cloudApiPlugin } from './server/devPlugin.ts';
@@ -8,12 +9,16 @@ import { cloudApiPlugin } from './server/devPlugin.ts';
  */
 const buildId = process.env.BUILD_ID ?? `local-${Date.now().toString(36)}`;
 
+/** Versión de la app (semver), la de package.json. Se muestra en la barra de estado. */
+export const appVersion = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string })
+  .version;
+
 /**
  * Emite `version.json` junto al build y lo sirve en desarrollo.
  * El cliente lo consulta para detectar una versión nueva (PLAN §16.2).
  */
 function versionManifest(): Plugin {
-  const body = () => JSON.stringify({ buildId }, null, 2);
+  const body = () => JSON.stringify({ buildId, version: appVersion }, null, 2);
   return {
     name: 'version-manifest',
     configureServer(server) {
@@ -33,6 +38,7 @@ export default defineConfig({
   plugins: [react(), versionManifest(), cloudApiPlugin()],
   define: {
     __BUILD_ID__: JSON.stringify(buildId),
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
   build: {
     target: 'es2022',

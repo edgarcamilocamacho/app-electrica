@@ -6,6 +6,8 @@
 
 ## Resumen
 
+**Versión 1.0.0** (tag `v1.0.0`): la vista de tablero de R5 más los tableros en el servidor de R6.
+
 **Tableros en el servidor (ronda R6) implementados, salvo el despliegue con Tailscale (C6).** Lista
 compartida a la izquierda, guardado automático, un editor a la vez con «Editar» para tomar el turno,
 papelera, clonar, importar y exportar; API en Node + SQLite detrás de nginx. Diseño en
@@ -20,7 +22,7 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 | Nivel | Resultado |
 |---|---|
 | Unitarias + integración (Vitest) | **192 / 192** |
-| E2E (Playwright, Chromium + Firefox) | **58 / 58** (29 flujos × 2 navegadores) |
+| E2E (Playwright, Chromium + Firefox) | **60 / 60** (30 flujos × 2 navegadores) |
 | Humo de contenedores (`docker-smoke.mjs --e2e --upgrade`) | **todo OK** |
 
 | Hito | Contenido |
@@ -112,6 +114,9 @@ Ninguna. El despliegue quedó definido en R6 §11: servidor propio con Docker y 
   permiten que los E2E verifiquen el estado sin capturas ni esperas.
 - **Preset mínimo de 100 ms** y tope de eventos en un mismo instante, para que un lazo temporizado
   nunca cuelgue la simulación.
+- **Una sola fuente para la versión** [Técnica]: `package.json`. Vite la inyecta como
+  `__APP_VERSION__` en el cliente y en la API, y la agrega a `version.json`. La API la anuncia en su
+  registro al arrancar.
 - **Las reglas de los tableros viven en el núcleo** [Técnica]: `CloudService` es puro y síncrono;
   el servidor le da SQLite y las pruebas y el modo E2E, un almacenamiento en memoria. El backend de
   prueba no es una imitación.
