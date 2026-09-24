@@ -336,6 +336,11 @@ function socketBase(opts: {
   readonly coil: readonly [{ id: string; column: number }, { id: string; column: number }];
   readonly poles: readonly SocketPole[];
   readonly timer?: TimerType;
+  /**
+   * Temporizador mixto [R7 §2]: los polos de estos comunes conmutan al instante con la bobina, como
+   * en un relé; el resto espera el tiempo del temporizador.
+   */
+  readonly instantPoles?: readonly string[];
   readonly extraProps?: readonly PropSpec[];
 }): DeviceDefinition {
   const pitch = 4;
@@ -353,6 +358,21 @@ function socketBase(opts: {
   }
   terminals.sort((a, b) => a.offset.y - b.offset.y || a.offset.x - b.offset.x);
 
+  // Los dos actuadores de un temporizador mixto miran la misma bobina: el temporizado (T) y el
+  // instantáneo (K). Un relé tiene solo K; un temporizador simple, solo el temporizado (K).
+  const coilPins = [opts.coil[0].id, opts.coil[1].id] as const;
+  const instant = new Set(opts.instantPoles ?? []);
+  const mixed = opts.timer !== undefined && instant.size > 0;
+  const actuators: DeviceDefinition['internals']['actuators'] = !opts.timer
+    ? [{ id: 'K', kind: 'coil', terminals: coilPins }]
+    : mixed
+      ? [
+          { id: 'T', kind: 'timer', timerType: opts.timer, terminals: coilPins },
+          { id: 'K', kind: 'coil', terminals: coilPins },
+        ]
+      : [{ id: 'K', kind: 'timer', timerType: opts.timer, terminals: coilPins }];
+  const actuatorOf = (common: string): string => (mixed && !instant.has(common) ? 'T' : 'K');
+
   return {
     type: opts.type,
     category: opts.category,
@@ -361,14 +381,10 @@ function socketBase(opts: {
     terminals,
     internals: {
       ...NO_INTERNALS,
-      actuators: [
-        opts.timer
-          ? { id: 'K', kind: 'timer', timerType: opts.timer, terminals: [opts.coil[0].id, opts.coil[1].id] }
-          : { id: 'K', kind: 'coil', terminals: [opts.coil[0].id, opts.coil[1].id] },
-      ],
+      actuators,
       contacts: opts.poles.flatMap((pole) => [
-        { a: pole.common.id, b: pole.no.id, normal: 'NO' as const, actuator: 'K' },
-        { a: pole.common.id, b: pole.nc.id, normal: 'NC' as const, actuator: 'K' },
+        { a: pole.common.id, b: pole.no.id, normal: 'NO' as const, actuator: actuatorOf(pole.common.id) },
+        { a: pole.common.id, b: pole.nc.id, normal: 'NC' as const, actuator: actuatorOf(pole.common.id) },
       ]),
     },
     props: [REF, LABEL, ...(opts.extraProps ?? [])],
@@ -445,6 +461,19 @@ const TIMER_TOF = socketBase({
 });
 
 /**
+ * Temporizador mixto [R7 §2]: el mismo zócalo de 8 pines, con la bobina entre 7 y 2. El polo
+ * 8 · 6 · 5 es a la conexión (TON) y el 1 · 3 · 4 conmuta apenas se energiza la bobina.
+ */
+const TIMER_MIXED = socketBase({
+  type: 'timer-mixed',
+  category: 'timers',
+  ...SOCKET_8,
+  timer: 'TON',
+  instantPoles: ['1'],
+  extraProps: [PRESET],
+});
+
+/**
  * UPS / inversor: la entrada solo enciende su indicador y la salida es una fuente independiente
  * siempre activa [R5 §11].
  */
@@ -480,6 +509,7 @@ export const DEVICE_DEFINITIONS: readonly DeviceDefinition[] = [
   RELAY_11,
   TIMER_TON,
   TIMER_TOF,
+  TIMER_MIXED,
   PUSHBUTTON_NO,
   PUSHBUTTON_NC,
   EMERGENCY_STOP,

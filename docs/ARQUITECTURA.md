@@ -28,7 +28,7 @@ Garantías automáticas:
 | `history/` | Deshacer/rehacer por snapshots inmutables, con coalescencia por clave |
 | `connectivity/unionFind.ts` | Union-find con compresión de caminos |
 | `board/model.ts` | Documento v2: aparatos sin rotación y **cables de dos bornes** con color y calibre |
-| `board/registry.ts` · `board/catalog.ts` | Catálogo declarativo: bornes y elementos internos (actuadores, contactos, cargas, fuentes) de cada aparato |
+| `board/registry.ts` · `board/catalog.ts` | Catálogo declarativo: bornes y elementos internos (actuadores, contactos, cargas, fuentes) de cada aparato. Un aparato puede tener varios actuadores (el temporizador mixto: uno temporizado y uno instantáneo sobre la misma bobina) |
 | `board/wireGeometry.ts` | Ruta ortogonal de un cable, normalización de codos, ruteo automático y reacomodo al mover |
 | `board/nets.ts` | Redes por union-find sobre los extremos de los cables: un borne se une a otro **solo** si un cable los une |
 | `board/validity.ts` | Validador W1–W4 con claves geométricas; una operación es válida si no agrega violaciones |

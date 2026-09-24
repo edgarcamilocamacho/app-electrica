@@ -7,7 +7,6 @@ import type { ReactElement } from 'react';
 import type { DeviceInstance } from '../../../core/board/model';
 import { terminalKey } from '../../../core/board/model';
 import type { DeviceDefinition, TerminalDef } from '../../../core/board/registry';
-import type { TimerType } from '../../../core/board/registry';
 import type { DeviceView } from '../../../core/board/sim/engine';
 import { t } from '../../i18n/t';
 import type { Dir, Point } from '../../../core/model/types';
@@ -330,6 +329,7 @@ const SOCKET_ART: Readonly<Record<string, SocketLayout>> = {
   'relay-8': SOCKET_8_ART,
   'timer-ton': SOCKET_8_ART,
   'timer-tof': SOCKET_8_ART,
+  'timer-mixed': SOCKET_8_ART,
   'relay-11': SOCKET_11_ART,
 };
 
@@ -346,14 +346,20 @@ function leadPath(terminal: TerminalDef, to: Point): string {
 
 /**
  * Base enchufable (relé o temporizador): el cuerpo con sus tornillos donde están en el zócalo real
- * y, adentro, la bobina y un conmutador por polo.
+ * y, adentro, la bobina y un conmutador por polo. En el temporizador mixto [R7 §2] solo el polo
+ * temporizado lleva la marca de retardo; el otro es el de un relé.
  */
 function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
-  const actuator = def.internals.actuators[0];
+  const actuators = def.internals.actuators;
+  const timerActuator = actuators.find((a) => a.kind === 'timer');
+  const coilActuator = actuators.find((a) => a.kind === 'coil');
   const at = (id: string) => def.terminals.find((t) => t.id === id)!;
-  const timer = actuator?.kind === 'timer' ? actuator.timerType : undefined;
-  const on = timer ? view?.timer?.output === true : view?.energized === true;
-  const coilPins = actuator && actuator.kind !== 'manual' ? actuator.terminals : undefined;
+  const timer = timerActuator?.kind === 'timer' ? timerActuator.timerType : undefined;
+  const mixed = timer !== undefined && coilActuator !== undefined;
+  // Con bobina instantánea, se ilumina al energizarse; en un temporizador simple, con su salida.
+  const on = coilActuator ? view?.energized === true : view?.timer?.output === true;
+  const coilPins = (timerActuator ?? coilActuator)?.terminals;
+  const timedBy = (actuatorId: string): boolean => actuators.find((a) => a.id === actuatorId)?.kind === 'timer';
   const art = SOCKET_ART[def.type];
   if (!art) return <Body bounds={def.bounds} />;
 
@@ -390,14 +396,21 @@ function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDe
             <Changeover
               geometry={geometry}
               side={closed ? pole.noSide : -pole.noSide}
-              {...(timer ? { delay: timer } : {})}
+              {...(timer && timedBy(no.actuator) ? { delay: timer } : {})}
             />
           </g>
         );
       })}
       {/* Vínculo mecánico: cruza las cuchillas y baja a la bobina. */}
       <MechLink d={art.link} />
-      {timer && <TimerFace view={view} preset={presetOf(device)} type={timer} x={def.bounds.maxX - 3.4} />}
+      {timer && (
+        <TimerFace
+          view={view}
+          preset={presetOf(device)}
+          label={mixed ? t('board.timerType.MIXED') : t(`board.timerType.${timer}`)}
+          x={def.bounds.maxX - 3.4}
+        />
+      )}
       <TagBlock x={art.coil.x} y={1.9} tag={tagOf(device)} {...captionOf(device)} />
     </g>
   );
@@ -407,12 +420,13 @@ function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDe
 function TimerFace({
   view,
   preset,
-  type,
+  label,
   x,
 }: {
   view?: DeviceView;
   preset: number;
-  type: TimerType;
+  /** TON, TOFF o MIXTO: lo único que distingue a los temporizadores a simple vista [R5 §22]. */
+  label: string;
   x: number;
 }): ReactElement {
   const timer = view?.timer;
@@ -449,8 +463,8 @@ function TimerFace({
         {seconds.toFixed(1)}
       </text>
       <Caption x={x} y={2.6} text={t('board.seconds')} />
-      {/* Qué temporizador es: es lo único que distingue a un TON de un TOFF a simple vista. */}
-      <Tag x={x} y={4.6} text={t(`board.timerType.${type}`)} />
+      {/* Qué temporizador es: es lo único que los distingue a simple vista. */}
+      <Tag x={x} y={4.6} text={label} />
       <circle
         cx={x}
         cy={-4.4}

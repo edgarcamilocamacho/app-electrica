@@ -3,7 +3,7 @@
  * tablero): borne → cable → texto → aparato. El borne va primero porque es donde se cablea.
  */
 import type { BoardDocument, TerminalRef } from '../../core/board/model';
-import { deviceRect, terminalPosition } from '../../core/board/model';
+import { deviceRect, terminalPosition, wiresBottomToTop } from '../../core/board/model';
 import type { DeviceRegistry } from '../../core/board/registry';
 import { routeSegments, wireRoute } from '../../core/board/wireGeometry';
 import { distanceToSegment, rectContains } from '../../core/model/geometry';
@@ -36,12 +36,15 @@ export function hitTest(doc: BoardDocument, registry: DeviceRegistry, at: Point)
   }
   if (closestTerminal) return { kind: 'terminal', ref: closestTerminal.ref, position: closestTerminal.position };
 
+  // En el mismo orden en que se dibujan: ante un empate (cables superpuestos) gana el de arriba,
+  // que es el más grueso [R7 §1].
   let closestWire: { id: Id; segmentIndex: number; d: number } | undefined;
-  for (const wire of Object.values(doc.wires)) {
+  for (const wire of wiresBottomToTop(doc)) {
     const segments = routeSegments(wireRoute(doc, registry, wire));
     segments.forEach((segment, index) => {
       const d = distanceToSegment(at, segment[0], segment[1]);
-      if (d <= WIRE_GRAB && (!closestWire || d < closestWire.d)) {
+      const better = !closestWire || d < closestWire.d || (d === closestWire.d && closestWire.id !== wire.id);
+      if (d <= WIRE_GRAB && better) {
         closestWire = { id: wire.id, segmentIndex: index, d };
       }
     });

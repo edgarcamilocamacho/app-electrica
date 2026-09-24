@@ -140,6 +140,17 @@ remiten a esta tabla.
 
 Diseño e hitos: §24.
 
+### 0.7 Ronda 7 (2026-09-24, pedidos después de la 1.0.0)
+
+| # | Decisión |
+|---|---|
+| R7 §1 | Donde dos cables de distinto calibre se superponen, **queda el más grueso** |
+| R7 §2 | **Temporizador mixto**: en la base de 8 pines, el polo 8-5-6 funciona como TON y el 1-3-4 como un relé normal |
+
+Implementación: los cables se dibujan y se eligen del más fino al más grueso
+(`wiresBottomToTop`). El mixto es una base de 8 pines con dos actuadores sobre la misma bobina, uno
+temporizado y uno instantáneo; el motor ya admitía varios actuadores por aparato.
+
 ---
 
 ## 1. Interpretación del producto

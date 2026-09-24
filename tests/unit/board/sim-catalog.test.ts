@@ -117,6 +117,83 @@ describe('temporizadores [R5 §13]', () => {
   });
 });
 
+describe('temporizador mixto [R7 §2]', () => {
+  /**
+   * Interruptor → bobina 7-2. H1 en el NA temporizado (8-6), H2 en el NA instantáneo (1-3),
+   * H3 en el NC temporizado (8-5) y H4 en el NC instantáneo (1-4).
+   */
+  function mixedBoard(presetMs = 3000) {
+    const b = new BoardBuilder();
+    const g = b.device('supply-1p', 0, 0);
+    const s = b.device('switch-no', 30, 0);
+    const t = b.device('timer-mixed', 70, 0, { presetMs });
+    const lamps = [b.device('pilot-lamp', 120, 0), b.device('pilot-lamp', 140, 0), b.device('pilot-lamp', 160, 0), b.device('pilot-lamp', 180, 0)];
+    b.wire(term(g, 'L'), term(s, '13'));
+    b.wire(term(s, '14'), term(t, '7'));
+    b.wire(term(t, '2'), term(g, 'N'));
+    b.wire(term(g, 'L'), term(t, '8'));
+    b.wire(term(g, 'L'), term(t, '1'));
+    const outputs = ['6', '3', '5', '4'];
+    lamps.forEach((h, i) => {
+      b.wire(term(t, outputs[i]!), term(h, 'X1'));
+      b.wire(term(h, 'X2'), term(g, 'N'));
+    });
+    return { b, s, t, lamps };
+  }
+
+  it('el polo 1-3-4 conmuta al instante y el 8-6-5 espera el preset', () => {
+    const { b, s, t, lamps } = mixedBoard(3000);
+    const [timedNo, instantNo, timedNc, instantNc] = lamps as [string, string, string, string];
+    const engine = engineOf(b);
+    engine.start();
+    // En reposo solo conducen los NC.
+    expect([timedNo, instantNo, timedNc, instantNc].map((h) => on(engine.snapshot(), h))).toEqual([false, false, true, true]);
+
+    engine.toggle(s);
+    let snap = engine.snapshot();
+    expect(on(snap, instantNo)).toBe(true);
+    expect(on(snap, instantNc)).toBe(false);
+    expect(on(snap, timedNo)).toBe(false);
+    expect(on(snap, timedNc)).toBe(true);
+    expect(snap.devices.get(t)?.energized).toBe(true);
+    expect(snap.devices.get(t)?.timer?.phase).toBe('running');
+
+    engine.advanceTo(2999);
+    expect(on(engine.snapshot(), timedNo)).toBe(false);
+    engine.advanceTo(3000);
+    snap = engine.snapshot();
+    expect(on(snap, timedNo)).toBe(true);
+    expect(on(snap, timedNc)).toBe(false);
+    expect(on(snap, instantNo)).toBe(true);
+    expect(snap.devices.get(t)?.timer?.phase).toBe('done');
+  });
+
+  it('al quitar la alimentación, los dos polos vuelven al reposo enseguida', () => {
+    const { b, s, lamps } = mixedBoard(1000);
+    const [timedNo, instantNo, timedNc, instantNc] = lamps as [string, string, string, string];
+    const engine = engineOf(b);
+    engine.start();
+    engine.toggle(s);
+    engine.advanceTo(1500);
+    engine.toggle(s);
+    expect([timedNo, instantNo, timedNc, instantNc].map((h) => on(engine.snapshot(), h))).toEqual([false, false, true, true]);
+  });
+
+  it('si se corta antes del preset, el polo temporizado no llega a conmutar', () => {
+    const { b, s, lamps } = mixedBoard(2000);
+    const [timedNo, instantNo] = lamps as [string, string];
+    const engine = engineOf(b);
+    engine.start();
+    engine.toggle(s);
+    engine.advanceTo(1000);
+    expect(on(engine.snapshot(), instantNo)).toBe(true);
+    engine.toggle(s);
+    engine.advanceTo(5000);
+    expect(on(engine.snapshot(), timedNo)).toBe(false);
+    expect(on(engine.snapshot(), instantNo)).toBe(false);
+  });
+});
+
 describe('selector de 3 posiciones [I3]', () => {
   it('cada posición alimenta su salida', () => {
     const b = new BoardBuilder();

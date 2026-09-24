@@ -180,6 +180,7 @@ export const es = {
     'contact-nc': 'Contacto NC',
     'timer-ton': 'Temporizador TON (retardo a la conexión)',
     'timer-tof': 'Temporizador TOFF (retardo a la desconexión)',
+    'timer-mixed': 'Temporizador mixto (TON + instantáneo)',
     'timed-contact-no': 'Contacto temporizado NA',
     'timed-contact-nc': 'Contacto temporizado NC',
     lamp: 'Lámpara / señalizador',
@@ -220,7 +221,7 @@ export const es = {
     rotateHint: 'Gira un cuarto de vuelta lo seleccionado (tecla R).',
     rotation: 'Giro',
     // Cómo se nombra cada temporizador en el dibujo y en los textos.
-    timerType: { TON: 'TON', TOF: 'TOFF' },
+    timerType: { TON: 'TON', TOF: 'TOFF', MIXED: 'MIXTO' },
     seconds: 's',
     terminals: 'Bornes',
     terminalCount: '{count} bornes',

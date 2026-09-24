@@ -185,6 +185,15 @@ export function wiresOfDevice(doc: BoardDocument, deviceId: Id): readonly Wire[]
 }
 
 /** Cuántos cables llegan a cada borne: el número que se dibuja junto al tornillo [R5 §6]. */
+/**
+ * Cables de abajo hacia arriba: primero los más finos. Donde dos cables se superponen queda a la
+ * vista el más grueso, y un clic ahí lo elige a él [R7 §1]. Entre cables del mismo calibre se
+ * conserva el orden del documento.
+ */
+export function wiresBottomToTop(doc: BoardDocument): readonly Wire[] {
+  return Object.values(doc.wires).sort((a, b) => a.gauge - b.gauge);
+}
+
 export function wireCountByTerminal(doc: BoardDocument): ReadonlyMap<string, number> {
   const counts = new Map<string, number>();
   for (const wire of Object.values(doc.wires)) {

@@ -30,6 +30,11 @@ try {
     }
   }
   await page.waitForSelector('[data-testid="board-canvas"]');
+  // Primero termina de arrancar el controlador de tableros; si no, abre su tablero encima del ejemplo.
+  await page.waitForFunction(() => {
+    const cloud = globalThis.__e2e?.cloud();
+    return !!cloud && cloud.ready && cloud.busy === 0;
+  });
   await page.evaluate((name) => globalThis.__e2e.loadExample(name), example);
   await page.keyboard.press('a'); // Ajustar la vista.
   await page.waitForTimeout(300);

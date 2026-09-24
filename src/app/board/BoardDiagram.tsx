@@ -4,7 +4,7 @@
  */
 import { memo, useMemo, type ReactElement } from 'react';
 import type { BoardDocument, Wire } from '../../core/board/model';
-import { terminalOf, wireCountByTerminal } from '../../core/board/model';
+import { terminalOf, wireCountByTerminal, wiresBottomToTop } from '../../core/board/model';
 import { computeNets } from '../../core/board/nets';
 import type { DeviceDefinition, DeviceRegistry } from '../../core/board/registry';
 import type { NetPotential, SimSnapshot } from '../../core/board/sim/engine';
@@ -139,7 +139,8 @@ function BoardDiagramInner({
         ) : null,
       )}
 
-      {Object.values(doc.wires).map((wire) => (
+      {/* Los más gruesos encima: donde se superponen, queda a la vista el grueso [R7 §1]. */}
+      {wiresBottomToTop(doc).map((wire) => (
         <WireArt
           key={wire.id}
           wire={wire}

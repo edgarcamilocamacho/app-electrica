@@ -11,7 +11,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
   de las tres rondas de respuestas de producto; `R4 §n`, los pedidos posteriores a V1 (2026-09-22);
   `R5 §n`, la ronda de la **vista gráfica de tablero** (2026-09-22), que reemplazó la representación
   dispersa y dejó la versión anterior en el tag `classic`; `R6 §n`, la ronda de los **documentos en
-  el servidor** (2026-09-23); `I1`–`I18`, las interpretaciones aceptadas
+  el servidor** (2026-09-23); `R7 §n`, los pedidos posteriores a la 1.0.0 (2026-09-24); `I1`–`I18`, las interpretaciones aceptadas
   (§11). Las etiquetas que aparecen en [PLAN.md](../PLAN.md) y en los comentarios del código remiten
   a esta columna. Los puntos de R5 están listados en [PLAN.md](../PLAN.md) §0.5 y los de R6, en §0.6.
 - Los documentos originales de las rondas (`RESPONSE_ROUND_1–3.md`) y sus cuestionarios se retiraron
@@ -40,6 +40,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | Decisión | Origen |
 |---|---|
 | **TON y TOF son dos aparatos independientes** (base de 8 pines), cada uno con su bobina y sus contactos temporizados adentro | R2 §1, R5 §13 |
+| **Temporizador mixto**: la misma base de 8 pines, con la bobina en 7–2. El polo **8 · 6 · 5** es a la conexión (TON) y el **1 · 3 · 4** conmuta apenas se energiza la bobina, como un relé. Al desenergizar, los dos vuelven al reposo enseguida | R7 §2 |
 | El `preset` es una propiedad numérica editable en el panel de propiedades | R2 §1 |
 | Durante la simulación se puede ver el tiempo actual del temporizador mientras corre | R2 §1 |
 | Preset en segundos con coma decimal: mínimo 0,1 s, máximo 3600 s, resolución 0,01 s | I15 |
@@ -69,6 +70,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | **Un borne admite varios cables.** Un número pequeño junto al tornillo indica cuántos tiene. Sin límite definido por ahora | R5 §6 |
 | Dos aparatos no pueden superponerse | R5 §1 |
 | Cada cable tiene **color** (paleta fija) y uno de **tres calibres**. Se eligen en la herramienta Cable, que recuerda lo último usado, y se cambian después en Propiedades | R5 §3, R5 §5 |
+| Donde dos cables se **superponen**, queda a la vista **el más grueso**, sin importar cuál se hizo primero; un clic ahí lo elige a él | R7 §1 |
 | En reposo el cable se ve con su color, un poco oscuro; **al quedar energizado se ilumina y proyecta un brillo de su mismo color**, tanto si lleva fase como si lleva neutro | R5 §3 |
 | Borrar un cable lo borra **entero**. Borrar un aparato borra también los cables que llegan a sus bornes | R5 §4 |
 
@@ -99,7 +101,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | **Contactor**: los tornillos de potencia se dibujan más grandes que los de mando; **A1 y A2 van arriba**, entre 1/L1, 3/L2 y 5/L3, y un poco más altos | R5 §9 |
 | **Pulsadores**: un solo contacto, con un borne arriba y otro abajo, como el piloto. Adentro va solo el símbolo, sin tapa redonda, y se accionan con clic sobre el cuerpo | R5 §7 |
 | **Piloto**: el círculo del símbolo es el que se enciende; no lleva un lente aparte | R5 §10 |
-| En la interfaz el temporizador a la desconexión se llama **TOFF** (con dos efes), no TOF; el tipo interno sigue siendo `timer-tof`. Cada temporizador lleva **TON** o **TOFF** escrito en su carátula: es lo único que los distingue a simple vista | R5 §22 |
+| En la interfaz el temporizador a la desconexión se llama **TOFF** (con dos efes), no TOF; el tipo interno sigue siendo `timer-tof`. Cada temporizador lleva **TON**, **TOFF** o **MIXTO** escrito en su carátula: es lo único que los distingue a simple vista. En el mixto, solo el polo temporizado lleva la marca de retardo | R5 §22, R7 §2 |
 | El borne se identifica con su **número dentro del tornillo**; no se imprime la marcación larga (1/L1, 2/T1), que queda como ayuda al pasar el cursor | R5 §18 |
 | **Monitor de energía**: cuerpo tipo contactor, cuatro polos (A B C N) de arriba (entrada) hacia abajo (salida), con una flecha que marca el sentido, y **un testigo por fase de entrada contra el neutro de entrada**. Arranca cerrado; un clic abre los cuatro polos, que es como se simula que corta. No mide ni muestra valores | R5 §24 |
 | **Protector de fase**: se alimenta por A1–A2, que **solo encienden su testigo** (no conducen), y avisa por un contacto conmutado 11 común, 14 NA, 12 NC. Arranca sano (11–14); un clic simula la falla y pasa a 11–12 | R5 §24 |
