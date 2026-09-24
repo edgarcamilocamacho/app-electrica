@@ -75,5 +75,9 @@ export const SMALL_FONT = 0.7;
 export const FONT_FAMILY =
   "'Arial Narrow', 'Liberation Sans Narrow', 'DejaVu Sans Condensed', Helvetica, Arial, sans-serif";
 
-/** Del centro del tornillo al arranque del conductor interno. */
-export const LEAD = 2.1;
+/**
+ * Del centro del tornillo al arranque del conductor interno. Cero: el conductor nace debajo del
+ * tornillo (que se dibuja encima), así el cable, el tornillo y el esquema se ven continuos, también
+ * cuando se iluminan [R7 §5].
+ */
+export const LEAD = 0;

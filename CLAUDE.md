@@ -84,8 +84,9 @@ Navegadores de E2E: `pnpm exec playwright install chromium firefox`.
   y no avanza el tiempo sola. `openApp()` deja zoom 100 % con el origen cerca de la esquina: usar
   coordenadas de mundo positivas y menores a ~55 en x. `syncNow()` sube, late o consulta ya, sin
   esperar a los relojes del controlador.
-- El estado de la simulación se lee en el DOM: cada aparato lleva `data-ref`, `data-energized` y
-  `data-actuated`; cada cable, `data-live`.
+- El estado de la simulación se lee en el DOM: cada aparato lleva `data-ref`, `data-energized`,
+  `data-actuated` y `data-lit` (bornes con el esquema iluminado, separados por espacio); cada cable,
+  `data-live`.
 - Commitear **solo si `pnpm check` pasa**: encadenar con `&&`, nunca con `;`.
 
 ## Trampas conocidas

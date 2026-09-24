@@ -7,6 +7,8 @@ test.describe('simulación del tablero', () => {
     await page.getByTestId('simulate').click();
     await expect(page.getByTestId('mode')).toHaveText('SIMULACIÓN');
     await expect(device(page, 'H1')).toHaveAttribute('data-energized', 'false');
+    // En reposo, del contactor solo tiene tensión el polo de potencia que viene de la acometida [R7 §4].
+    await expect(device(page, 'K1')).not.toHaveAttribute('data-lit', /A1/);
 
     // Mantener apretado S1 (marcha) y soltarlo: el contactor queda retenido.
     const s1 = await device(page, 'S1').boundingBox();
@@ -16,6 +18,9 @@ test.describe('simulación del tablero', () => {
     await page.mouse.up();
     await expect(device(page, 'K1')).toHaveAttribute('data-energized', 'true');
     await expect(device(page, 'H1')).toHaveAttribute('data-energized', 'true');
+    // Retenido: la bobina y el contacto de retención se iluminan del color de sus cables.
+    await expect(device(page, 'K1')).toHaveAttribute('data-lit', /\bA1\b.*\bA2\b/);
+    await expect(device(page, 'K1')).toHaveAttribute('data-lit', /\b13\b.*\b14\b/);
 
     // Paro: todo se cae.
     const s0 = await device(page, 'S0').boundingBox();
@@ -24,6 +29,11 @@ test.describe('simulación del tablero', () => {
     await expect(device(page, 'K1')).toHaveAttribute('data-energized', 'false');
     await page.mouse.up();
     await expect(device(page, 'H1')).toHaveAttribute('data-energized', 'false');
+    await expect(device(page, 'K1')).not.toHaveAttribute('data-lit', /A1/);
+
+    // Al detener, no queda nada iluminado.
+    await page.getByTestId('stop').click();
+    await expect(device(page, 'K1')).toHaveAttribute('data-lit', '');
   });
 
   test('durante la simulación no se puede editar', async ({ page }) => {

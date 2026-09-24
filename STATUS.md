@@ -23,7 +23,7 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 
 | Nivel | Resultado |
 |---|---|
-| Unitarias + integración (Vitest) | **204 / 204** |
+| Unitarias + integración (Vitest) | **210 / 210** |
 | E2E (Playwright, Chromium + Firefox) | **60 / 60** (30 flujos × 2 navegadores) |
 | Humo de contenedores (`docker-smoke.mjs --e2e --upgrade`) | **todo OK** |
 
@@ -40,7 +40,7 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 | R6/C1–C2 | Reglas de los tableros en `src/core/cloud` (nombres únicos, turno, versiones, papelera, límites) y API en `server/` sobre `node:sqlite`, montada también en `pnpm dev` y `pnpm preview` |
 | R6/C3–C4 | Controlador de sincronización, solo lectura en la tienda, barra de tableros, título con estado del guardado, franja de solo lectura con «Editar», importar y exportar JSON |
 | R6/C5 | Contenedores `web` + `api` endurecidos, datos en la carpeta `datos/` del proyecto (montada, fuera de git) [R6 §15], humo que verifica API, endurecimiento y que los datos sobreviven a `down -v` |
-| R7 | Cables superpuestos: queda a la vista y se elige el más grueso. Temporizador mixto (polo 8-6-5 TON, polo 1-3-4 instantáneo). Sin corte en los cruces entre cables de la misma red |
+| R7 | Cables superpuestos: queda a la vista y se elige el más grueso. Temporizador mixto (polo 8-6-5 TON, polo 1-3-4 instantáneo). Sin corte en los cruces entre cables de la misma red. El esquema interno de todos los aparatos se ilumina del color de sus cables y los conductores llegan hasta el tornillo (todavía sin versión: en revisión) |
 | R5.1 | Pasada de interfaz y dibujo: cableado ortogonal con motivo de rechazo, propiedades del cable seleccionado, selección por rectángulo, zócalo de relé real, marcaciones de borne, rótulos con halo, carátula del temporizador, funda del cable en los cruces y «Involucrados» en el cartel de ERROR |
 
 ## En curso
@@ -117,6 +117,11 @@ Ninguna. El despliegue quedó definido en R6 §11: servidor propio con Docker y 
   permiten que los E2E verifiquen el estado sin capturas ni esperas.
 - **Preset mínimo de 100 ms** y tope de eventos en un mismo instante, para que un lazo temporizado
   nunca cuelgue la simulación.
+- **A igual calibre, el color de un borne lo pone el cable que va primero en el documento** [Técnica]:
+  el orden de creación no se guarda (los ids son aleatorios), así que «el primero que se conectó» se
+  aproxima con un orden fijo; siempre elige el mismo.
+- **El DOM dice qué bornes están iluminados** [Técnica]: cada aparato lleva `data-lit` con la lista
+  de bornes con luz, para verificarlo en E2E sin capturas.
 - **Dos actuadores sobre la misma bobina** [Técnica]: el temporizador mixto declara uno temporizado
   (`T`) y uno instantáneo (`K`) sobre 7–2, y cada polo dice cuál lo mueve. Como las bobinas sensan y
   no conducen, tener dos en paralelo no cambia nada eléctrico.

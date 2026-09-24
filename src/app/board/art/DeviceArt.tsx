@@ -24,12 +24,15 @@ import {
   Contact,
   LampSymbol,
   Lever,
+  LightsProvider,
   ManualActuator,
   MechLink,
   RotationProvider,
   Screw,
   Tag,
   TagBlock,
+  type TerminalLight,
+  useLights,
   useUpright,
   WireCount,
 } from './primitives';
@@ -47,6 +50,8 @@ export interface DeviceArtProps {
    * marcaciones, **encima**, para que el cable termine visiblemente en el tornillo.
    */
   readonly layer?: 'body' | 'screws' | 'both';
+  /** Bornes con tensión y el color de su cable, durante la simulación [R7 §4]. */
+  readonly lights?: ReadonlyMap<string, TerminalLight> | undefined;
 }
 
 const closedOf = (view: DeviceView | undefined, deviceId: string, a: string, b: string, fallback: boolean): boolean =>
@@ -69,10 +74,10 @@ const captionOf = (device: DeviceInstance): { caption?: string } => {
 const topRow = (def: DeviceDefinition): readonly TerminalDef[] =>
   def.terminals.filter((t) => t.dir === 'N').sort((a, b) => a.offset.x - b.offset.x);
 
-export function DeviceArt({ device, def, view, wireCounts, layer = 'both' }: DeviceArtProps): ReactElement {
+export function DeviceArt({ device, def, view, wireCounts, layer = 'both', lights }: DeviceArtProps): ReactElement {
   return (
     <RotationProvider value={device.rotation}>
-      {layer !== 'screws' && internals(device, def, view)}
+      {layer !== 'screws' && <LightsProvider value={lights}>{internals(device, def, view)}</LightsProvider>}
       {layer !== 'body' &&
         def.terminals.map((t) => (
           <g key={t.id}>
@@ -111,6 +116,7 @@ function internals(device: DeviceInstance, def: DeviceDefinition, view: DeviceVi
  * para que las bajadas queden rectas y no se crucen.
  */
 function SupplyArt({ device, def }: { device: DeviceInstance; def: DeviceDefinition }): ReactElement {
+  const lit = useLights();
   const drops = def.terminals.filter((t) => t.dir === 'S');
   const top = def.bounds.minY;
   const armY = top + 2.4;
@@ -154,7 +160,7 @@ function SupplyArt({ device, def }: { device: DeviceInstance; def: DeviceDefinit
             strokeWidth={BOARD_STROKE * 0.7}
           />
           {/* Bajada recta hasta su borne. */}
-          <Conductor d={`M${t.offset.x} ${armY - 0.8}V${t.offset.y - LEAD}`} width={BOARD_STROKE * 1.2} />
+          <Conductor d={`M${t.offset.x} ${armY - 0.8}V${t.offset.y - LEAD}`} width={BOARD_STROKE * 1.2} light={lit(t.id)} />
         </g>
       ))}
       <Body bounds={box} />
@@ -171,6 +177,7 @@ function SupplyArt({ device, def }: { device: DeviceInstance; def: DeviceDefinit
 
 /** Taco: una cuchilla por polo y la palanca a la derecha [R5 §8]. */
 function BreakerArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const lit = useLights();
   const columns = topRow(def);
   const bottom = def.terminals.filter((t) => t.dir === 'S').sort((a, b) => a.offset.x - b.offset.x);
   const leverX = def.bounds.maxX - 1.5;
@@ -182,9 +189,17 @@ function BreakerArt({ device, def, view }: { device: DeviceInstance; def: Device
         const closed = closedOf(view, device.id, t.id, b.id, false);
         return (
           <g key={t.id}>
-            <Conductor d={`M${t.offset.x} ${t.offset.y + LEAD}V-2.2`} />
-            <Contact x={t.offset.x} yTop={-2.2} yBottom={2.2} normal="NO" closed={closed} />
-            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - LEAD}`} />
+            <Conductor d={`M${t.offset.x} ${t.offset.y + LEAD}V-2.2`} light={lit(t.id)} />
+            <Contact
+              x={t.offset.x}
+              yTop={-2.2}
+              yBottom={2.2}
+              normal="NO"
+              closed={closed}
+              fixedLight={lit(t.id)}
+              bladeLight={lit(b.id)}
+            />
+            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - LEAD}`} light={lit(b.id)} />
           </g>
         );
       })}
@@ -203,6 +218,7 @@ function BreakerArt({ device, def, view }: { device: DeviceInstance; def: Device
 
 /** Contactor: bobina arriba entre los bornes de potencia y los cinco contactos debajo [R5 §9]. */
 function ContactorArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const lit = useLights();
   const poles: readonly [string, string, boolean, 'NO' | 'NC'][] = [
     ['1', '2', true, 'NO'],
     ['3', '4', true, 'NO'],
@@ -226,15 +242,24 @@ function ContactorArt({ device, def, view }: { device: DeviceInstance; def: Devi
         const closed = closedOf(view, device.id, topId, botId, normal === 'NC');
         return (
           <g key={topId}>
-            <Conductor d={`M${t.offset.x} ${t.offset.y + LEAD}V-2.2`} />
-            <Contact x={t.offset.x} yTop={-2.2} yBottom={2.2} normal={normal} closed={closed} power={power} />
-            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - LEAD}`} />
+            <Conductor d={`M${t.offset.x} ${t.offset.y + LEAD}V-2.2`} light={lit(topId)} />
+            <Contact
+              x={t.offset.x}
+              yTop={-2.2}
+              yBottom={2.2}
+              normal={normal}
+              closed={closed}
+              power={power}
+              fixedLight={lit(topId)}
+              bladeLight={lit(botId)}
+            />
+            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - LEAD}`} light={lit(botId)} />
           </g>
         );
       })}
       {/* Los arranques quedan bajo el tornillo, que se dibuja encima. */}
-      <Conductor d={`M${a1.offset.x} ${a1.offset.y}H${coil.x}`} />
-      <Conductor d={`M${a2.offset.x} ${a2.offset.y}H${coil.x + coil.w}`} />
+      <Conductor d={`M${a1.offset.x} ${a1.offset.y}H${coil.x}`} light={lit('A1')} />
+      <Conductor d={`M${a2.offset.x} ${a2.offset.y}H${coil.x + coil.w}`} light={lit('A2')} />
       <Coil x={coil.x} y={coil.y} w={coil.w} h={coil.h} on={on} />
       {/* El vínculo mecánico cruza las cuchillas; no baja desde la bobina para no tapar bornes. */}
       <MechLink d={`M${at('1').offset.x - 1} 0H${lastX + 1}`} />
@@ -250,6 +275,7 @@ function ContactorArt({ device, def, view }: { device: DeviceInstance; def: Devi
 
 /** Pulsadores e interruptores: un contacto con su accionamiento al lado [R5 §7]. */
 function ManualArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const lit = useLights();
   const contact = def.internals.contacts[0];
   const actuator = def.internals.actuators[0];
   const top = def.terminals.find((t) => t.dir === 'N');
@@ -265,9 +291,17 @@ function ManualArt({ device, def, view }: { device: DeviceInstance; def: DeviceD
   return (
     <g>
       <Body bounds={def.bounds} />
-      <Conductor d={`M${top.offset.x} ${top.offset.y + LEAD}V-2.2`} />
-      <Contact x={0} yTop={-2.2} yBottom={2.2} normal={contact.normal} closed={closed} />
-      <Conductor d={`M${bottom.offset.x} 2.2V${bottom.offset.y - LEAD}`} />
+      <Conductor d={`M${top.offset.x} ${top.offset.y + LEAD}V-2.2`} light={lit(top.id)} />
+      <Contact
+        x={0}
+        yTop={-2.2}
+        yBottom={2.2}
+        normal={contact.normal}
+        closed={closed}
+        fixedLight={lit(top.id)}
+        bladeLight={lit(bottom.id)}
+      />
+      <Conductor d={`M${bottom.offset.x} 2.2V${bottom.offset.y - LEAD}`} light={lit(bottom.id)} />
       <ManualActuator x={def.bounds.maxX - 1.5} y={0} kind={kind} actuated={view?.actuated ?? false} />
       <TagBlock x={def.bounds.minX + 0.7} y={4.6} tag={tagOf(device)} {...captionOf(device)} anchor="start" />
     </g>
@@ -350,6 +384,7 @@ function leadPath(terminal: TerminalDef, to: Point): string {
  * temporizado lleva la marca de retardo; el otro es el de un relé.
  */
 function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const lit = useLights();
   const actuators = def.internals.actuators;
   const timerActuator = actuators.find((a) => a.kind === 'timer');
   const coilActuator = actuators.find((a) => a.kind === 'coil');
@@ -371,8 +406,8 @@ function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDe
       <Body bounds={def.bounds} />
       {coilPins && (
         <g>
-          <Conductor d={leadPath(at(coilPins[0]), { x: coil.x, y: art.coil.y })} />
-          <Conductor d={leadPath(at(coilPins[1]), { x: coil.x + coil.w, y: art.coil.y })} />
+          <Conductor d={leadPath(at(coilPins[0]), { x: coil.x, y: art.coil.y })} light={lit(coilPins[0])} />
+          <Conductor d={leadPath(at(coilPins[1]), { x: coil.x + coil.w, y: art.coil.y })} light={lit(coilPins[1])} />
           <Coil x={coil.x} y={coil.y} w={coil.w} h={coil.h} on={on} {...(timer ? { timer } : {})} />
         </g>
       )}
@@ -390,12 +425,13 @@ function RelayArt({ device, def, view }: { device: DeviceInstance; def: DeviceDe
         const closed = closedOf(view, device.id, common, no.b, false);
         return (
           <g key={common}>
-            <Conductor d={leadPath(at(common), pole.pivot)} />
-            <Conductor d={leadPath(at(no.b), changeoverTip(geometry, pole.noSide))} />
-            <Conductor d={leadPath(at(nc.b), changeoverTip(geometry, -pole.noSide))} />
+            <Conductor d={leadPath(at(common), pole.pivot)} light={lit(common)} />
+            <Conductor d={leadPath(at(no.b), changeoverTip(geometry, pole.noSide))} light={lit(no.b)} />
+            <Conductor d={leadPath(at(nc.b), changeoverTip(geometry, -pole.noSide))} light={lit(nc.b)} />
             <Changeover
               geometry={geometry}
               side={closed ? pole.noSide : -pole.noSide}
+              light={lit(common)}
               {...(timer && timedBy(no.actuator) ? { delay: timer } : {})}
             />
           </g>
@@ -479,6 +515,7 @@ function TimerFace({
 
 /** Selector de 3 posiciones: un común, dos salidas y el centro en vacío [I3]. */
 function SelectorArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const lit = useLights();
   const at = (id: string) => def.terminals.find((t) => t.id === id)!;
   const common = at('1');
   const out1 = at('2');
@@ -493,11 +530,11 @@ function SelectorArt({ device, def, view }: { device: DeviceInstance; def: Devic
   return (
     <g>
       <Body bounds={def.bounds} />
-      <Conductor d={`M${common.offset.x} ${common.offset.y + LEAD}V${pivot.y}`} />
-      <Conductor d={`M${out1.offset.x} ${out1.offset.y - LEAD}V${fixedY}H${pivot.x - spread}`} />
-      <Conductor d={`M${out2.offset.x} ${out2.offset.y - LEAD}V${fixedY}H${pivot.x + spread}`} />
-      <circle cx={pivot.x} cy={pivot.y} r={0.15} fill={P.sym} />
-      <Conductor d={`M${pivot.x} ${pivot.y}L${tipX} ${fixedY}`} width={BOARD_STROKE * 1.25} />
+      <Conductor d={`M${common.offset.x} ${common.offset.y + LEAD}V${pivot.y}`} light={lit(common.id)} />
+      <Conductor d={`M${out1.offset.x} ${out1.offset.y - LEAD}V${fixedY}H${pivot.x - spread}`} light={lit(out1.id)} />
+      <Conductor d={`M${out2.offset.x} ${out2.offset.y - LEAD}V${fixedY}H${pivot.x + spread}`} light={lit(out2.id)} />
+      <circle cx={pivot.x} cy={pivot.y} r={0.15} fill={lit(common.id)?.color ?? P.sym} />
+      <Conductor d={`M${pivot.x} ${pivot.y}L${tipX} ${fixedY}`} width={BOARD_STROKE * 1.25} light={lit(common.id)} />
       {/* Perilla: apunta a la posición elegida, que es lo que dice en qué estado está. */}
       <MechLink d={`M${pivot.x} ${pivot.y}H${knob.x}V${knob.y + 1.1}`} />
       <SelectorKnob x={knob.x} y={knob.y} position={position} />
@@ -538,6 +575,7 @@ const loadOn = (view: DeviceView | undefined, deviceId: string, a: string, b: st
  * arriba hacia abajo (la flecha lo dice) y arriba hay un testigo por fase de entrada.
  */
 function PowerMonitorArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const lit = useLights();
   const at = (id: string) => def.terminals.find((t) => t.id === id)!;
   const poles: readonly [string, string][] = [
     ['A1', 'A2'],
@@ -559,9 +597,18 @@ function PowerMonitorArt({ device, def, view }: { device: DeviceInstance; def: D
         const closed = closedOf(view, device.id, topId, botId, true);
         return (
           <g key={topId}>
-            <Conductor d={`M${t.offset.x} ${t.offset.y + LEAD}V-2.2`} />
-            <Contact x={t.offset.x} yTop={-2.2} yBottom={2.2} normal="NO" closed={closed} power />
-            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - LEAD}`} />
+            <Conductor d={`M${t.offset.x} ${t.offset.y + LEAD}V-2.2`} light={lit(topId)} />
+            <Contact
+              x={t.offset.x}
+              yTop={-2.2}
+              yBottom={2.2}
+              normal="NO"
+              closed={closed}
+              power
+              fixedLight={lit(topId)}
+              bladeLight={lit(botId)}
+            />
+            <Conductor d={`M${b.offset.x} 2.2V${b.offset.y - LEAD}`} light={lit(botId)} />
           </g>
         );
       })}
@@ -594,6 +641,7 @@ function PowerMonitorArt({ device, def, view }: { device: DeviceInstance; def: D
  * conmutado. Sano, el común queda con el 14; en falla, con el 12.
  */
 function PhaseMonitorArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const lit = useLights();
   const at = (id: string) => def.terminals.find((t) => t.id === id)!;
   const a1 = at('A1');
   const a2 = at('A2');
@@ -608,13 +656,13 @@ function PhaseMonitorArt({ device, def, view }: { device: DeviceInstance; def: D
   return (
     <g>
       <Body bounds={def.bounds} />
-      <Conductor d={`M${a1.offset.x} ${a1.offset.y + LEAD}V-4.2H-1.3`} />
-      <Conductor d={`M${a2.offset.x} ${a2.offset.y + LEAD}V-4.2H1.3`} />
+      <Conductor d={`M${a1.offset.x} ${a1.offset.y + LEAD}V-4.2H-1.3`} light={lit('A1')} />
+      <Conductor d={`M${a2.offset.x} ${a2.offset.y + LEAD}V-4.2H1.3`} light={lit('A2')} />
       <Indicator x={0} y={-4.2} r={1.1} on={loadOn(view, device.id, 'A1', 'A2')} color={P.lamp.green!} />
-      <Conductor d={`M${at('14').offset.x} ${8 - LEAD}V${fixedY}H${geometry.pivot.x - geometry.spread}`} />
-      <Conductor d={`M${at('12').offset.x} ${8 - LEAD}V${fixedY}H${geometry.pivot.x + geometry.spread}`} />
-      <Conductor d={`M${at('11').offset.x} ${8 - LEAD}V${geometry.pivot.y}`} />
-      <Changeover geometry={geometry} side={healthy ? -1 : 1} />
+      <Conductor d={`M${at('14').offset.x} ${8 - LEAD}V${fixedY}H${geometry.pivot.x - geometry.spread}`} light={lit('14')} />
+      <Conductor d={`M${at('12').offset.x} ${8 - LEAD}V${fixedY}H${geometry.pivot.x + geometry.spread}`} light={lit('12')} />
+      <Conductor d={`M${at('11').offset.x} ${8 - LEAD}V${geometry.pivot.y}`} light={lit('11')} />
+      <Changeover geometry={geometry} side={healthy ? -1 : 1} light={lit('11')} />
       {/* La electrónica del protector mueve el contacto. */}
       <MechLink d={`M0 -3.1V0`} />
       <TagBlock x={def.bounds.minX + 0.8} y={4.8} tag={tagOf(device)} {...captionOf(device)} anchor="start" />
@@ -624,6 +672,7 @@ function PhaseMonitorArt({ device, def, view }: { device: DeviceInstance; def: D
 
 /** UPS: la entrada solo enciende su indicador y la salida es una fuente propia [R5 §11]. */
 function UpsArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const lit = useLights();
   const at = (id: string) => def.terminals.find((t) => t.id === id)!;
   const lin = at('L1');
   const nin = at('N1');
@@ -634,8 +683,8 @@ function UpsArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefi
   return (
     <g>
       <Body bounds={def.bounds} />
-      <Conductor d={`M${lin.offset.x} ${lin.offset.y + LEAD}V-3.4H${inputX - 1.7}`} />
-      <Conductor d={`M${nin.offset.x} ${nin.offset.y + LEAD}V-3.4H${inputX + 1.7}`} />
+      <Conductor d={`M${lin.offset.x} ${lin.offset.y + LEAD}V-3.4H${inputX - 1.7}`} light={lit('L1')} />
+      <Conductor d={`M${nin.offset.x} ${nin.offset.y + LEAD}V-3.4H${inputX + 1.7}`} light={lit('N1')} />
       <LampSymbol x={inputX} y={-3.4} r={1.7} on={on} color={P.lamp.green!} />
       <rect
         x={lout.offset.x - 2.6}
@@ -648,8 +697,8 @@ function UpsArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefi
         strokeWidth={BOARD_STROKE}
       />
       <Conductor d={`M${lout.offset.x - 1.6} 2.9a0.8 0.8 0 0 1 1.6 0a0.8 0.8 0 0 0 1.6 0`} />
-      <Conductor d={`M${lout.offset.x} 4.6V${lout.offset.y - LEAD}`} />
-      <Conductor d={`M${nout.offset.x} ${nout.offset.y - LEAD}V2.9H${lout.offset.x + 2.6}`} />
+      <Conductor d={`M${lout.offset.x} 4.6V${lout.offset.y - LEAD}`} light={lit('L2')} />
+      <Conductor d={`M${nout.offset.x} ${nout.offset.y - LEAD}V2.9H${lout.offset.x + 2.6}`} light={lit('N2')} />
       <TagBlock x={def.bounds.minX + 1} y={1.4} tag={tagOf(device)} {...captionOf(device)} anchor="start" />
     </g>
   );
@@ -657,6 +706,7 @@ function UpsArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefi
 
 /** Foco: la silueta del bombillo es el aparato, con los dos bornes abajo [R5 §10]. */
 function BulbArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const lit = useLights();
   const x1 = def.terminals.find((t) => t.id === 'X1')!;
   const x2 = def.terminals.find((t) => t.id === 'X2')!;
   const on = view?.energized === true;
@@ -702,11 +752,11 @@ function BulbArt({ device, def, view }: { device: DeviceInstance; def: DeviceDef
         opacity={0.7}
         fill="none"
       />
-      {/* Filamento: sube de cada borne y hace la V dentro de la ampolla. */}
+      {/* Filamento: sube de cada borne y hace la V dentro de la ampolla; cada mitad, del color de su borne. */}
+      <Conductor d={`M${x1.offset.x} ${x1.offset.y - LEAD}V${glass.cy + 1.6}l1.1 -2.2l0.9 1.6`} light={lit('X1')} />
       <Conductor
-        d={`M${x1.offset.x} ${x1.offset.y - LEAD}V${glass.cy + 1.6}l1.1 -2.2l0.9 1.6l0.9 -1.6l1.1 2.2V${
-          x2.offset.y - LEAD
-        }`}
+        d={`M${x1.offset.x + 2} ${glass.cy + 1}l0.9 -1.6l1.1 2.2V${x2.offset.y - LEAD}`}
+        light={lit('X2')}
       />
       <TagBlock x={def.bounds.maxX - 0.3} y={glass.cy} tag={tagOf(device)} {...captionOf(device)} anchor="end" />
     </g>
@@ -715,6 +765,7 @@ function BulbArt({ device, def, view }: { device: DeviceInstance; def: DeviceDef
 
 /** Piloto: el símbolo de la carga en la columna del aparato [R5 §10]. */
 function LoadArt({ device, def, view }: { device: DeviceInstance; def: DeviceDefinition; view?: DeviceView }): ReactElement {
+  const lit = useLights();
   const top = def.terminals.find((t) => t.dir === 'N')!;
   const bottom = def.terminals.find((t) => t.dir === 'S')!;
   const on = view?.energized === true;
@@ -723,13 +774,13 @@ function LoadArt({ device, def, view }: { device: DeviceInstance; def: DeviceDef
   return (
     <g>
       <Body bounds={def.bounds} />
-      <Conductor d={`M${top.offset.x} ${top.offset.y + LEAD}V-2.4`} />
+      <Conductor d={`M${top.offset.x} ${top.offset.y + LEAD}V-2.4`} light={lit(top.id)} />
       {def.type === 'bulb' ? (
         <BulbSymbol x={0} y={-0.4} r={1.9} on={on} color={color} />
       ) : (
         <LampSymbol x={0} y={0} r={2.2} on={on} color={color} />
       )}
-      <Conductor d={`M${bottom.offset.x} 2.4V${bottom.offset.y - LEAD}`} />
+      <Conductor d={`M${bottom.offset.x} 2.4V${bottom.offset.y - LEAD}`} light={lit(bottom.id)} />
       <TagBlock x={def.bounds.minX + 0.7} y={4.6} tag={tagOf(device)} {...captionOf(device)} anchor="start" />
     </g>
   );

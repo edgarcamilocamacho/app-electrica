@@ -11,6 +11,7 @@ import type { NetPotential, SimSnapshot } from '../../core/board/sim/engine';
 import { wireRoute } from '../../core/board/wireGeometry';
 import type { Id } from '../../core/model/types';
 import { DeviceArt } from './art/DeviceArt';
+import { terminalLights } from './lights';
 import { BOARD_PALETTE, WIRE_TONES, WIRE_WIDTH } from './theme';
 
 const P = BOARD_PALETTE;
@@ -103,6 +104,7 @@ function BoardDiagramInner({
   const invalidSet = useMemo(() => new Set(invalid ?? []), [invalid]);
   const faultSet = useMemo(() => new Set(fault ?? []), [fault]);
   const layers = useMemo(() => wireLayers(doc, nets), [doc, nets]);
+  const lights = useMemo(() => terminalLights(doc, registry, nets, sim), [doc, registry, nets, sim]);
   const wireNet = (wire: Wire): string | undefined => {
     const ref = terminalOf(wire.a) ?? terminalOf(wire.b);
     return ref ? nets.netOf(ref) : undefined;
@@ -154,7 +156,13 @@ function BoardDiagramInner({
                 strokeWidth={0.2}
               />
             )}
-            <DeviceArt device={device} def={def} view={sim?.devices.get(device.id)} layer="body" />
+            <DeviceArt
+              device={device}
+              def={def}
+              view={sim?.devices.get(device.id)}
+              lights={lights.get(device.id)}
+              layer="body"
+            />
           </g>
         ) : null,
       )}
@@ -176,6 +184,7 @@ function BoardDiagramInner({
             data-ref={typeof device.props.ref === 'string' ? device.props.ref : ''}
             data-energized={sim?.devices.get(device.id)?.energized === true ? 'true' : 'false'}
             data-actuated={sim?.devices.get(device.id)?.actuated === true ? 'true' : 'false'}
+            data-lit={[...(lights.get(device.id)?.keys() ?? [])].sort().join(' ')}
           >
             {isLive(def) && (
               <g>

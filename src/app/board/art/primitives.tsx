@@ -29,6 +29,27 @@ export const RotationProvider = RotationContext.Provider;
 
 export const useRotation = (): Rotation => useContext(RotationContext);
 
+/** Cómo se ilumina lo que cuelga de un borne con tensión: el color de su cable [R7 §4]. */
+export interface TerminalLight {
+  readonly color: string;
+  /** Brillo alrededor; sin brillo en un cortocircuito, igual que los cables. */
+  readonly glow?: string;
+}
+
+const LightsContext = createContext<ReadonlyMap<string, TerminalLight> | undefined>(undefined);
+
+/** Bornes con tensión del aparato que se está dibujando, por id de borne. */
+export const LightsProvider = LightsContext.Provider;
+
+/** Luz de un borne del aparato que se está dibujando, si tiene tensión. */
+export function useLights(): (terminalId: string) => TerminalLight | undefined {
+  const lights = useContext(LightsContext);
+  return (terminalId) => lights?.get(terminalId);
+}
+
+/** Cuánto más ancho que el conductor es su brillo. */
+const GLOW_EXTRA = 0.42;
+
 /**
  * Coloca algo junto a un borne: el desplazamiento se piensa en pantalla (el aparato ya girado) y
  * se devuelve en coordenadas locales, que es donde se dibuja.
@@ -223,8 +244,33 @@ export function TagBlock({
   );
 }
 
-export function Conductor({ d, color = P.sym, width = BOARD_STROKE }: { d: string; color?: string; width?: number }): ReactElement {
-  return <path d={d} fill="none" stroke={color} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />;
+/**
+ * Conductor del esquema interno. Con `light`, lleva el color del cable de su borne y su brillo,
+ * como el cable que llega de afuera [R7 §4].
+ */
+export function Conductor({
+  d,
+  color = P.sym,
+  width = BOARD_STROKE,
+  light,
+}: {
+  d: string;
+  color?: string;
+  width?: number;
+  light?: TerminalLight | undefined;
+}): ReactElement {
+  const path = (
+    <path d={d} fill="none" stroke={light?.color ?? color} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
+  );
+  if (!light) return path;
+  return (
+    <g data-lit="true">
+      {light.glow && (
+        <path d={d} fill="none" stroke={light.glow} strokeWidth={width + GLOW_EXTRA} strokeLinecap="round" strokeLinejoin="round" />
+      )}
+      {path}
+    </g>
+  );
 }
 
 export function MechLink({ d }: { d: string }): ReactElement {
@@ -255,6 +301,10 @@ export interface ContactProps {
   /** Contacto temporizado: el "paracaídas" indica el retardo. */
   readonly delay?: 'TON' | 'TOF';
   readonly color?: string;
+  /** Luz del borne de abajo, del que cuelga la cuchilla [R7 §4]. */
+  readonly bladeLight?: TerminalLight | undefined;
+  /** Luz del borne de arriba, el del contacto fijo. */
+  readonly fixedLight?: TerminalLight | undefined;
 }
 
 /** Largo del gancho del contacto fijo NC, contra el que cierra la cuchilla. */
@@ -267,7 +317,18 @@ const HOOK = 0.9;
  * El largo y la inclinación salen de dónde tiene que cerrar: el NA contra el punto fijo, justo
  * arriba; el NC contra la punta de su gancho. Así, cerrado, la cuchilla **toca** el contacto.
  */
-export function Contact({ x, yTop, yBottom, normal, closed, power, delay, color = P.sym }: ContactProps): ReactElement {
+export function Contact({
+  x,
+  yTop,
+  yBottom,
+  normal,
+  closed,
+  power,
+  delay,
+  color = P.sym,
+  bladeLight,
+  fixedLight,
+}: ContactProps): ReactElement {
   const vertical = yBottom - yTop;
   const length = normal === 'NC' ? Math.hypot(HOOK, vertical) : vertical;
   const closedTilt = normal === 'NC' ? Math.atan2(HOOK, vertical) : 0;
@@ -282,13 +343,13 @@ export function Contact({ x, yTop, yBottom, normal, closed, power, delay, color 
         <path
           d={`M${x - 0.7} ${yTop}A0.7 0.7 0 0 1 ${x + 0.7} ${yTop}`}
           fill="none"
-          stroke={color}
+          stroke={fixedLight?.color ?? color}
           strokeWidth={BOARD_STROKE}
         />
       )}
-      {normal === 'NC' && <Conductor d={`M${x} ${yTop}H${x + HOOK}`} color={color} />}
-      <circle cx={x} cy={yBottom} r={0.13} fill={color} />
-      <Conductor d={`M${x} ${yBottom}L${tipX} ${tipY}`} color={color} width={BOARD_STROKE * 1.2} />
+      {normal === 'NC' && <Conductor d={`M${x} ${yTop}H${x + HOOK}`} color={color} light={fixedLight} />}
+      <circle cx={x} cy={yBottom} r={0.13} fill={bladeLight?.color ?? color} />
+      <Conductor d={`M${x} ${yBottom}L${tipX} ${tipY}`} color={color} width={BOARD_STROKE * 1.2} light={bladeLight} />
       {delay && (
         <path
           d={
@@ -330,11 +391,14 @@ export function Changeover({
   geometry,
   side,
   delay,
+  light,
 }: {
   geometry: ChangeoverGeometry;
   /** Lado al que apunta la cuchilla ahora mismo. */
   side: number;
   delay?: 'TON' | 'TOF';
+  /** Luz del común, del que cuelga la cuchilla [R7 §4]. */
+  light?: TerminalLight | undefined;
 }): ReactElement {
   const { pivot } = geometry;
   const tip = changeoverTip(geometry, side);
@@ -342,8 +406,8 @@ export function Changeover({
   const midY = (pivot.y + tip.y) / 2;
   return (
     <g>
-      <circle cx={pivot.x} cy={pivot.y} r={0.15} fill={P.sym} />
-      <Conductor d={`M${pivot.x} ${pivot.y}L${tip.x} ${tip.y}`} width={BOARD_STROKE * 1.25} />
+      <circle cx={pivot.x} cy={pivot.y} r={0.15} fill={light?.color ?? P.sym} />
+      <Conductor d={`M${pivot.x} ${pivot.y}L${tip.x} ${tip.y}`} width={BOARD_STROKE * 1.25} light={light} />
       {delay && (
         <path
           d={

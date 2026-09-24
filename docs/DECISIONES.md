@@ -72,6 +72,8 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | Cada cable tiene **color** (paleta fija) y uno de **tres calibres**. Se eligen en la herramienta Cable, que recuerda lo último usado, y se cambian después en Propiedades | R5 §3, R5 §5 |
 | Donde dos cables se **superponen**, queda a la vista **el más grueso**, sin importar cuál se hizo primero; un clic ahí lo elige a él | R7 §1 |
 | El pequeño corte que marca un cruce (la «funda» del cable de arriba) aparece **solo entre cables de redes distintas**: dos cables de la misma red se cruzan o se tocan sin corte | R7 §3 |
+| Durante la simulación, el **esquema interno de todos los aparatos se ilumina** donde hay tensión, **del color del cable** que llega a cada borne: el conductor que baja del borne, la cuchilla (del color de su común) y el contacto fijo. Si a un borne llegan varios cables, manda el más grueso; una salida sin cable toma el color que le llega por el contacto cerrado. En un corto, el rojo de falla | R7 §4 |
+| Los **conductores internos llegan hasta el tornillo**: cable, tornillo y esquema se ven continuos | R7 §5 |
 | En reposo el cable se ve con su color, un poco oscuro; **al quedar energizado se ilumina y proyecta un brillo de su mismo color**, tanto si lleva fase como si lleva neutro | R5 §3 |
 | Borrar un cable lo borra **entero**. Borrar un aparato borra también los cables que llegan a sus bornes | R5 §4 |
 
