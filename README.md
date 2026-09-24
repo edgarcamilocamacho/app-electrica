@@ -75,7 +75,8 @@ node scripts/docker-smoke.mjs --upgrade   # cambia el build con la página abier
                                           # cliente se actualiza sin perder los tableros
 ```
 
-**HTTPS y acceso** los pone Tailscale delante (`tailscale serve`) [R6 §11].
+**HTTPS y acceso** los pone Tailscale delante (`tailscale serve`) [R6 §11]. Instalación en el
+servidor, actualización, copias y reglas de acceso: [DESPLIEGUE.md](DESPLIEGUE.md).
 
 ### Qué no se debe cachear delante del contenedor
 

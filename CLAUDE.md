@@ -22,6 +22,7 @@ código), en inglés salvo los mensajes de commit, que van en español.
 | Por qué el diseño es como es | [PLAN.md](PLAN.md) §4–§17 y, para la vista de tablero, §22 |
 | Estado, limitaciones, desviaciones, decisiones abiertas | [STATUS.md](STATUS.md) — **actualizarlo al cerrar cada tanda de trabajo** |
 | Mapa del código | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) |
+| Instalar, actualizar y publicar en el servidor (Tailscale) | [DESPLIEGUE.md](DESPLIEGUE.md) |
 | Convenciones · glosario · atajos | [docs/CONVENCIONES.md](docs/CONVENCIONES.md) · [docs/GLOSARIO.md](docs/GLOSARIO.md) · [docs/ATAJOS.md](docs/ATAJOS.md) |
 
 No volver a preguntar decisiones ya registradas en DECISIONES.md salvo que aparezca una contradicción
