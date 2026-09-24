@@ -40,7 +40,7 @@ pnpm e2e:chromium     # más rápido mientras se itera
 pnpm exec vitest run tests/unit/board       # una carpeta
 node scripts/docker-smoke.mjs [--e2e] [--upgrade]   # contenedores reales: cabeceras, API, endurecimiento, persistencia
 node scripts/shot.mjs catalogo out.png [REF]         # captura del lienzo para revisar el dibujo a ojo
-docker compose up -d --build                         # http://localhost:8080 (web + api, datos en simulador_datos)
+docker compose up -d --build                         # http://localhost:8080 (web + api, datos en ./datos/)
 ```
 
 Navegadores de E2E: `pnpm exec playwright install chromium firefox`.

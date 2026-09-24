@@ -158,7 +158,8 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | Sin telemetría ni analítica; sin requisitos regulatorios identificados | R2 §30.6 |
 | **Sin edición simultánea**: un editor a la vez por tablero, los demás miran en vivo (§8) | R6 §5 |
 | **Acceso solo por Tailscale**: la app no queda publicada en internet y las reglas de la red dejan llegar únicamente al puerto de la app. Sin contraseña propia | R6 §11 |
-| **Actualizar** es traer el repo al servidor y relanzar: los tableros y la configuración sobreviven | R6 §13 |
+| **Actualizar** es traer el repo al servidor (`git pull`) y relanzar: los tableros y la configuración sobreviven | R6 §13 |
+| Todos los datos del servidor (la base y sus copias) viven en la carpeta **`datos/` del proyecto**, montada en el contenedor y fuera de git. Bajar o reconstruir los contenedores no la toca; borrar esa carpeta sí borra los tableros | R6 §15 |
 | Se puede levantar entera **en modo desarrollo**, sin Tailscale | R6 §14 |
 | La accesibilidad avanzada puede evolucionar después, pero sin diseñar en su contra | R2 §30.8 |
 | Documentación interna en el repo: cómo levantar el entorno, ejecutar, probar, la estructura y las convenciones; glosario opcional | R2 §30.5 |

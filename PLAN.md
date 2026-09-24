@@ -135,6 +135,7 @@ remiten a esta tabla.
 | R6 §12 | Respaldo **solo en el servidor** |
 | R6 §13 | Actualizar = traer el repo y relanzar; datos y configuración se conservan |
 | R6 §14 | Se puede lanzar **en modo desarrollo** |
+| R6 §15 | Los datos van en una **carpeta montada, relativa al proyecto y fuera de git** (`datos/`), no en un volumen de Docker |
 
 Diseño e hitos: §24.
 
@@ -1572,7 +1573,7 @@ nginx ─────── estáticos + proxy de /api
 server/ ───── Node sin dependencias en ejecución: node:http + node:sqlite
    │          CloudService de src/core/cloud (las mismas reglas que usa el backend en memoria)
    ▼
-/data/tableros.sqlite  (volumen)
+datos/tableros.sqlite  (carpeta del proyecto montada en /data, fuera de git) [R6 §15]
 ```
 
 - **Las reglas viven en `src/core/cloud`** [Técnica]: nombres únicos, turno de edición, versiones,

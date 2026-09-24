@@ -45,8 +45,8 @@ pnpm preview        # sirve dist/ en http://localhost:4173
 ## Contenedor
 
 La app se distribuye como dos contenedores ([compose.yaml](compose.yaml)): **web** (nginx sin
-privilegios con `dist/` y el proxy de `/api`) y **api** (Node con la base SQLite en el volumen
-`simulador_datos`). Los dos corren sin root y con el sistema de archivos de solo lectura; la API no
+privilegios con `dist/` y el proxy de `/api`) y **api** (Node con la base SQLite en la carpeta
+`datos/` del proyecto). Los dos corren sin root y con el sistema de archivos de solo lectura; la API no
 tiene salida a internet. La política de caché viaja dentro de la imagen
 ([deploy/nginx.conf](deploy/nginx.conf)).
 
@@ -57,10 +57,14 @@ docker compose logs -f api                 # registros de la API
 docker compose exec api node server.js backup   # copia de la base en /data/copias
 ```
 
-El proyecto se llama siempre `simulador`, así que **actualizar es traer el código y relanzar**: los
-tableros quedan en el volumen aunque el repo se vuelva a clonar en otra carpeta. Solo
-`docker compose down -v` los borra. La API deja además una copia diaria de la base en `/data/copias`
-(guarda las últimas 14).
+**Todos los datos quedan en `datos/`**, montada en la API y fuera de git: `datos/tableros.sqlite` y
+las copias diarias en `datos/copias/` (guarda las últimas 14). **Actualizar es `git pull` y
+relanzar**; bajar, reconstruir o incluso `docker compose down -v` no tocan esa carpeta. Borrarla (o
+borrar el clon del repo) sí borra los tableros: para llevarlos a otro lado, copiar la carpeta.
+
+La API corre con el uid 1000, que tiene que ser el dueño de `datos/`. Si en el servidor el usuario
+es otro, indicarlo con `SIMULADOR_UID` y `SIMULADOR_GID` (en un `.env` junto a `compose.yaml`); si
+no, la API no arranca y dice qué `chown` hacer.
 
 Prueba de humo sobre los contenedores reales, en un proyecto aparte que se borra al terminar:
 

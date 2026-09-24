@@ -1,8 +1,12 @@
 # Uso: docker compose up -d --build  →  http://localhost:8080 (PLAN §24.6)
 #
-# El proyecto se llama siempre `simulador`, así el volumen de datos es `simulador_datos` aunque el
-# repo se vuelva a clonar en otra carpeta: actualizar es traer el código y relanzar [R6 §13].
+# Todos los datos (la base y sus copias) quedan en la carpeta `datos/` del proyecto, montada en la
+# API y fuera de git [R6 §15]: actualizar es `git pull` y relanzar [R6 §13]. Ni `docker compose
+# down -v` la toca; borrar esa carpeta sí borra los tableros.
 # El puerto queda atado a 127.0.0.1: desde afuera se entra por `tailscale serve` [R6 §11].
+#
+# Variables opcionales: SIMULADOR_PUERTO (8080), SIMULADOR_DATOS (./datos) y SIMULADOR_UID /
+# SIMULADOR_GID (1000): la API corre con ese usuario, que debe ser el dueño de la carpeta.
 name: simulador
 
 x-endurecido: &endurecido
@@ -37,16 +41,14 @@ services:
       args:
         BUILD_ID: ${BUILD_ID:-local}
     image: simulador-api:latest
+    user: '${SIMULADOR_UID:-1000}:${SIMULADOR_GID:-1000}'
     volumes:
-      - datos:/data
+      - ${SIMULADOR_DATOS:-./datos}:/data
     tmpfs:
       - /tmp:size=16m
     mem_limit: 256m
     # Solo en la red interna: la API no tiene salida a internet.
     networks: [fondo]
-
-volumes:
-  datos:
 
 networks:
   frente: {}

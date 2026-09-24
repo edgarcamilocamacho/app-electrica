@@ -2,12 +2,13 @@
 /* global window -- se usa dentro de callbacks de page.evaluate, que corren en el navegador */
 /**
  * Prueba de humo sobre los contenedores reales (PLAN §16.3, §24.6), con `compose.yaml` en un
- * proyecto aparte (`simulador-humo`) que se borra al terminar, volumen incluido:
+ * proyecto aparte (`simulador-humo`) y una carpeta de datos temporal, que se borran al terminar:
  *   1. construye las imágenes con un BUILD_ID y levanta web + api en un puerto libre;
  *   2. verifica /healthz, version.json, la política de caché y las cabeceras de seguridad;
  *   3. verifica la API a través de nginx: cabecera propia, origen, Content-Type y tamaño;
  *   4. verifica el endurecimiento: usuarios sin root, solo lectura, API sin salida a internet;
- *   5. verifica que un tablero sobrevive a reconstruir y recrear los contenedores [R6 §13];
+ *   5. verifica que la base queda en la carpeta montada y que un tablero sobrevive a
+ *      `down -v` y a reconstruir los contenedores [R6 §13, §15];
  *   6. opcionalmente corre E2E contra los contenedores (--e2e);
  *   7. opcionalmente (--upgrade) cambia el build con la página abierta y verifica que el cliente
  *      lo detecta, recarga los assets nuevos y conserva el tablero.
@@ -15,7 +16,10 @@
  * Uso: node scripts/docker-smoke.mjs [--e2e] [--upgrade] [--keep]
  */
 import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const args = new Set(process.argv.slice(2));
 const project = process.env.SMOKE_PROJECT ?? 'simulador-humo';
@@ -34,12 +38,15 @@ function freePort() {
 
 const port = await freePort();
 const base = `http://127.0.0.1:${port}`;
+// Carpeta de datos propia de la prueba, del usuario que la corre (la API usa ese uid).
+const dataDir = mkdtempSync(join(tmpdir(), 'simulador-humo-'));
+const owner = { SIMULADOR_UID: String(process.getuid()), SIMULADOR_GID: String(process.getgid()) };
 
 function compose(composeArgs, { env = {}, quiet = false, allowFail = false } = {}) {
   const result = spawnSync('docker', ['compose', '-p', project, ...composeArgs], {
     stdio: quiet ? ['ignore', 'pipe', 'pipe'] : ['ignore', 'pipe', 'inherit'],
     encoding: 'utf8',
-    env: { ...process.env, SIMULADOR_PUERTO: String(port), BUILD_ID: buildId, ...env },
+    env: { ...process.env, SIMULADOR_PUERTO: String(port), SIMULADOR_DATOS: dataDir, ...owner, BUILD_ID: buildId, ...env },
   });
   if (result.status !== 0 && !allowFail) throw new Error(`docker compose ${composeArgs.join(' ')} falló`);
   return { status: result.status, out: (result.stdout ?? '').trim(), err: (result.stderr ?? '').trim() };
@@ -152,7 +159,7 @@ try {
   const docId = created.json?.id;
 
   console.log('Endurecimiento');
-  check(exec('api', ['id', '-u']).out === '1000', 'la API corre sin root (uid 1000)');
+  check(exec('api', ['id', '-u']).out === owner.SIMULADOR_UID, `la API corre sin root (uid ${owner.SIMULADOR_UID}, el dueño de la carpeta)`);
   check(exec('web', ['id', '-u']).out === '101', 'nginx corre sin root (uid 101)');
   check(exec('api', ['touch', '/app/intento']).status !== 0, 'el sistema de archivos de la API es de solo lectura');
   check(exec('web', ['touch', '/usr/share/nginx/html/intento']).status !== 0, 'el de nginx también');
@@ -165,13 +172,26 @@ try {
   check(egress.status === 1, 'la API no tiene salida a internet');
   check(exec('api', ['sh', '-c', 'command -v npm']).status !== 0, 'la imagen de la API no trae npm');
 
-  console.log('Actualizar conserva los tableros [R6 §13]');
-  compose(['up', '-d', '--build', '--force-recreate'], { env: { BUILD_ID: `${buildId}-b` }, quiet: true });
+  console.log('Los datos viven en la carpeta montada [R6 §13, §15]');
+  check(existsSync(join(dataDir, 'tableros.sqlite')), 'la base está en la carpeta de datos del host');
+  check(existsSync(join(dataDir, 'copias')), 'y sus copias también');
+  compose(['down', '-v'], { quiet: true });
+  check(existsSync(join(dataDir, 'tableros.sqlite')), '`docker compose down -v` no borra la carpeta de datos');
+  compose(['up', '-d', '--build'], { env: { BUILD_ID: `${buildId}-b` }, quiet: true });
   await waitFor(`${base}/api/docs`);
   const after = await api('GET', `/api/docs/${docId}`);
-  check(after.status === 200 && after.json?.name === 'Humo persistente', 'el tablero sigue después de recrear los contenedores');
+  check(after.status === 200 && after.json?.name === 'Humo persistente', 'el tablero sigue después de bajar y reconstruir todo');
   const newVersion = await (await fetch(`${base}/version.json`)).json();
   check(newVersion.buildId === `${buildId}-b`, 'y se sirve el build nuevo');
+  const stranger = compose(['run', '--rm', '--no-deps', 'api'], {
+    env: { SIMULADOR_UID: '4242', SIMULADOR_GID: '4242' },
+    quiet: true,
+    allowFail: true,
+  });
+  check(
+    stranger.status !== 0 && stranger.err.includes('No puedo escribir en /data'),
+    'con otro dueño de la carpeta, la API no arranca y lo dice claro',
+  );
 
   if (args.has('--e2e')) {
     console.log('Corriendo E2E contra los contenedores…');
@@ -212,8 +232,11 @@ try {
 } catch (e) {
   check(false, e instanceof Error ? e.message : String(e));
 } finally {
-  if (args.has('--keep')) console.log(`Quedó levantado en ${base} (docker compose -p ${project} down -v para borrarlo).`);
-  else compose(['down', '-v', '--remove-orphans'], { quiet: true, allowFail: true });
+  if (args.has('--keep')) console.log(`Quedó levantado en ${base}, con los datos en ${dataDir} (docker compose -p ${project} down para bajarlo).`);
+  else {
+    compose(['down', '-v', '--remove-orphans'], { quiet: true, allowFail: true });
+    rmSync(dataDir, { recursive: true, force: true });
+  }
 }
 
 if (failures.length) {

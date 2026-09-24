@@ -9,12 +9,32 @@
  *
  * `node server.js backup` deja una copia de la base en DATA_DIR/copias y termina.
  */
+import { accessSync, constants } from 'node:fs';
 import { createServer } from 'node:http';
 import { createBackend } from './backend';
 
 const env = process.env;
+const dataDir = env.DATA_DIR ?? '/data';
+
+// La carpeta de datos viene montada desde el host [R6 §15]: si su dueño no es el usuario con el
+// que corre la API, SQLite fallaría con un mensaje críptico. Mejor decirlo claro.
+if (dataDir !== ':memory:') {
+  try {
+    accessSync(dataDir, constants.W_OK);
+  } catch {
+    const uid = process.getuid?.() ?? '?';
+    const gid = process.getgid?.() ?? '?';
+    console.error(
+      `[api] No puedo escribir en ${dataDir}. En el host, la carpeta de datos tiene que ser del usuario ${uid}:${gid}:\n` +
+        `        sudo chown -R ${uid}:${gid} datos\n` +
+        '      o indicar el dueño real con SIMULADOR_UID y SIMULADOR_GID.',
+    );
+    process.exit(1);
+  }
+}
+
 const backend = createBackend({
-  dataDir: env.DATA_DIR ?? '/data',
+  dataDir,
   identityHeader: env.IDENTITY_HEADER === undefined ? 'tailscale-user-name' : env.IDENTITY_HEADER || null,
   backupKeep: Number(env.BACKUP_KEEP ?? 14),
 });

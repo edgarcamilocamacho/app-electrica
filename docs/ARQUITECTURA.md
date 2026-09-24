@@ -95,7 +95,8 @@ Simular → cero diagnósticos bloqueantes → new BoardSimEngine(doc) → start
 - `Dockerfile`: una etapa compila cliente y API con Node 24; de ahí salen dos imágenes. `api`: Node
   24 sin npm, un solo `server.js`, usuario `node`, datos en `/data`. `web` (la última, la de
   `docker build .`): nginx sin privilegios en el puerto 8080.
-- `compose.yaml`: proyecto fijo `simulador`, volumen `simulador_datos`, puerto atado a `127.0.0.1`,
+- `compose.yaml`: proyecto fijo `simulador`, datos en la carpeta `datos/` del proyecto montada en
+  `/data` (la API corre con `SIMULADOR_UID`, 1000 por defecto), puerto atado a `127.0.0.1`,
   los dos servicios con `read_only`, `cap_drop: ALL`, `no-new-privileges` y límites de memoria y
   procesos; la API solo en la red `fondo` (`internal: true`), sin salida a internet.
 - `deploy/nginx.conf`: `no-store` para `/`, `index.html`, `version.json` y `/healthz`; `immutable` para

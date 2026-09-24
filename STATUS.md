@@ -2,7 +2,7 @@
 
 > Documento vivo: completado · en curso · tests fallando · limitaciones · decisiones abiertas.
 > Se actualiza al cerrar cada tanda de trabajo (ver [CLAUDE.md](CLAUDE.md)).
-> Última actualización: 2026-09-23.
+> Última actualización: 2026-09-24.
 
 ## Resumen
 
@@ -35,7 +35,7 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 | R5.2 | Giro de aparatos de a 90° (`R`), con los cables reacomodándose y las marcaciones siempre derechas; zócalo de 11 pines con la disposición real de sus tornillos (bornes también en los costados) |
 | R6/C1–C2 | Reglas de los tableros en `src/core/cloud` (nombres únicos, turno, versiones, papelera, límites) y API en `server/` sobre `node:sqlite`, montada también en `pnpm dev` y `pnpm preview` |
 | R6/C3–C4 | Controlador de sincronización, solo lectura en la tienda, barra de tableros, título con estado del guardado, franja de solo lectura con «Editar», importar y exportar JSON |
-| R6/C5 | Contenedores `web` + `api` endurecidos, volumen `simulador_datos` con nombre fijo, humo que verifica API, endurecimiento y persistencia |
+| R6/C5 | Contenedores `web` + `api` endurecidos, datos en la carpeta `datos/` del proyecto (montada, fuera de git) [R6 §15], humo que verifica API, endurecimiento y que los datos sobreviven a `down -v` |
 | R5.1 | Pasada de interfaz y dibujo: cableado ortogonal con motivo de rechazo, propiedades del cable seleccionado, selección por rectángulo, zócalo de relé real, marcaciones de borne, rótulos con halo, carátula del temporizador, funda del cable en los cruces y «Involucrados» en el cartel de ERROR |
 
 ## En curso
