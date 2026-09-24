@@ -6,9 +6,10 @@
 
 ## Resumen
 
-**Versión 1.1.1** (tag `v1.1.1`): sin corte en los cruces entre cables de la misma red. La 1.1.0
-agregó que quede a la vista el cable más grueso y el temporizador mixto (R7); la 1.0.0, la vista de
-tablero de R5 y los tableros en el servidor de R6.
+**Versión 1.2.0** (tag `v1.2.0`): el esquema interno de los aparatos se ilumina del color de sus
+cables y los conductores llegan hasta el tornillo. La 1.1.1 quitó el corte en los cruces entre
+cables de la misma red; la 1.1.0 agregó que quede a la vista el cable más grueso y el temporizador
+mixto (R7); la 1.0.0, la vista de tablero de R5 y los tableros en el servidor de R6.
 
 **Tableros en el servidor (ronda R6) implementados, salvo el despliegue con Tailscale (C6).** Lista
 compartida a la izquierda, guardado automático, un editor a la vez con «Editar» para tomar el turno,
@@ -40,7 +41,7 @@ código. Reglas vigentes en [docs/DECISIONES.md](docs/DECISIONES.md); diseño y 
 | R6/C1–C2 | Reglas de los tableros en `src/core/cloud` (nombres únicos, turno, versiones, papelera, límites) y API en `server/` sobre `node:sqlite`, montada también en `pnpm dev` y `pnpm preview` |
 | R6/C3–C4 | Controlador de sincronización, solo lectura en la tienda, barra de tableros, título con estado del guardado, franja de solo lectura con «Editar», importar y exportar JSON |
 | R6/C5 | Contenedores `web` + `api` endurecidos, datos en la carpeta `datos/` del proyecto (montada, fuera de git) [R6 §15], humo que verifica API, endurecimiento y que los datos sobreviven a `down -v` |
-| R7 | Cables superpuestos: queda a la vista y se elige el más grueso. Temporizador mixto (polo 8-6-5 TON, polo 1-3-4 instantáneo). Sin corte en los cruces entre cables de la misma red. El esquema interno de todos los aparatos se ilumina del color de sus cables y los conductores llegan hasta el tornillo (todavía sin versión: en revisión) |
+| R7 | Cables superpuestos: queda a la vista y se elige el más grueso. Temporizador mixto (polo 8-6-5 TON, polo 1-3-4 instantáneo). Sin corte en los cruces entre cables de la misma red. El esquema interno de todos los aparatos se ilumina del color de sus cables y los conductores llegan hasta el tornillo |
 | R5.1 | Pasada de interfaz y dibujo: cableado ortogonal con motivo de rechazo, propiedades del cable seleccionado, selección por rectángulo, zócalo de relé real, marcaciones de borne, rótulos con halo, carátula del temporizador, funda del cable en los cruces y «Involucrados» en el cartel de ERROR |
 
 ## En curso
