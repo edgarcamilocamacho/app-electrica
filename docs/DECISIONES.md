@@ -71,6 +71,7 @@ este documento difiere de [electrical_control_simulator_spec.md](../electrical_c
 | Dos aparatos no pueden superponerse | R5 §1 |
 | Cada cable tiene **color** (paleta fija) y uno de **tres calibres**. Se eligen en la herramienta Cable, que recuerda lo último usado, y se cambian después en Propiedades | R5 §3, R5 §5 |
 | Donde dos cables se **superponen**, queda a la vista **el más grueso**, sin importar cuál se hizo primero; un clic ahí lo elige a él | R7 §1 |
+| El pequeño corte que marca un cruce (la «funda» del cable de arriba) aparece **solo entre cables de redes distintas**: dos cables de la misma red se cruzan o se tocan sin corte | R7 §3 |
 | En reposo el cable se ve con su color, un poco oscuro; **al quedar energizado se ilumina y proyecta un brillo de su mismo color**, tanto si lleva fase como si lleva neutro | R5 §3 |
 | Borrar un cable lo borra **entero**. Borrar un aparato borra también los cables que llegan a sus bornes | R5 §4 |
 

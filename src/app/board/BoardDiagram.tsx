@@ -4,8 +4,8 @@
  */
 import { memo, useMemo, type ReactElement } from 'react';
 import type { BoardDocument, Wire } from '../../core/board/model';
-import { terminalOf, wireCountByTerminal, wiresBottomToTop } from '../../core/board/model';
-import { computeNets } from '../../core/board/nets';
+import { terminalOf, wireCountByTerminal } from '../../core/board/model';
+import { computeNets, wireLayers } from '../../core/board/nets';
 import type { DeviceDefinition, DeviceRegistry } from '../../core/board/registry';
 import type { NetPotential, SimSnapshot } from '../../core/board/sim/engine';
 import { wireRoute } from '../../core/board/wireGeometry';
@@ -35,47 +35,47 @@ export interface BoardDiagramProps {
 const pathOf = (points: readonly { x: number; y: number }[]): string =>
   points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join('');
 
-function WireArt({
-  wire,
-  points,
-  potential,
-  selected,
-  invalid,
-  background,
-}: {
-  wire: Wire;
-  points: readonly { x: number; y: number }[];
-  potential: NetPotential | undefined;
-  selected: boolean;
-  invalid: boolean;
-  background: string;
-}): ReactElement {
-  const tone = WIRE_TONES[wire.color];
-  const width = WIRE_WIDTH[wire.gauge];
-  const d = pathOf(points);
-  const short = potential?.kind === 'short';
-  const live = potential?.kind === 'line' || potential?.kind === 'neutral';
-  const stroke = invalid ? P.invalid : short ? P.short : live ? tone.on : tone.off;
+/** Un cable ya resuelto para dibujar: su recorrido y su estado. */
+interface WireDrawing {
+  readonly wire: Wire;
+  readonly d: string;
+  readonly points: readonly { x: number; y: number }[];
+  readonly width: number;
+  readonly stroke: string;
+  readonly live: boolean;
+  readonly short: boolean;
+  readonly glow: string;
+  readonly selected: boolean;
+}
+
+/**
+ * Los cables de una misma red, en pasadas: halos de selección, fundas, brillos y, al final, los
+ * conductores. Como todas las fundas de la red van debajo de todos sus conductores, dos cables de
+ * la misma red se cruzan o se superponen sin corte [R7 §3]; la funda sigue cortando a los cables de
+ * las redes que quedaron debajo, que es lo que muestra que ahí no hay conexión.
+ */
+function WireLayer({ wires, background }: { wires: readonly WireDrawing[]; background: string }): ReactElement {
+  const round = { fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
   return (
-    <g data-wire={wire.id} data-live={live ? 'true' : 'false'}>
-      {selected && <path d={d} fill="none" stroke={P.selectionHalo} strokeWidth={width + 0.7} strokeLinecap="round" strokeLinejoin="round" />}
-      {/* Funda: separa el cable de lo que pasa por debajo. */}
-      <path d={d} fill="none" stroke={background} strokeWidth={width + 0.34} strokeLinecap="round" strokeLinejoin="round" />
-      {live && !short && (
-        <path d={d} fill="none" stroke={tone.glow} strokeWidth={width + 0.55} strokeLinecap="round" strokeLinejoin="round" />
+    <g>
+      {wires.map((w) =>
+        w.selected ? <path key={`halo-${w.wire.id}`} d={w.d} {...round} stroke={P.selectionHalo} strokeWidth={w.width + 0.7} /> : null,
       )}
-      <path
-        d={d}
-        fill="none"
-        stroke={stroke}
-        strokeWidth={width}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        {...(short ? { strokeDasharray: '0.6 0.4' } : {})}
-      />
-      {/* Punta suelta: círculo abierto rojo hasta que se conecte a un borne [R5 §17]. */}
-      {wire.a.kind === 'free' && <LooseEnd at={points[0]!} />}
-      {wire.b.kind === 'free' && <LooseEnd at={points[points.length - 1]!} />}
+      {/* Funda: separa la red de lo que pasa por debajo. */}
+      {wires.map((w) => (
+        <path key={`sleeve-${w.wire.id}`} data-part="sleeve" d={w.d} {...round} stroke={background} strokeWidth={w.width + 0.34} />
+      ))}
+      {wires.map((w) =>
+        w.live && !w.short ? <path key={`glow-${w.wire.id}`} d={w.d} {...round} stroke={w.glow} strokeWidth={w.width + 0.55} /> : null,
+      )}
+      {wires.map((w) => (
+        <g key={w.wire.id} data-wire={w.wire.id} data-live={w.live ? 'true' : 'false'}>
+          <path d={w.d} {...round} stroke={w.stroke} strokeWidth={w.width} {...(w.short ? { strokeDasharray: '0.6 0.4' } : {})} />
+          {/* Punta suelta: círculo abierto rojo hasta que se conecte a un borne [R5 §17]. */}
+          {w.wire.a.kind === 'free' && <LooseEnd at={w.points[0]!} />}
+          {w.wire.b.kind === 'free' && <LooseEnd at={w.points[w.points.length - 1]!} />}
+        </g>
+      ))}
     </g>
   );
 }
@@ -102,9 +102,29 @@ function BoardDiagramInner({
   const counts = useMemo(() => wireCountByTerminal(doc), [doc]);
   const invalidSet = useMemo(() => new Set(invalid ?? []), [invalid]);
   const faultSet = useMemo(() => new Set(fault ?? []), [fault]);
+  const layers = useMemo(() => wireLayers(doc, nets), [doc, nets]);
   const wireNet = (wire: Wire): string | undefined => {
     const ref = terminalOf(wire.a) ?? terminalOf(wire.b);
     return ref ? nets.netOf(ref) : undefined;
+  };
+  const drawing = (wire: Wire): WireDrawing => {
+    const points = wireRoute(doc, registry, wire);
+    const net = wireNet(wire);
+    const potential: NetPotential | undefined = net ? sim?.netPotentials.get(net) : undefined;
+    const tone = WIRE_TONES[wire.color];
+    const short = potential?.kind === 'short';
+    const live = potential?.kind === 'line' || potential?.kind === 'neutral';
+    return {
+      wire,
+      d: pathOf(points),
+      points,
+      width: WIRE_WIDTH[wire.gauge],
+      stroke: invalidSet.has(wire.id) ? P.invalid : short ? P.short : live ? tone.on : tone.off,
+      live,
+      short,
+      glow: tone.glow,
+      selected: selected?.has(wire.id) ?? false,
+    };
   };
 
   const devices = Object.values(doc.devices).map((device) => ({ device, def: registry.get(device.type) }));
@@ -139,17 +159,9 @@ function BoardDiagramInner({
         ) : null,
       )}
 
-      {/* Los más gruesos encima: donde se superponen, queda a la vista el grueso [R7 §1]. */}
-      {wiresBottomToTop(doc).map((wire) => (
-        <WireArt
-          key={wire.id}
-          wire={wire}
-          points={wireRoute(doc, registry, wire)}
-          potential={wireNet(wire) ? sim?.netPotentials.get(wireNet(wire)!) : undefined}
-          selected={selected?.has(wire.id) ?? false}
-          invalid={invalidSet.has(wire.id)}
-          background={background}
-        />
+      {/* Una capa por red; los más gruesos encima [R7 §1], sin corte dentro de una red [R7 §3]. */}
+      {layers.map((layer) => (
+        <WireLayer key={layer[0]!.id} wires={layer.map(drawing)} background={background} />
       ))}
 
       {/* Tornillos, marcaciones y marcas de inválido: encima de los cables. */}

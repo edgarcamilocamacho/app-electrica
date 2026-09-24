@@ -4,8 +4,8 @@
  */
 import { UnionFind } from '../connectivity/unionFind';
 import type { Id } from '../model/types';
-import type { BoardDocument, TerminalRef } from './model';
-import { terminalKey, terminalOf } from './model';
+import type { BoardDocument, TerminalRef, Wire } from './model';
+import { terminalKey, terminalOf, wiresBottomToTop } from './model';
 import type { DeviceRegistry } from './registry';
 
 export type NetId = string;
@@ -80,4 +80,28 @@ export function connectedTerminals(doc: BoardDocument, deviceId: Id): readonly T
     }
   }
   return out;
+}
+
+/**
+ * Capas de dibujo de los cables: una por red, de abajo hacia arriba. Dentro de una capa los cables
+ * van del más fino al más grueso [R7 §1]. Una capa queda encima de otra si su cable más grueso va
+ * encima; a igual calibre, manda el orden del documento.
+ *
+ * La funda que separa un cable de lo que pasa por debajo se dibuja por capa: corta a los cables de
+ * otras redes, pero no a los de la suya, que se tocan sin corte [R7 §3]. Un cable con las dos
+ * puntas sueltas es su propia capa.
+ */
+export function wireLayers(doc: BoardDocument, nets: NetIndex): readonly (readonly Wire[])[] {
+  const ordered = wiresBottomToTop(doc);
+  const layers = new Map<string, Wire[]>();
+  for (const wire of ordered) {
+    const ref = terminalOf(wire.a) ?? terminalOf(wire.b);
+    const key = ref ? `net:${nets.netOf(ref)}` : `wire:${wire.id}`;
+    const layer = layers.get(key);
+    if (layer) layer.push(wire);
+    else layers.set(key, [wire]);
+  }
+  const position = new Map(ordered.map((wire, i) => [wire.id, i]));
+  const top = (layer: readonly Wire[]): number => position.get(layer[layer.length - 1]!.id)!;
+  return [...layers.values()].sort((a, b) => top(a) - top(b));
 }

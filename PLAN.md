@@ -146,9 +146,11 @@ Diseño e hitos: §24.
 |---|---|
 | R7 §1 | Donde dos cables de distinto calibre se superponen, **queda el más grueso** |
 | R7 §2 | **Temporizador mixto**: en la base de 8 pines, el polo 8-5-6 funciona como TON y el 1-3-4 como un relé normal |
+| R7 §3 | El corte en los cruces **no aparece entre cables de la misma red** |
 
 Implementación: los cables se dibujan y se eligen del más fino al más grueso
-(`wiresBottomToTop`). El mixto es una base de 8 pines con dos actuadores sobre la misma bobina, uno
+(`wiresBottomToTop`), agrupados en una capa por red (`wireLayers`): dentro de una capa van primero
+todas las fundas y después todos los conductores, así la funda solo corta a las redes de abajo. El mixto es una base de 8 pines con dos actuadores sobre la misma bobina, uno
 temporizado y uno instantáneo; el motor ya admitía varios actuadores por aparato.
 
 ---
