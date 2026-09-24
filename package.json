@@ -1,7 +1,7 @@
 {
   "name": "simulador-control-electrico",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Editor y simulador de circuitos de control eléctrico, con los tableros guardados en el servidor.",
   "type": "module",
   "packageManager": "pnpm@12.5.1",

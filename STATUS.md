@@ -6,8 +6,9 @@
 
 ## Resumen
 
-**Versión 1.1.0** (tag `v1.1.0`): la 1.0.0 (tag `v1.0.0`: vista de tablero de R5 y tableros en el
-servidor de R6) más R7: queda a la vista el cable más grueso y el temporizador mixto.
+**Versión 1.1.1** (tag `v1.1.1`): sin corte en los cruces entre cables de la misma red. La 1.1.0
+agregó que quede a la vista el cable más grueso y el temporizador mixto (R7); la 1.0.0, la vista de
+tablero de R5 y los tableros en el servidor de R6.
 
 **Tableros en el servidor (ronda R6) implementados, salvo el despliegue con Tailscale (C6).** Lista
 compartida a la izquierda, guardado automático, un editor a la vez con «Editar» para tomar el turno,
