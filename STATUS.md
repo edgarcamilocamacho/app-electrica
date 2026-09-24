@@ -6,7 +6,8 @@
 
 ## Resumen
 
-**Versión 1.0.0** (tag `v1.0.0`): la vista de tablero de R5 más los tableros en el servidor de R6.
+**Versión 1.1.0** (tag `v1.1.0`): la 1.0.0 (tag `v1.0.0`: vista de tablero de R5 y tableros en el
+servidor de R6) más R7: queda a la vista el cable más grueso y el temporizador mixto.
 
 **Tableros en el servidor (ronda R6) implementados, salvo el despliegue con Tailscale (C6).** Lista
 compartida a la izquierda, guardado automático, un editor a la vez con «Editar» para tomar el turno,
